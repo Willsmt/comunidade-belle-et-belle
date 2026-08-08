@@ -1,5 +1,6 @@
 import { obterDesafioAtivoParaCliente } from "./queries";
 import { alternarMarcacao } from "./actions";
+import { RankingToggle } from "./ranking-toggle";
 
 export default async function DesafiosClientePage() {
   const resultado = await obterDesafioAtivoParaCliente();
@@ -13,12 +14,18 @@ export default async function DesafiosClientePage() {
     );
   }
 
-  const { desafio, itensMarcadosHoje } = resultado;
+  const { desafio, itensMarcadosHoje, rankingSemanal, rankingGeral, clienteId } = resultado;
 
   return (
     <section>
       <h1>{desafio.titulo}</h1>
       {desafio.fraseMotivacional && <p>{desafio.fraseMotivacional}</p>}
+
+      <RankingToggle
+        rankingSemanal={rankingSemanal}
+        rankingGeral={rankingGeral}
+        clienteId={clienteId}
+      />
 
       {desafio.categorias.length === 0 ? (
         <p>Esse desafio ainda não tem categorias.</p>

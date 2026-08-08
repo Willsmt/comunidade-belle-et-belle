@@ -42,10 +42,17 @@ describe("obterDesafioAtivoParaCliente", () => {
     expect(mockFindMany).not.toHaveBeenCalled();
   });
 
-  it("busca o desafio ativo com categorias e itens, e as marcações de hoje do cliente", async () => {
+  it("busca o desafio ativo com categorias/itens, marcações de hoje e os dois rankings", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockFindFirst.mockResolvedValue({ id: "d1", categorias: [] });
-    mockFindMany.mockResolvedValue([{ itemId: "i1" }, { itemId: "i2" }]);
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([{ itemId: "i1" }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
     const resultado = await obterDesafioAtivoParaCliente();
 
@@ -60,14 +67,46 @@ describe("obterDesafioAtivoParaCliente", () => {
         },
       },
     });
-    expect(mockFindMany).toHaveBeenCalledWith({
-      where: {
-        clienteId: "cliente-1",
-        data: expect.any(Date),
-        item: { categoria: { desafioId: "d1" } },
-      },
-      select: { itemId: true },
+    expect(resultado?.itensMarcadosHoje).toEqual(new Set(["i1"]));
+    expect(resultado?.rankingSemanal).toEqual([]);
+    expect(resultado?.rankingGeral).toEqual([]);
+    expect(resultado?.clienteId).toBe("cliente-1");
+  });
+
+  it("soma os pontos por cliente e ordena o ranking do maior pro menor", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
     });
-    expect(resultado?.itensMarcadosHoje).toEqual(new Set(["i1", "i2"]));
+    const marcacoesComPontos = [
+      {
+        clienteId: "cliente-1",
+        item: { pontos: 5 },
+        cliente: { id: "cliente-1", name: "Você", email: "voce@x.com" },
+      },
+      {
+        clienteId: "cliente-2",
+        item: { pontos: 10 },
+        cliente: { id: "cliente-2", name: "Marina", email: "marina@x.com" },
+      },
+      {
+        clienteId: "cliente-1",
+        item: { pontos: 3 },
+        cliente: { id: "cliente-1", name: "Você", email: "voce@x.com" },
+      },
+    ];
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(marcacoesComPontos)
+      .mockResolvedValueOnce(marcacoesComPontos);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.rankingSemanal).toEqual([
+      { clienteId: "cliente-2", nome: "Marina", pontos: 10 },
+      { clienteId: "cliente-1", nome: "Você", pontos: 8 },
+    ]);
   });
 });

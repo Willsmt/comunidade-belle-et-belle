@@ -21,7 +21,7 @@ describe("DesafiosClientePage", () => {
     expect(screen.getByText(/nenhum desafio ativo/i)).toBeInTheDocument();
   });
 
-  it("renderiza o desafio com categorias e itens, marcando os já feitos hoje", async () => {
+  it("renderiza o desafio com categorias, itens e o ranking", async () => {
     vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
       desafio: {
         id: "d1",
@@ -40,6 +40,9 @@ describe("DesafiosClientePage", () => {
         ],
       },
       itensMarcadosHoje: new Set(["i1"]),
+      rankingSemanal: [{ clienteId: "cliente-1", nome: "Você", pontos: 8 }],
+      rankingGeral: [{ clienteId: "cliente-1", nome: "Você", pontos: 20 }],
+      clienteId: "cliente-1",
     } as never);
 
     render(await DesafiosClientePage());
@@ -49,5 +52,7 @@ describe("DesafiosClientePage", () => {
     expect(screen.getByText("Hidratar")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /✓ marcado/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^marcar$/i })).toBeInTheDocument();
+    expect(screen.getByText("Você")).toBeInTheDocument();
+    expect(screen.getByText("8 pts")).toBeInTheDocument();
   });
 });
