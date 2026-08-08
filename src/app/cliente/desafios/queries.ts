@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { obterDataDeHoje } from "@/lib/hoje";
+import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
 
 function calcularSemanaAtual(dataInicio: Date, hoje: Date) {
   const diffDias = Math.floor(
@@ -75,7 +76,7 @@ export async function obterDesafioAtivoParaCliente() {
   const hoje = obterDataDeHoje();
   const { inicioSemana, fimSemana } = calcularSemanaAtual(desafio.dataInicio, hoje);
 
-  const [marcacoesHoje, rankingSemanal, rankingGeral] = await Promise.all([
+  const [marcacoesHoje, rankingSemanal, rankingGeral, jornada] = await Promise.all([
     prisma.marcacaoItem.findMany({
       where: {
         clienteId: session.user.id,
@@ -86,7 +87,19 @@ export async function obterDesafioAtivoParaCliente() {
     }),
     calcularRanking(desafio.id, inicioSemana, fimSemana),
     calcularRanking(desafio.id),
+    prisma.jornadaDesafio.findUnique({
+      where: {
+        desafioId_clienteId: { desafioId: desafio.id, clienteId: session.user.id },
+      },
+    }),
   ]);
+
+  const fotoAntesUrl = jornada?.fotoAntesChave
+    ? await gerarUrlAssinada(jornada.fotoAntesChave)
+    : null;
+  const fotoDepoisUrl = jornada?.fotoDepoisChave
+    ? await gerarUrlAssinada(jornada.fotoDepoisChave)
+    : null;
 
   return {
     desafio,
@@ -94,5 +107,7 @@ export async function obterDesafioAtivoParaCliente() {
     rankingSemanal,
     rankingGeral,
     clienteId: session.user.id,
+    fotoAntesUrl,
+    fotoDepoisUrl,
   };
 }

@@ -65,6 +65,7 @@ model User {
   marcacoes             MarcacaoItem[]
   participacoesSurpresa ParticipacaoSurpresa[]
   conquistas            Conquista[]
+  jornadasDesafio       JornadaDesafio[]
   @@index([status])
 }
 model UsuarioPapel {
@@ -187,6 +188,7 @@ model Desafio {
   regrasBonus             RegraBonus[]
   desafiosSurpresa        DesafioSurpresa[]
   conquistas              Conquista[]
+  jornadas                JornadaDesafio[]
   emblemaRankingSemanal   Emblema? @relation("EmblemaRankingSemanal", fields: [emblemaRankingSemanalId], references: [id])
   emblemaRankingSemanalId String?
   emblemaRankingGeral     Emblema? @relation("EmblemaRankingGeral", fields: [emblemaRankingGeralId], references: [id])
@@ -288,4 +290,20 @@ model Conquista {
   criadoEm   DateTime      @default(now())
   @@index([clienteId])
   @@index([desafioId])
+}
+model JornadaDesafio {
+  id                     String   @id @default(cuid())
+  desafio                Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId              String
+  cliente                User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId              String
+  fotoAntesChave         String?
+  fotoDepoisChave        String?
+  reflexaoMudou          String?
+  reflexaoOrgulho        String?
+  reflexaoContinuar      String?
+  avisoEncerramentoVisto Boolean  @default(false)
+  criadoEm               DateTime @default(now())
+  atualizadoEm           DateTime @updatedAt
+  @@unique([desafioId, clienteId])
 }

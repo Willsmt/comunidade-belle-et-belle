@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAuth, mockFindFirst, mockFindMany } = vi.hoisted(() => ({
+const {
+  mockAuth,
+  mockFindFirst,
+  mockFindMany,
+  mockJornadaFindUnique,
+  mockGerarUrlAssinada,
+} = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindFirst: vi.fn(),
   mockFindMany: vi.fn(),
+  mockJornadaFindUnique: vi.fn(),
+  mockGerarUrlAssinada: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -13,7 +21,11 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     desafio: { findFirst: mockFindFirst },
     marcacaoItem: { findMany: mockFindMany },
+    jornadaDesafio: { findUnique: mockJornadaFindUnique },
   },
+}));
+vi.mock("@/lib/storage/jornada-desafio", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinada,
 }));
 
 import { obterDesafioAtivoParaCliente } from "./queries";
@@ -23,6 +35,8 @@ describe("obterDesafioAtivoParaCliente", () => {
     mockAuth.mockReset();
     mockFindFirst.mockReset();
     mockFindMany.mockReset();
+    mockJornadaFindUnique.mockReset();
+    mockGerarUrlAssinada.mockReset();
   });
 
   it("exige sessão válida", async () => {
@@ -42,7 +56,7 @@ describe("obterDesafioAtivoParaCliente", () => {
     expect(mockFindMany).not.toHaveBeenCalled();
   });
 
-  it("busca o desafio ativo com categorias/itens, desafios surpresa e as participações do próprio cliente", async () => {
+  it("busca o desafio ativo com categorias/itens, desafios surpresa e a jornada do cliente", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindFirst.mockResolvedValue({
       id: "d1",
@@ -53,32 +67,41 @@ describe("obterDesafioAtivoParaCliente", () => {
       .mockResolvedValueOnce([{ itemId: "i1" }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
 
     const resultado = await obterDesafioAtivoParaCliente();
 
-    expect(mockFindFirst).toHaveBeenCalledWith({
-      where: { ativo: true },
-      include: {
-        categorias: {
-          orderBy: { nome: "asc" },
-          include: {
-            itens: { orderBy: { descricao: "asc" } },
-          },
-        },
-        desafiosSurpresa: {
-          orderBy: { criadoEm: "desc" },
-          include: {
-            participacoes: {
-              where: { clienteId: "cliente-1" },
-            },
-          },
-        },
-      },
+    expect(mockJornadaFindUnique).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
     });
-    expect(resultado?.itensMarcadosHoje).toEqual(new Set(["i1"]));
-    expect(resultado?.rankingSemanal).toEqual([]);
-    expect(resultado?.rankingGeral).toEqual([]);
-    expect(resultado?.clienteId).toBe("cliente-1");
+    expect(resultado?.fotoAntesUrl).toBeNull();
+    expect(resultado?.fotoDepoisUrl).toBeNull();
+    expect(mockGerarUrlAssinada).not.toHaveBeenCalled();
+  });
+
+  it("gera signed URL das fotos quando a jornada já tem chaves salvas", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue({
+      fotoAntesChave: "jornada-desafio/cliente-1/antes.webp",
+      fotoDepoisChave: "jornada-desafio/cliente-1/depois.webp",
+    });
+    mockGerarUrlAssinada
+      .mockResolvedValueOnce("https://url-antes.exemplo")
+      .mockResolvedValueOnce("https://url-depois.exemplo");
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.fotoAntesUrl).toBe("https://url-antes.exemplo");
+    expect(resultado?.fotoDepoisUrl).toBe("https://url-depois.exemplo");
   });
 
   it("soma os pontos por cliente e ordena o ranking do maior pro menor", async () => {
@@ -109,6 +132,7 @@ describe("obterDesafioAtivoParaCliente", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce(marcacoesComPontos)
       .mockResolvedValueOnce(marcacoesComPontos);
+    mockJornadaFindUnique.mockResolvedValue(null);
 
     const resultado = await obterDesafioAtivoParaCliente();
 

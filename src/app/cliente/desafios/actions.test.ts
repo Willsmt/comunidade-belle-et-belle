@@ -10,6 +10,11 @@ const {
   mockParticipacaoFindUnique,
   mockParticipacaoCreate,
   mockUploadComprovante,
+  mockDesafioFindFirst,
+  mockJornadaFindUnique,
+  mockJornadaUpsert,
+  mockUploadFotoJornada,
+  mockDeletarFotoJornada,
   mockVerificarConquistasBonus,
   mockVerificarConquistasRankingSemanal,
   mockRevalidatePath,
@@ -23,6 +28,11 @@ const {
   mockParticipacaoFindUnique: vi.fn(),
   mockParticipacaoCreate: vi.fn(),
   mockUploadComprovante: vi.fn(),
+  mockDesafioFindFirst: vi.fn(),
+  mockJornadaFindUnique: vi.fn(),
+  mockJornadaUpsert: vi.fn(),
+  mockUploadFotoJornada: vi.fn(),
+  mockDeletarFotoJornada: vi.fn(),
   mockVerificarConquistasBonus: vi.fn(),
   mockVerificarConquistasRankingSemanal: vi.fn(),
   mockRevalidatePath: vi.fn(),
@@ -44,10 +54,16 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mockParticipacaoFindUnique,
       create: mockParticipacaoCreate,
     },
+    desafio: { findFirst: mockDesafioFindFirst },
+    jornadaDesafio: { findUnique: mockJornadaFindUnique, upsert: mockJornadaUpsert },
   },
 }));
 vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
   uploadComprovante: mockUploadComprovante,
+}));
+vi.mock("@/lib/storage/jornada-desafio", () => ({
+  uploadFotoJornada: mockUploadFotoJornada,
+  deletarFotoJornada: mockDeletarFotoJornada,
 }));
 vi.mock("@/lib/desafios/conquistas", () => ({
   verificarConquistasBonus: mockVerificarConquistasBonus,
@@ -55,7 +71,12 @@ vi.mock("@/lib/desafios/conquistas", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
-import { alternarMarcacao, participarDesafioSurpresa } from "./actions";
+import {
+  alternarMarcacao,
+  participarDesafioSurpresa,
+  enviarFotoAntes,
+  enviarFotoDepois,
+} from "./actions";
 
 describe("alternarMarcacao", () => {
   beforeEach(() => {
@@ -127,10 +148,10 @@ describe("alternarMarcacao", () => {
   });
 });
 
-function buildFormDataComArquivo(arquivo?: File) {
+function buildFormDataComArquivo(campo: string, arquivo?: File) {
   const formData = new FormData();
   if (arquivo) {
-    formData.set("comprovacao", arquivo);
+    formData.set(campo, arquivo);
   }
   return formData;
 }
@@ -149,7 +170,7 @@ describe("participarDesafioSurpresa", () => {
     mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
 
     await expect(
-      participarDesafioSurpresa("s1", buildFormDataComArquivo()),
+      participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao")),
     ).rejects.toThrow("Acesso negado");
     expect(mockSurpresaFindUniqueOrThrow).not.toHaveBeenCalled();
   });
@@ -163,7 +184,7 @@ describe("participarDesafioSurpresa", () => {
     mockParticipacaoFindUnique.mockResolvedValue({ id: "p1" });
 
     await expect(
-      participarDesafioSurpresa("s1", buildFormDataComArquivo()),
+      participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao")),
     ).rejects.toThrow("Você já participou desse desafio surpresa");
     expect(mockParticipacaoCreate).not.toHaveBeenCalled();
   });
@@ -177,7 +198,7 @@ describe("participarDesafioSurpresa", () => {
     mockParticipacaoFindUnique.mockResolvedValue(null);
 
     await expect(
-      participarDesafioSurpresa("s1", buildFormDataComArquivo()),
+      participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao")),
     ).rejects.toThrow("Envie a foto de comprovação");
     expect(mockUploadComprovante).not.toHaveBeenCalled();
     expect(mockParticipacaoCreate).not.toHaveBeenCalled();
@@ -192,7 +213,7 @@ describe("participarDesafioSurpresa", () => {
     mockParticipacaoFindUnique.mockResolvedValue(null);
     mockParticipacaoCreate.mockResolvedValue({});
 
-    await participarDesafioSurpresa("s1", buildFormDataComArquivo());
+    await participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao"));
 
     expect(mockUploadComprovante).not.toHaveBeenCalled();
     expect(mockParticipacaoCreate).toHaveBeenCalledWith({
@@ -213,7 +234,7 @@ describe("participarDesafioSurpresa", () => {
 
     const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
 
-    await participarDesafioSurpresa("s1", buildFormDataComArquivo(arquivo));
+    await participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao", arquivo));
 
     expect(mockUploadComprovante).toHaveBeenCalledWith(arquivo, "cliente-1");
     expect(mockParticipacaoCreate).toHaveBeenCalledWith({
@@ -223,5 +244,138 @@ describe("participarDesafioSurpresa", () => {
         fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
       },
     });
+  });
+});
+
+describe("enviarFotoAntes", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockDesafioFindFirst.mockReset();
+    mockJornadaFindUnique.mockReset();
+    mockJornadaUpsert.mockReset();
+    mockUploadFotoJornada.mockReset();
+    mockDeletarFotoJornada.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(enviarFotoAntes(buildFormDataComArquivo("foto"))).rejects.toThrow(
+      "Acesso negado",
+    );
+    expect(mockDesafioFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejeita se não houver desafio ativo", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue(null);
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await expect(
+      enviarFotoAntes(buildFormDataComArquivo("foto", arquivo)),
+    ).rejects.toThrow("Nenhum desafio ativo no momento");
+    expect(mockUploadFotoJornada).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem arquivo", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+
+    await expect(enviarFotoAntes(buildFormDataComArquivo("foto"))).rejects.toThrow(
+      "Envie uma foto",
+    );
+    expect(mockUploadFotoJornada).not.toHaveBeenCalled();
+  });
+
+  it("cria a jornada com a foto de antes quando ainda não existe registro", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaFindUnique.mockResolvedValue(null);
+    mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockJornadaUpsert.mockResolvedValue({});
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await enviarFotoAntes(buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockUploadFotoJornada).toHaveBeenCalledWith(arquivo, "cliente-1");
+    expect(mockDeletarFotoJornada).not.toHaveBeenCalled();
+    expect(mockJornadaUpsert).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+      create: {
+        desafioId: "d1",
+        clienteId: "cliente-1",
+        fotoAntesChave: "jornada-desafio/cliente-1/nova.webp",
+      },
+      update: { fotoAntesChave: "jornada-desafio/cliente-1/nova.webp" },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
+  });
+
+  it("apaga a foto antiga ao trocar por uma nova", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaFindUnique.mockResolvedValue({
+      fotoAntesChave: "jornada-desafio/cliente-1/antiga.webp",
+    });
+    mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockJornadaUpsert.mockResolvedValue({});
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await enviarFotoAntes(buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockDeletarFotoJornada).toHaveBeenCalledWith(
+      "jornada-desafio/cliente-1/antiga.webp",
+    );
+  });
+});
+
+describe("enviarFotoDepois", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockDesafioFindFirst.mockReset();
+    mockJornadaFindUnique.mockReset();
+    mockJornadaUpsert.mockReset();
+    mockUploadFotoJornada.mockReset();
+    mockDeletarFotoJornada.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("cria a jornada com a foto de depois quando ainda não existe registro", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaFindUnique.mockResolvedValue(null);
+    mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockJornadaUpsert.mockResolvedValue({});
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await enviarFotoDepois(buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockJornadaUpsert).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+      create: {
+        desafioId: "d1",
+        clienteId: "cliente-1",
+        fotoDepoisChave: "jornada-desafio/cliente-1/nova.webp",
+      },
+      update: { fotoDepoisChave: "jornada-desafio/cliente-1/nova.webp" },
+    });
+  });
+
+  it("apaga a foto antiga ao trocar por uma nova", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaFindUnique.mockResolvedValue({
+      fotoDepoisChave: "jornada-desafio/cliente-1/antiga.webp",
+    });
+    mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockJornadaUpsert.mockResolvedValue({});
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await enviarFotoDepois(buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockDeletarFotoJornada).toHaveBeenCalledWith(
+      "jornada-desafio/cliente-1/antiga.webp",
+    );
   });
 });

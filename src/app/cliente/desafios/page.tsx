@@ -1,5 +1,10 @@
 import { obterDesafioAtivoParaCliente } from "./queries";
-import { alternarMarcacao, participarDesafioSurpresa } from "./actions";
+import {
+  alternarMarcacao,
+  participarDesafioSurpresa,
+  enviarFotoAntes,
+  enviarFotoDepois,
+} from "./actions";
 import { RankingToggle } from "./ranking-toggle";
 
 export default async function DesafiosClientePage() {
@@ -14,7 +19,15 @@ export default async function DesafiosClientePage() {
     );
   }
 
-  const { desafio, itensMarcadosHoje, rankingSemanal, rankingGeral, clienteId } = resultado;
+  const {
+    desafio,
+    itensMarcadosHoje,
+    rankingSemanal,
+    rankingGeral,
+    clienteId,
+    fotoAntesUrl,
+    fotoDepoisUrl,
+  } = resultado;
 
   return (
     <section>
@@ -26,6 +39,34 @@ export default async function DesafiosClientePage() {
         rankingGeral={rankingGeral}
         clienteId={clienteId}
       />
+
+      <section aria-label="Minhas fotos do desafio">
+        <h2>Minhas fotos do desafio</h2>
+        <div>
+          <h3>Antes</h3>
+          {fotoAntesUrl ? (
+            <img src={fotoAntesUrl} alt="Foto de antes" width={150} />
+          ) : (
+            <p>Nenhuma foto enviada ainda</p>
+          )}
+          <form action={enviarFotoAntes} aria-label="Enviar foto de antes">
+            <input name="foto" type="file" accept="image/*" required />
+            <button type="submit">{fotoAntesUrl ? "Trocar foto" : "Enviar foto"}</button>
+          </form>
+        </div>
+        <div>
+          <h3>Depois</h3>
+          {fotoDepoisUrl ? (
+            <img src={fotoDepoisUrl} alt="Foto de depois" width={150} />
+          ) : (
+            <p>Nenhuma foto enviada ainda</p>
+          )}
+          <form action={enviarFotoDepois} aria-label="Enviar foto de depois">
+            <input name="foto" type="file" accept="image/*" required />
+            <button type="submit">{fotoDepoisUrl ? "Trocar foto" : "Enviar foto"}</button>
+          </form>
+        </div>
+      </section>
 
       {desafio.categorias.length === 0 ? (
         <p>Esse desafio ainda não tem categorias.</p>

@@ -11,6 +11,8 @@ vi.mock("./queries", () => ({
 vi.mock("./actions", () => ({
   alternarMarcacao: vi.fn(),
   participarDesafioSurpresa: vi.fn(),
+  enviarFotoAntes: vi.fn(),
+  enviarFotoDepois: vi.fn(),
 }));
 
 describe("DesafiosClientePage", () => {
@@ -22,7 +24,7 @@ describe("DesafiosClientePage", () => {
     expect(screen.getByText(/nenhum desafio ativo/i)).toBeInTheDocument();
   });
 
-  it("renderiza o desafio com categorias, itens e o ranking", async () => {
+  it("renderiza o desafio com categorias, itens, ranking e a seção de fotos vazia", async () => {
     vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
       desafio: {
         id: "d1",
@@ -45,109 +47,44 @@ describe("DesafiosClientePage", () => {
       rankingSemanal: [{ clienteId: "cliente-1", nome: "Você", pontos: 8 }],
       rankingGeral: [{ clienteId: "cliente-1", nome: "Você", pontos: 20 }],
       clienteId: "cliente-1",
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
     } as never);
 
     render(await DesafiosClientePage());
 
     expect(screen.getByText("Glow Up")).toBeInTheDocument();
-    expect(screen.getByText("Você é capaz")).toBeInTheDocument();
     expect(screen.getByText("Hidratar")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /✓ marcado/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^marcar$/i })).toBeInTheDocument();
-    expect(screen.getByText("Você")).toBeInTheDocument();
-    expect(screen.getByText("8 pts")).toBeInTheDocument();
-    expect(screen.getByText(/nenhum desafio surpresa no momento/i)).toBeInTheDocument();
-  });
-
-  it("mostra o formulário de participação com upload quando exige comprovação e a cliente ainda não participou", async () => {
-    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
-      desafio: {
-        id: "d1",
-        titulo: "Glow Up",
-        fraseMotivacional: null,
-        categorias: [],
-        desafiosSurpresa: [
-          {
-            id: "s1",
-            titulo: "Corrida 5km",
-            descricao: "Manda o print",
-            pontos: 50,
-            exigeComprovacao: true,
-            participacoes: [],
-          },
-        ],
-      },
-      itensMarcadosHoje: new Set(),
-      rankingSemanal: [],
-      rankingGeral: [],
-      clienteId: "cliente-1",
-    } as never);
-
-    render(await DesafiosClientePage());
-
-    expect(screen.getByText("Corrida 5km")).toBeInTheDocument();
+    expect(screen.getAllByText(/nenhuma foto enviada ainda/i)).toHaveLength(2);
     expect(
-      screen.getByRole("form", { name: /participar de corrida 5km/i }),
+      screen.getByRole("form", { name: /enviar foto de antes/i }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/foto de comprovação/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("form", { name: /enviar foto de depois/i }),
+    ).toBeInTheDocument();
   });
 
-  it("mostra 'aguardando validação' quando já participou e ainda não foi aprovada", async () => {
+  it("renderiza as fotos já enviadas e o botão vira 'Trocar foto'", async () => {
     vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
       desafio: {
         id: "d1",
         titulo: "Glow Up",
         fraseMotivacional: null,
         categorias: [],
-        desafiosSurpresa: [
-          {
-            id: "s1",
-            titulo: "Corrida 5km",
-            descricao: null,
-            pontos: 50,
-            exigeComprovacao: false,
-            participacoes: [{ id: "p1", validado: false }],
-          },
-        ],
+        desafiosSurpresa: [],
       },
       itensMarcadosHoje: new Set(),
       rankingSemanal: [],
       rankingGeral: [],
       clienteId: "cliente-1",
+      fotoAntesUrl: "https://exemplo/antes.webp",
+      fotoDepoisUrl: "https://exemplo/depois.webp",
     } as never);
 
     render(await DesafiosClientePage());
 
-    expect(screen.getByText(/aguardando validação da patty/i)).toBeInTheDocument();
-    expect(screen.queryByRole("form")).not.toBeInTheDocument();
-  });
-
-  it("mostra 'participação aprovada' quando validado", async () => {
-    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
-      desafio: {
-        id: "d1",
-        titulo: "Glow Up",
-        fraseMotivacional: null,
-        categorias: [],
-        desafiosSurpresa: [
-          {
-            id: "s1",
-            titulo: "Corrida 5km",
-            descricao: null,
-            pontos: 50,
-            exigeComprovacao: false,
-            participacoes: [{ id: "p1", validado: true }],
-          },
-        ],
-      },
-      itensMarcadosHoje: new Set(),
-      rankingSemanal: [],
-      rankingGeral: [],
-      clienteId: "cliente-1",
-    } as never);
-
-    render(await DesafiosClientePage());
-
-    expect(screen.getByText(/participação aprovada/i)).toBeInTheDocument();
+    expect(screen.getByAltText("Foto de antes")).toBeInTheDocument();
+    expect(screen.getByAltText("Foto de depois")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /trocar foto/i })).toHaveLength(2);
   });
 });

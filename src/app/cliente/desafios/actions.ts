@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { uploadComprovante } from "@/lib/storage/comprovantes-surpresa";
+import { uploadFotoJornada, deletarFotoJornada } from "@/lib/storage/jornada-desafio";
 import {
   verificarConquistasBonus,
   verificarConquistasRankingSemanal,
@@ -73,4 +74,48 @@ export async function participarDesafioSurpresa(
   });
 
   revalidatePath("/cliente/desafios");
+}
+
+async function enviarFotoJornada(
+  clienteId: string,
+  arquivo: FormDataEntryValue | null,
+  campo: "fotoAntesChave" | "fotoDepoisChave",
+) {
+  const desafio = await prisma.desafio.findFirst({ where: { ativo: true } });
+  if (!desafio) {
+    throw new Error("Nenhum desafio ativo no momento");
+  }
+
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    throw new Error("Envie uma foto");
+  }
+
+  const existente = await prisma.jornadaDesafio.findUnique({
+    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+  });
+
+  const novaChave = await uploadFotoJornada(arquivo, clienteId);
+
+  const chaveAntiga = existente?.[campo];
+  if (chaveAntiga) {
+    await deletarFotoJornada(chaveAntiga);
+  }
+
+  await prisma.jornadaDesafio.upsert({
+    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+    create: { desafioId: desafio.id, clienteId, [campo]: novaChave },
+    update: { [campo]: novaChave },
+  });
+
+  revalidatePath("/cliente/desafios");
+}
+
+export async function enviarFotoAntes(formData: FormData) {
+  const session = await requererPapel(["CLIENTE"]);
+  await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoAntesChave");
+}
+
+export async function enviarFotoDepois(formData: FormData) {
+  const session = await requererPapel(["CLIENTE"]);
+  await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoDepoisChave");
 }
