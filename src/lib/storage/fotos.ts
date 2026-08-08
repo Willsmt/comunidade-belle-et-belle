@@ -1,16 +1,9 @@
 import { randomUUID } from "node:crypto";
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { obterR2Client, obterNomeBucket } from "./r2";
+import { uploadObjeto, gerarUrlAssinada, deletarObjeto } from "./objetos";
 import { comprimirImagem } from "./comprimir-imagem";
 
 const TIPOS_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
 const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
-const EXPIRACAO_URL_ASSINADA_SEGUNDOS = 300;
 
 export function validarArquivo(arquivo: File): void {
   if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
@@ -34,28 +27,13 @@ export async function uploadFoto(
 
   const chave = `fotos-evolucao/${clienteId}/${randomUUID()}.webp`;
 
-  await obterR2Client().send(
-    new PutObjectCommand({
-      Bucket: obterNomeBucket(),
-      Key: chave,
-      Body: bufferComprimido,
-      ContentType: "image/webp",
-    }),
-  );
+  await uploadObjeto(chave, bufferComprimido, "image/webp");
 
   return chave;
 }
 
-export async function gerarUrlAssinada(chave: string): Promise<string> {
-  return getSignedUrl(
-    obterR2Client(),
-    new GetObjectCommand({ Bucket: obterNomeBucket(), Key: chave }),
-    { expiresIn: EXPIRACAO_URL_ASSINADA_SEGUNDOS },
-  );
-}
+export { gerarUrlAssinada };
 
 export async function deletarFoto(chave: string): Promise<void> {
-  await obterR2Client().send(
-    new DeleteObjectCommand({ Bucket: obterNomeBucket(), Key: chave }),
-  );
+  await deletarObjeto(chave);
 }

@@ -146,14 +146,14 @@ model VinculoParceria {
   @@index([clienteId, ativo])
 }
 model PlanoRecebido {
-  id         String    @id @default(cuid())
-  cliente    User      @relation("PlanosCliente", fields: [clienteId], references: [id], onDelete: Cascade)
-  clienteId  String
-  parceria   User      @relation("PlanosParceria", fields: [parceriaId], references: [id], onDelete: Cascade)
-  parceriaId String
-  tipo       TipoPlano
-  titulo     String?
-  arquivoUrl String
-  enviadoEm  DateTime  @default(now())
+  id           String    @id @default(cuid())
+  cliente      User      @relation("PlanosCliente", fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId    String
+  parceria     User      @relation("PlanosParceria", fields: [parceriaId], references: [id], onDelete: Cascade)
+  parceriaId   String
+  tipo         TipoPlano
+  titulo       String?
+  arquivoChave String
+  enviadoEm    DateTime  @default(now())
   @@index([clienteId, enviadoEm])
 }
