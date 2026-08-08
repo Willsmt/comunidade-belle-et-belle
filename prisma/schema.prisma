@@ -177,17 +177,21 @@ model PlanoRecebido {
 }
 // ---------- contexto: Desafios ----------
 model Desafio {
-  id                String   @id @default(cuid())
-  titulo            String
-  fraseMotivacional String?
-  dataInicio        DateTime @db.Date
-  dataFim           DateTime @db.Date
-  ativo             Boolean  @default(true)
-  categorias        CategoriaDesafio[]
-  regrasBonus       RegraBonus[]
-  desafiosSurpresa  DesafioSurpresa[]
-  conquistas        Conquista[]
-  criadoEm          DateTime @default(now())
+  id                      String   @id @default(cuid())
+  titulo                  String
+  fraseMotivacional       String?
+  dataInicio              DateTime @db.Date
+  dataFim                 DateTime @db.Date
+  ativo                   Boolean  @default(true)
+  categorias              CategoriaDesafio[]
+  regrasBonus             RegraBonus[]
+  desafiosSurpresa        DesafioSurpresa[]
+  conquistas              Conquista[]
+  emblemaRankingSemanal   Emblema? @relation("EmblemaRankingSemanal", fields: [emblemaRankingSemanalId], references: [id])
+  emblemaRankingSemanalId String?
+  emblemaRankingGeral     Emblema? @relation("EmblemaRankingGeral", fields: [emblemaRankingGeralId], references: [id])
+  emblemaRankingGeralId   String?
+  criadoEm                DateTime @default(now())
   @@index([ativo])
 }
 model CategoriaDesafio {
@@ -230,6 +234,8 @@ model RegraBonus {
   limiarItens  Int?
   itensCombo   ItemDesafio[] @relation("ComboItens")
   categoriaId  String?
+  emblema      Emblema?      @relation(fields: [emblemaId], references: [id])
+  emblemaId    String?
   criadoEm     DateTime      @default(now())
   @@index([desafioId])
 }
@@ -259,12 +265,15 @@ model ParticipacaoSurpresa {
   @@unique([desafioSurpresaId, clienteId])
 }
 model Emblema {
-  id         String      @id @default(cuid())
-  nome       String
-  descricao  String?
-  icone      String?
-  conquistas Conquista[]
-  criadoEm   DateTime    @default(now())
+  id                     String       @id @default(cuid())
+  nome                   String
+  descricao              String?
+  icone                  String?
+  conquistas             Conquista[]
+  regrasBonus            RegraBonus[]
+  desafiosRankingSemanal Desafio[]    @relation("EmblemaRankingSemanal")
+  desafiosRankingGeral   Desafio[]    @relation("EmblemaRankingGeral")
+  criadoEm               DateTime     @default(now())
 }
 model Conquista {
   id         String        @id @default(cuid())
