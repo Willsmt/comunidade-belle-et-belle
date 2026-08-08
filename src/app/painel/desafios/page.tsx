@@ -10,6 +10,8 @@ export default async function DesafiosPage() {
     <section>
       <h1>Desafios</h1>
 
+      <Link href="/painel/desafios/emblemas">Gerenciar emblemas</Link>
+
       <h2>Nova edição</h2>
       <form action={criarDesafio} aria-label="Criar desafio">
         <label htmlFor="titulo">
