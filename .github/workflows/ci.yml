@@ -53,6 +53,8 @@ jobs:
 
       - name: Test
         run: npm test
+      - name: Test (integration)
+        run: npm run test:integration
 
       - name: Build
         run: npm run build
