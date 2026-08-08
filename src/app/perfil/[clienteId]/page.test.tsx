@@ -33,6 +33,7 @@ describe("PerfilPublicoPage", () => {
       bio: "Oi, sou eu",
       emblemasPublicos: true,
       ultimaMedida: { peso: { toString: () => "60" } } as never,
+      fotos: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
@@ -49,10 +50,27 @@ describe("PerfilPublicoPage", () => {
       bio: null,
       emblemasPublicos: false,
       ultimaMedida: null,
+      fotos: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-2") }));
 
     expect(screen.getByText("Emblemas privados")).toBeInTheDocument();
+  });
+
+  it("renderiza as fotos públicas quando existem", async () => {
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 3",
+      bio: null,
+      emblemasPublicos: true,
+      ultimaMedida: null,
+      fotos: [
+        { id: "foto-1", data: new Date(), urlAssinada: "https://exemplo/foto-1" },
+      ],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-3") }));
+
+    expect(screen.getByAltText("Foto de evolução")).toBeInTheDocument();
   });
 });

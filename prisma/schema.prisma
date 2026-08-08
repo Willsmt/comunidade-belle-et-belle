@@ -126,7 +126,7 @@ model FotoEvolucao {
   id        String   @id @default(cuid())
   cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   clienteId String
-  url       String
+  chave     String
   data      DateTime @default(now())
   publica   Boolean  @default(false)
   criadoEm  DateTime @default(now())

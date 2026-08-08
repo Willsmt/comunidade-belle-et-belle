@@ -50,6 +50,23 @@ export default async function PerfilPublicoPage({
           </ul>
         </section>
       )}
+
+      {perfil.fotos.length > 0 && (
+        <section aria-label="Fotos de evolução">
+          <h2>Fotos de evolução</h2>
+          <ul>
+            {perfil.fotos.map((foto) => (
+              <li key={foto.id}>
+                <img
+                  src={foto.urlAssinada}
+                  alt="Foto de evolução"
+                  width={200}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -2,8 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 
-const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
+const { mockAuth, mockGerarUrlAssinada } = vi.hoisted(() => ({
+  mockAuth: vi.fn(),
+  mockGerarUrlAssinada: vi.fn(),
+}));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
+vi.mock("@/lib/storage/fotos", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinada,
+}));
 
 import { obterPerfilPublico } from "./queries";
 
@@ -56,5 +62,28 @@ describe("obterPerfilPublico (Postgres real)", () => {
     const resultado = await obterPerfilPublico(cliente.id);
 
     expect(resultado?.ultimaMedida?.id).toBe(recente.id);
+  });
+
+  it("mostra só as fotos marcadas como públicas, ignorando as privadas", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer3@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente3@example.com", status: "ATIVO", name: "Cliente 3" },
+    });
+    const fotoPublica = await prisma.fotoEvolucao.create({
+      data: { clienteId: cliente.id, chave: "chave-publica", publica: true },
+    });
+    await prisma.fotoEvolucao.create({
+      data: { clienteId: cliente.id, chave: "chave-privada", publica: false },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(resultado?.fotos).toHaveLength(1);
+    expect(resultado?.fotos[0]?.id).toBe(fotoPublica.id);
   });
 });

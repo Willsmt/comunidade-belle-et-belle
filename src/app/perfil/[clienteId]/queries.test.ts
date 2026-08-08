@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAuth, mockFindUniqueUser, mockFindFirstMedida } = vi.hoisted(() => ({
+const {
+  mockAuth,
+  mockFindUniqueUser,
+  mockFindFirstMedida,
+  mockFindManyFoto,
+  mockGerarUrlAssinada,
+} = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindUniqueUser: vi.fn(),
   mockFindFirstMedida: vi.fn(),
+  mockFindManyFoto: vi.fn(),
+  mockGerarUrlAssinada: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
@@ -11,7 +19,11 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: mockFindUniqueUser },
     registroMedida: { findFirst: mockFindFirstMedida },
+    fotoEvolucao: { findMany: mockFindManyFoto },
   },
+}));
+vi.mock("@/lib/storage/fotos", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinada,
 }));
 
 import { obterPerfilPublico } from "./queries";
@@ -21,6 +33,8 @@ describe("obterPerfilPublico", () => {
     mockAuth.mockReset();
     mockFindUniqueUser.mockReset();
     mockFindFirstMedida.mockReset();
+    mockFindManyFoto.mockReset().mockResolvedValue([]);
+    mockGerarUrlAssinada.mockReset();
   });
 
   it("lança erro se não houver sessão", async () => {
@@ -92,6 +106,30 @@ describe("obterPerfilPublico", () => {
       bio: null,
       emblemasPublicos: false,
       ultimaMedida: null,
+      fotos: [],
     });
+  });
+
+  it("busca só as fotos marcadas como públicas, com signed URL cada uma", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({ name: "Cliente 1", perfil: null });
+    mockFindManyFoto.mockResolvedValue([
+      { id: "foto-1", chave: "chave-1", data: new Date("2026-02-01") },
+    ]);
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockFindManyFoto).toHaveBeenCalledWith({
+      where: { clienteId: "cliente-1", publica: true },
+      orderBy: { data: "desc" },
+    });
+    expect(resultado?.fotos).toEqual([
+      {
+        id: "foto-1",
+        data: new Date("2026-02-01"),
+        urlAssinada: "https://url-assinada.exemplo",
+      },
+    ]);
   });
 });
