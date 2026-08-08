@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listarDesafios } from "./queries";
 import { criarDesafio, encerrarDesafio, reabrirDesafio } from "./actions";
 import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
@@ -48,6 +49,7 @@ export default async function DesafiosPage() {
                 {desafio.dataFim.toLocaleDateString("pt-BR")}
               </span>
               <span>{desafio._count.categorias} categoria(s)</span>
+              <Link href={`/painel/desafios/${desafio.id}`}>Gerenciar categorias</Link>
 
               {desafio.ativo ? (
                 <BotaoComConfirmacao
