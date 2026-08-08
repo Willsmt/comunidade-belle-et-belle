@@ -23,6 +23,20 @@ enum TipoPlano {
   TREINO
   DIETA
 }
+enum FrequenciaItem {
+  DIARIO
+  SEMANAL
+}
+enum TipoBonus {
+  LIMIAR_DIARIO
+  COMBO
+  CATEGORIA_COMPLETA
+}
+enum TipoConquista {
+  RANKING_SEMANAL
+  RANKING_GERAL
+  BONUS
+}
 // ---------- domínio (nosso) + base do Auth.js ----------
 model User {
   id            String       @id @default(cuid())
@@ -47,6 +61,10 @@ model User {
   vinculosComoParceria VinculoParceria[] @relation("VinculoParceria")
   planosRecebidos      PlanoRecebido[]   @relation("PlanosCliente")
   planosEnviados       PlanoRecebido[]   @relation("PlanosParceria")
+  // contexto Desafios
+  marcacoes             MarcacaoItem[]
+  participacoesSurpresa ParticipacaoSurpresa[]
+  conquistas            Conquista[]
   @@index([status])
 }
 model UsuarioPapel {
@@ -156,4 +174,109 @@ model PlanoRecebido {
   arquivoChave String
   enviadoEm    DateTime  @default(now())
   @@index([clienteId, enviadoEm])
+}
+// ---------- contexto: Desafios ----------
+model Desafio {
+  id                String   @id @default(cuid())
+  titulo            String
+  fraseMotivacional String?
+  dataInicio        DateTime @db.Date
+  dataFim           DateTime @db.Date
+  ativo             Boolean  @default(true)
+  categorias        CategoriaDesafio[]
+  regrasBonus       RegraBonus[]
+  desafiosSurpresa  DesafioSurpresa[]
+  conquistas        Conquista[]
+  criadoEm          DateTime @default(now())
+  @@index([ativo])
+}
+model CategoriaDesafio {
+  id         String   @id @default(cuid())
+  desafio    Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId  String
+  nome       String
+  cor        String
+  itens      ItemDesafio[]
+  @@index([desafioId])
+}
+model ItemDesafio {
+  id           String           @id @default(cuid())
+  categoria    CategoriaDesafio @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  categoriaId  String
+  descricao    String
+  pontos       Int
+  frequencia   FrequenciaItem   @default(DIARIO)
+  marcacoes    MarcacaoItem[]
+  combos       RegraBonus[]     @relation("ComboItens")
+  @@index([categoriaId])
+}
+model MarcacaoItem {
+  id        String      @id @default(cuid())
+  item      ItemDesafio @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId    String
+  cliente   User        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId String
+  data      DateTime    @db.Date
+  criadoEm  DateTime    @default(now())
+  @@unique([itemId, clienteId, data])
+  @@index([clienteId, data])
+}
+model RegraBonus {
+  id           String        @id @default(cuid())
+  desafio      Desafio       @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId    String
+  tipo         TipoBonus
+  pontosExtras Int
+  limiarItens  Int?
+  itensCombo   ItemDesafio[] @relation("ComboItens")
+  categoriaId  String?
+  criadoEm     DateTime      @default(now())
+  @@index([desafioId])
+}
+model DesafioSurpresa {
+  id               String   @id @default(cuid())
+  desafio          Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId        String
+  titulo           String
+  descricao        String?
+  pontos           Int
+  exigeComprovacao Boolean  @default(false)
+  criadoEm         DateTime @default(now())
+  participacoes    ParticipacaoSurpresa[]
+  @@index([desafioId])
+}
+model ParticipacaoSurpresa {
+  id                 String    @id @default(cuid())
+  desafioSurpresa    DesafioSurpresa @relation(fields: [desafioSurpresaId], references: [id], onDelete: Cascade)
+  desafioSurpresaId  String
+  cliente            User      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId          String
+  fotoChave          String?
+  validado           Boolean   @default(false)
+  validadoPor        String?
+  validadoEm         DateTime?
+  criadoEm           DateTime  @default(now())
+  @@unique([desafioSurpresaId, clienteId])
+}
+model Emblema {
+  id         String      @id @default(cuid())
+  nome       String
+  descricao  String?
+  icone      String?
+  conquistas Conquista[]
+  criadoEm   DateTime    @default(now())
+}
+model Conquista {
+  id         String        @id @default(cuid())
+  cliente    User          @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId  String
+  desafio    Desafio       @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId  String
+  emblema    Emblema       @relation(fields: [emblemaId], references: [id])
+  emblemaId  String
+  tipo       TipoConquista
+  referencia String?
+  criadoEm   DateTime      @default(now())
+  @@index([clienteId])
+  @@index([desafioId])
 }
