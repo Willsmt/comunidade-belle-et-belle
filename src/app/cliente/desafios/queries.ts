@@ -57,6 +57,14 @@ export async function obterDesafioAtivoParaCliente() {
           itens: { orderBy: { descricao: "asc" } },
         },
       },
+      desafiosSurpresa: {
+        orderBy: { criadoEm: "desc" },
+        include: {
+          participacoes: {
+            where: { clienteId: session.user.id },
+          },
+        },
+      },
     },
   });
 

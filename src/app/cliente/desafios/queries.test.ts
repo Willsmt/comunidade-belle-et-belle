@@ -42,7 +42,7 @@ describe("obterDesafioAtivoParaCliente", () => {
     expect(mockFindMany).not.toHaveBeenCalled();
   });
 
-  it("busca o desafio ativo com categorias/itens, marcações de hoje e os dois rankings", async () => {
+  it("busca o desafio ativo com categorias/itens, desafios surpresa e as participações do próprio cliente", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindFirst.mockResolvedValue({
       id: "d1",
@@ -63,6 +63,14 @@ describe("obterDesafioAtivoParaCliente", () => {
           orderBy: { nome: "asc" },
           include: {
             itens: { orderBy: { descricao: "asc" } },
+          },
+        },
+        desafiosSurpresa: {
+          orderBy: { criadoEm: "desc" },
+          include: {
+            participacoes: {
+              where: { clienteId: "cliente-1" },
+            },
           },
         },
       },

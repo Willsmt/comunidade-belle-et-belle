@@ -1,5 +1,5 @@
 import { obterDesafioAtivoParaCliente } from "./queries";
-import { alternarMarcacao } from "./actions";
+import { alternarMarcacao, participarDesafioSurpresa } from "./actions";
 import { RankingToggle } from "./ranking-toggle";
 
 export default async function DesafiosClientePage() {
@@ -53,6 +53,49 @@ export default async function DesafiosClientePage() {
             )}
           </div>
         ))
+      )}
+
+      <h2>Desafios surpresa</h2>
+      {desafio.desafiosSurpresa.length === 0 ? (
+        <p>Nenhum desafio surpresa no momento.</p>
+      ) : (
+        desafio.desafiosSurpresa.map((surpresa) => {
+          const participacao = surpresa.participacoes[0];
+          return (
+            <div key={surpresa.id}>
+              <h3>{surpresa.titulo}</h3>
+              {surpresa.descricao && <p>{surpresa.descricao}</p>}
+              <p>{surpresa.pontos} pts</p>
+
+              {participacao ? (
+                <p>
+                  {participacao.validado
+                    ? "Participação aprovada ✓"
+                    : "Aguardando validação da Patty"}
+                </p>
+              ) : (
+                <form
+                  action={participarDesafioSurpresa.bind(null, surpresa.id)}
+                  aria-label={`Participar de ${surpresa.titulo}`}
+                >
+                  {surpresa.exigeComprovacao && (
+                    <label htmlFor={`comprovacao-${surpresa.id}`}>
+                      Foto de comprovação
+                      <input
+                        id={`comprovacao-${surpresa.id}`}
+                        name="comprovacao"
+                        type="file"
+                        accept="image/*"
+                        required
+                      />
+                    </label>
+                  )}
+                  <button type="submit">Participar</button>
+                </form>
+              )}
+            </div>
+          );
+        })
       )}
     </section>
   );

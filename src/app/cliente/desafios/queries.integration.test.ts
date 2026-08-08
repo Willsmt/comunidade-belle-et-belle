@@ -117,3 +117,41 @@ describe("obterDesafioAtivoParaCliente (Postgres real)", () => {
     );
   });
 });
+
+describe("obterDesafioAtivoParaCliente — desafios surpresa (Postgres real)", () => {
+  it("retorna desafios surpresa com só a participação do próprio cliente", async () => {
+    const clienteA = await prisma.user.create({
+      data: { email: "a@x.com", status: "ATIVO", name: "Cliente A" },
+    });
+    const clienteB = await prisma.user.create({
+      data: { email: "b@x.com", status: "ATIVO", name: "Cliente B" },
+    });
+    mockAuth.mockResolvedValue({ user: { id: clienteA.id } });
+
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        ativo: true,
+      },
+    });
+    const surpresa = await prisma.desafioSurpresa.create({
+      data: { desafioId: desafio.id, titulo: "Corrida 5km", pontos: 50 },
+    });
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId: surpresa.id, clienteId: clienteA.id },
+    });
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId: surpresa.id, clienteId: clienteB.id },
+    });
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.desafio.desafiosSurpresa).toHaveLength(1);
+    expect(resultado?.desafio.desafiosSurpresa[0]?.participacoes).toHaveLength(1);
+    expect(resultado?.desafio.desafiosSurpresa[0]?.participacoes[0]?.clienteId).toBe(
+      clienteA.id,
+    );
+  });
+});
