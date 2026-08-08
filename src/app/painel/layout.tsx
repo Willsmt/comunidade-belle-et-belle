@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarPainel } from "@/lib/auth/pode-acessar-painel";
 
@@ -17,7 +18,8 @@ export default async function PainelLayout({
   return (
     <div>
       <nav aria-label="Painel de gerenciamento">
-        <span>Painel</span>
+        <Link href="/painel/aprovacoes">Aprovações</Link>
+        <Link href="/painel/membros">Membros</Link>
       </nav>
       <main>{children}</main>
     </div>
