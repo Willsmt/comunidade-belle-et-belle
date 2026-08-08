@@ -19,6 +19,7 @@ export default async function ClienteLayout({
     <div>
       <nav aria-label="Área da cliente">
         <Link href="/cliente/medidas">Minhas medidas</Link>
+        <Link href="/cliente/perfil">Meu perfil</Link>
       </nav>
       <main>{children}</main>
     </div>
