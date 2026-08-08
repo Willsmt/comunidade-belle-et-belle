@@ -22,6 +22,7 @@ export default async function ClienteLayout({
         <Link href="/cliente/perfil">Meu perfil</Link>
         <Link href="/cliente/fotos">Minhas fotos</Link>
         <Link href="/cliente/planos">Meus planos</Link>
+        <Link href="/cliente/desafios">Desafios</Link>
       </nav>
       <main>{children}</main>
     </div>
