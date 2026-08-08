@@ -1,66 +1,63 @@
 // Schema da Comunidade Belle et Belle
 // Contexto: Identidade & acesso
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
-
 datasource db {
   provider = "postgresql"
 }
-
 // ---------- enums ----------
-
 enum Papel {
   ADMIN
   GESTORA
   PARCERIA
   CLIENTE
 }
-
 enum StatusConta {
   PENDENTE
   ATIVO
   SUSPENSO
 }
-
+enum TipoPlano {
+  TREINO
+  DIETA
+}
 // ---------- domínio (nosso) + base do Auth.js ----------
-
 model User {
   id            String       @id @default(cuid())
   name          String?
   email         String       @unique
   emailVerified DateTime?
   image         String?
-
   status        StatusConta  @default(PENDENTE)
   papeis        UsuarioPapel[]
   consentimento Consentimento?
-
   aprovadoPor   String?
   aprovadoEm    DateTime?
-
   accounts      Account[]
   sessions      Session[]
-
   criadoEm      DateTime     @default(now())
   atualizadoEm  DateTime     @updatedAt
-
+  // contexto Perfil
+  perfil               Perfil?
+  medidas              RegistroMedida[]
+  fotosEvolucao        FotoEvolucao[]
+  vinculosComoCliente  VinculoParceria[] @relation("VinculoCliente")
+  vinculosComoParceria VinculoParceria[] @relation("VinculoParceria")
+  planosRecebidos      PlanoRecebido[]   @relation("PlanosCliente")
+  planosEnviados       PlanoRecebido[]   @relation("PlanosParceria")
   @@index([status])
 }
-
 model UsuarioPapel {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   papel     Papel
   criadoEm  DateTime @default(now())
-
   @@unique([userId, papel])
   @@index([papel])
 }
-
 model Consentimento {
   id          String   @id @default(cuid())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -68,9 +65,7 @@ model Consentimento {
   versaoTermo String
   aceitoEm    DateTime @default(now())
 }
-
 // ---------- tabelas exigidas pelo Auth.js v5 (adapter Prisma) ----------
-
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -84,28 +79,81 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
-
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   @@index([userId])
 }
-
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
-
   @@unique([identifier, token])
+}
+// ---------- contexto: Perfil ----------
+model Perfil {
+  id               String   @id @default(cuid())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String   @unique
+  bio              String?
+  bioPublica       Boolean  @default(false)
+  emblemasPublicos Boolean  @default(true)
+  medidasPublicas  Boolean  @default(false)
+  criadoEm         DateTime @default(now())
+  atualizadoEm     DateTime @updatedAt
+}
+model RegistroMedida {
+  id        String   @id @default(cuid())
+  cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId String
+  data      DateTime @default(now())
+  peso      Decimal? @db.Decimal(5, 2)
+  cintura   Decimal? @db.Decimal(5, 2)
+  quadril   Decimal? @db.Decimal(5, 2)
+  braco     Decimal? @db.Decimal(5, 2)
+  coxa      Decimal? @db.Decimal(5, 2)
+  criadoEm  DateTime @default(now())
+  @@index([clienteId, data])
+}
+model FotoEvolucao {
+  id        String   @id @default(cuid())
+  cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId String
+  url       String
+  data      DateTime @default(now())
+  publica   Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+  @@index([clienteId, data])
+}
+model VinculoParceria {
+  id          String   @id @default(cuid())
+  cliente     User     @relation("VinculoCliente", fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId   String
+  parceria    User     @relation("VinculoParceria", fields: [parceriaId], references: [id], onDelete: Cascade)
+  parceriaId  String
+  ativo       Boolean  @default(true)
+  criadoPorId String
+  criadoEm    DateTime @default(now())
+  @@unique([clienteId, parceriaId])
+  @@index([parceriaId, ativo])
+  @@index([clienteId, ativo])
+}
+model PlanoRecebido {
+  id         String    @id @default(cuid())
+  cliente    User      @relation("PlanosCliente", fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId  String
+  parceria   User      @relation("PlanosParceria", fields: [parceriaId], references: [id], onDelete: Cascade)
+  parceriaId String
+  tipo       TipoPlano
+  titulo     String?
+  arquivoUrl String
+  enviadoEm  DateTime  @default(now())
+  @@index([clienteId, enviadoEm])
 }
