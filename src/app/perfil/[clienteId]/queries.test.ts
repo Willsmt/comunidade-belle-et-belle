@@ -4,12 +4,14 @@ const {
   mockAuth,
   mockFindUniqueUser,
   mockFindFirstMedida,
+  mockFindManyConquista,
   mockFindManyFoto,
   mockGerarUrlAssinada,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindUniqueUser: vi.fn(),
   mockFindFirstMedida: vi.fn(),
+  mockFindManyConquista: vi.fn(),
   mockFindManyFoto: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
 }));
@@ -19,6 +21,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: mockFindUniqueUser },
     registroMedida: { findFirst: mockFindFirstMedida },
+    conquista: { findMany: mockFindManyConquista },
     fotoEvolucao: { findMany: mockFindManyFoto },
   },
 }));
@@ -33,6 +36,7 @@ describe("obterPerfilPublico", () => {
     mockAuth.mockReset();
     mockFindUniqueUser.mockReset();
     mockFindFirstMedida.mockReset();
+    mockFindManyConquista.mockReset().mockResolvedValue([]);
     mockFindManyFoto.mockReset().mockResolvedValue([]);
     mockGerarUrlAssinada.mockReset();
   });
@@ -95,6 +99,54 @@ describe("obterPerfilPublico", () => {
     expect(resultado?.ultimaMedida).toEqual({ id: "medida-1", peso: 60 });
   });
 
+  it("busca as conquistas só quando emblemasPublicos é true, incluindo o emblema de cada uma", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({
+      name: "Cliente 1",
+      perfil: {
+        bio: null,
+        bioPublica: false,
+        emblemasPublicos: true,
+        medidasPublicas: false,
+      },
+    });
+    mockFindManyConquista.mockResolvedValue([
+      {
+        id: "c1",
+        emblema: { nome: "Campeã da Semana", icone: "🏆", descricao: "Venceu a semana" },
+      },
+    ]);
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockFindManyConquista).toHaveBeenCalledWith({
+      where: { clienteId: "cliente-1" },
+      orderBy: { criadoEm: "desc" },
+      include: { emblema: true },
+    });
+    expect(resultado?.conquistas).toEqual([
+      { id: "c1", nome: "Campeã da Semana", icone: "🏆", descricao: "Venceu a semana" },
+    ]);
+  });
+
+  it("não busca conquistas quando emblemasPublicos é false", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({
+      name: "Cliente 1",
+      perfil: {
+        bio: null,
+        bioPublica: false,
+        emblemasPublicos: false,
+        medidasPublicas: false,
+      },
+    });
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockFindManyConquista).not.toHaveBeenCalled();
+    expect(resultado?.conquistas).toEqual([]);
+  });
+
   it("usuário sem Perfil ainda: retorna defaults seguros sem quebrar", async () => {
     mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
     mockFindUniqueUser.mockResolvedValue({ name: "Cliente novo", perfil: null });
@@ -105,6 +157,7 @@ describe("obterPerfilPublico", () => {
       nome: "Cliente novo",
       bio: null,
       emblemasPublicos: false,
+      conquistas: [],
       ultimaMedida: null,
       fotos: [],
     });

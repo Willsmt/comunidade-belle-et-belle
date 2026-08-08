@@ -28,6 +28,14 @@ export async function obterPerfilPublico(clienteId: string) {
       })
     : null;
 
+  const conquistas = usuario.perfil?.emblemasPublicos
+    ? await prisma.conquista.findMany({
+        where: { clienteId },
+        orderBy: { criadoEm: "desc" },
+        include: { emblema: true },
+      })
+    : [];
+
   const fotosPublicas = await prisma.fotoEvolucao.findMany({
     where: { clienteId, publica: true },
     orderBy: { data: "desc" },
@@ -45,6 +53,12 @@ export async function obterPerfilPublico(clienteId: string) {
     nome: usuario.name,
     bio: usuario.perfil?.bioPublica ? usuario.perfil.bio : null,
     emblemasPublicos: usuario.perfil?.emblemasPublicos ?? false,
+    conquistas: conquistas.map((conquista) => ({
+      id: conquista.id,
+      nome: conquista.emblema.nome,
+      icone: conquista.emblema.icone,
+      descricao: conquista.emblema.descricao,
+    })),
     ultimaMedida,
     fotos,
   };

@@ -16,18 +16,27 @@ export default async function PerfilPublicoPage({
   return (
     <div>
       <h1>{perfil.nome}</h1>
-
       {perfil.bio && <p>{perfil.bio}</p>}
-
       <section aria-label="Emblemas">
         <h2>Emblemas</h2>
         {perfil.emblemasPublicos ? (
-          <p>Nenhum emblema ainda</p>
+          perfil.conquistas.length === 0 ? (
+            <p>Nenhum emblema ainda</p>
+          ) : (
+            <ul>
+              {perfil.conquistas.map((conquista) => (
+                <li key={conquista.id}>
+                  {conquista.icone && <span>{conquista.icone}</span>}
+                  <span>{conquista.nome}</span>
+                  {conquista.descricao && <span>{conquista.descricao}</span>}
+                </li>
+              ))}
+            </ul>
+          )
         ) : (
           <p>Emblemas privados</p>
         )}
       </section>
-
       {perfil.ultimaMedida && (
         <section aria-label="Medidas">
           <h2>Última medida registrada</h2>
@@ -50,7 +59,6 @@ export default async function PerfilPublicoPage({
           </ul>
         </section>
       )}
-
       {perfil.fotos.length > 0 && (
         <section aria-label="Fotos de evolução">
           <h2>Fotos de evolução</h2>

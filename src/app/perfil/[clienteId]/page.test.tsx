@@ -32,6 +32,7 @@ describe("PerfilPublicoPage", () => {
       nome: "Cliente 1",
       bio: "Oi, sou eu",
       emblemasPublicos: true,
+      conquistas: [],
       ultimaMedida: { peso: { toString: () => "60" } } as never,
       fotos: [],
     });
@@ -49,6 +50,7 @@ describe("PerfilPublicoPage", () => {
       nome: "Cliente 2",
       bio: null,
       emblemasPublicos: false,
+      conquistas: [],
       ultimaMedida: null,
       fotos: [],
     });
@@ -58,11 +60,32 @@ describe("PerfilPublicoPage", () => {
     expect(screen.getByText("Emblemas privados")).toBeInTheDocument();
   });
 
+  it("renderiza a lista de emblemas quando emblemasPublicos é true e há conquistas", async () => {
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 4",
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [
+        { id: "c1", nome: "Campeã da Semana", icone: "🏆", descricao: "Venceu a semana" },
+      ],
+      ultimaMedida: null,
+      fotos: [],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-4") }));
+
+    expect(screen.getByText("Campeã da Semana")).toBeInTheDocument();
+    expect(screen.getByText("🏆")).toBeInTheDocument();
+    expect(screen.getByText("Venceu a semana")).toBeInTheDocument();
+    expect(screen.queryByText("Nenhum emblema ainda")).not.toBeInTheDocument();
+  });
+
   it("renderiza as fotos públicas quando existem", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 3",
       bio: null,
       emblemasPublicos: true,
+      conquistas: [],
       ultimaMedida: null,
       fotos: [
         { id: "foto-1", data: new Date(), urlAssinada: "https://exemplo/foto-1" },

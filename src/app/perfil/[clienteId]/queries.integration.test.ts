@@ -87,3 +87,79 @@ describe("obterPerfilPublico (Postgres real)", () => {
     expect(resultado?.fotos[0]?.id).toBe(fotoPublica.id);
   });
 });
+
+describe("obterPerfilPublico — emblemas (Postgres real)", () => {
+  it("respeita o toggle de privacidade de emblemas ponta a ponta", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer4@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente4@example.com", status: "ATIVO", name: "Cliente 4" },
+    });
+    await prisma.perfil.create({
+      data: { userId: cliente.id, emblemasPublicos: false },
+    });
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-08-01"),
+        dataFim: new Date("2026-08-30"),
+      },
+    });
+    const emblema = await prisma.emblema.create({ data: { nome: "Campeã da Semana" } });
+    await prisma.conquista.create({
+      data: {
+        clienteId: cliente.id,
+        desafioId: desafio.id,
+        emblemaId: emblema.id,
+        tipo: "RANKING_SEMANAL",
+        referencia: "semana-0",
+      },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(resultado?.conquistas).toEqual([]);
+  });
+
+  it("mostra as conquistas com o nome do emblema quando emblemasPublicos é true", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer5@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente5@example.com", status: "ATIVO", name: "Cliente 5" },
+    });
+    await prisma.perfil.create({
+      data: { userId: cliente.id, emblemasPublicos: true },
+    });
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-08-01"),
+        dataFim: new Date("2026-08-30"),
+      },
+    });
+    const emblema = await prisma.emblema.create({
+      data: { nome: "Campeã da Semana", icone: "🏆" },
+    });
+    await prisma.conquista.create({
+      data: {
+        clienteId: cliente.id,
+        desafioId: desafio.id,
+        emblemaId: emblema.id,
+        tipo: "RANKING_SEMANAL",
+        referencia: "semana-0",
+      },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(resultado?.conquistas).toHaveLength(1);
+    expect(resultado?.conquistas[0]?.nome).toBe("Campeã da Semana");
+    expect(resultado?.conquistas[0]?.icone).toBe("🏆");
+  });
+});
