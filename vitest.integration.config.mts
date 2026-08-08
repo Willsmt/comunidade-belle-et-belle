@@ -11,7 +11,8 @@ export default defineConfig({
     environment: "node",
     globals: true,
     passWithNoTests: true,
-    setupFiles: ["./vitest.setup.ts"],
-    exclude: ["**/node_modules/**", "**/*.integration.test.ts"],
+    include: ["**/*.integration.test.ts"],
+    setupFiles: ["./vitest.integration.setup.ts"],
+    testTimeout: 15000,
   },
 });
