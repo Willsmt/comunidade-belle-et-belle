@@ -20,6 +20,7 @@ export default async function PainelLayout({
       <nav aria-label="Painel de gerenciamento">
         <Link href="/painel/aprovacoes">Aprovações</Link>
         <Link href="/painel/membros">Membros</Link>
+        <Link href="/painel/vinculos">Vínculos</Link>
       </nav>
       <main>{children}</main>
     </div>
