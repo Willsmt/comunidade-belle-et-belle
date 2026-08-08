@@ -17,3 +17,13 @@ export async function requererPapel(permitidos: Papel[]) {
 export function requererAcessoPainel() {
   return requererPapel([...PAPEIS_COM_ACESSO_AO_PAINEL]);
 }
+
+export async function requererSessao() {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new Error("Acesso negado");
+  }
+
+  return session;
+}
