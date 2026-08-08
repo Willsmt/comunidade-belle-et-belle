@@ -10,6 +10,8 @@ const {
   mockParticipacaoFindUnique,
   mockParticipacaoCreate,
   mockUploadComprovante,
+  mockVerificarConquistasBonus,
+  mockVerificarConquistasRankingSemanal,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
@@ -21,6 +23,8 @@ const {
   mockParticipacaoFindUnique: vi.fn(),
   mockParticipacaoCreate: vi.fn(),
   mockUploadComprovante: vi.fn(),
+  mockVerificarConquistasBonus: vi.fn(),
+  mockVerificarConquistasRankingSemanal: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -45,6 +49,10 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
   uploadComprovante: mockUploadComprovante,
 }));
+vi.mock("@/lib/desafios/conquistas", () => ({
+  verificarConquistasBonus: mockVerificarConquistasBonus,
+  verificarConquistasRankingSemanal: mockVerificarConquistasRankingSemanal,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
 import { alternarMarcacao, participarDesafioSurpresa } from "./actions";
@@ -56,6 +64,8 @@ describe("alternarMarcacao", () => {
     mockMarcacaoFindUnique.mockReset();
     mockMarcacaoCreate.mockReset();
     mockMarcacaoDelete.mockReset();
+    mockVerificarConquistasBonus.mockReset();
+    mockVerificarConquistasRankingSemanal.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -66,9 +76,9 @@ describe("alternarMarcacao", () => {
     expect(mockItemFindUniqueOrThrow).not.toHaveBeenCalled();
   });
 
-  it("cria a marcação quando ainda não existe pra hoje", async () => {
+  it("cria a marcação e verifica conquistas de bônus e semanal quando ainda não existe pra hoje", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1" });
+    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1", categoria: { desafioId: "d1" } });
     mockMarcacaoFindUnique.mockResolvedValue(null);
     mockMarcacaoCreate.mockResolvedValue({});
 
@@ -78,12 +88,21 @@ describe("alternarMarcacao", () => {
       data: { itemId: "i1", clienteId: "cliente-1", data: expect.any(Date) },
     });
     expect(mockMarcacaoDelete).not.toHaveBeenCalled();
+    expect(mockVerificarConquistasBonus).toHaveBeenCalledWith(
+      "cliente-1",
+      "d1",
+      expect.any(Date),
+    );
+    expect(mockVerificarConquistasRankingSemanal).toHaveBeenCalledWith(
+      "d1",
+      expect.any(Date),
+    );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
   });
 
-  it("remove a marcação quando já existe pra hoje", async () => {
+  it("remove a marcação e NÃO verifica conquistas de bônus quando já existe pra hoje", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1" });
+    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1", categoria: { desafioId: "d1" } });
     mockMarcacaoFindUnique.mockResolvedValue({ id: "m1" });
     mockMarcacaoDelete.mockResolvedValue({});
 
@@ -91,6 +110,11 @@ describe("alternarMarcacao", () => {
 
     expect(mockMarcacaoDelete).toHaveBeenCalledWith({ where: { id: "m1" } });
     expect(mockMarcacaoCreate).not.toHaveBeenCalled();
+    expect(mockVerificarConquistasBonus).not.toHaveBeenCalled();
+    expect(mockVerificarConquistasRankingSemanal).toHaveBeenCalledWith(
+      "d1",
+      expect.any(Date),
+    );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
   });
 

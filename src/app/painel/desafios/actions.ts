@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
+import {
+  verificarConquistaRankingGeral,
+  verificarConquistasRankingSemanal,
+} from "@/lib/desafios/conquistas";
 
 export async function criarDesafio(formData: FormData) {
   await requererAcessoPainel();
@@ -52,6 +56,9 @@ export async function encerrarDesafio(desafioId: string) {
     where: { id: desafioId },
     data: { ativo: false },
   });
+
+  await verificarConquistasRankingSemanal(desafioId);
+  await verificarConquistaRankingGeral(desafioId);
 
   revalidatePath("/painel/desafios");
 }

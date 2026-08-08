@@ -1,19 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRequererAcessoPainel, mockFindFirst, mockCreate, mockUpdate, mockRevalidatePath } =
-  vi.hoisted(() => ({
-    mockRequererAcessoPainel: vi.fn(),
-    mockFindFirst: vi.fn(),
-    mockCreate: vi.fn(),
-    mockUpdate: vi.fn(),
-    mockRevalidatePath: vi.fn(),
-  }));
+const {
+  mockRequererAcessoPainel,
+  mockFindFirst,
+  mockCreate,
+  mockUpdate,
+  mockVerificarConquistaRankingGeral,
+  mockVerificarConquistasRankingSemanal,
+  mockRevalidatePath,
+} = vi.hoisted(() => ({
+  mockRequererAcessoPainel: vi.fn(),
+  mockFindFirst: vi.fn(),
+  mockCreate: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockVerificarConquistaRankingGeral: vi.fn(),
+  mockVerificarConquistasRankingSemanal: vi.fn(),
+  mockRevalidatePath: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
   requererAcessoPainel: mockRequererAcessoPainel,
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { desafio: { findFirst: mockFindFirst, create: mockCreate, update: mockUpdate } },
+}));
+vi.mock("@/lib/desafios/conquistas", () => ({
+  verificarConquistaRankingGeral: mockVerificarConquistaRankingGeral,
+  verificarConquistasRankingSemanal: mockVerificarConquistasRankingSemanal,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
@@ -136,6 +149,8 @@ describe("encerrarDesafio", () => {
   beforeEach(() => {
     mockRequererAcessoPainel.mockReset();
     mockUpdate.mockReset();
+    mockVerificarConquistaRankingGeral.mockReset();
+    mockVerificarConquistasRankingSemanal.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -146,7 +161,7 @@ describe("encerrarDesafio", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("marca o desafio como inativo", async () => {
+  it("marca o desafio como inativo e verifica as conquistas de ranking semanal e geral", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockUpdate.mockResolvedValue({});
 
@@ -156,6 +171,8 @@ describe("encerrarDesafio", () => {
       where: { id: "d1" },
       data: { ativo: false },
     });
+    expect(mockVerificarConquistasRankingSemanal).toHaveBeenCalledWith("d1");
+    expect(mockVerificarConquistaRankingGeral).toHaveBeenCalledWith("d1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios");
   });
 });

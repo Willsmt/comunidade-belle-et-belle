@@ -5,14 +5,21 @@ import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { uploadComprovante } from "@/lib/storage/comprovantes-surpresa";
+import {
+  verificarConquistasBonus,
+  verificarConquistasRankingSemanal,
+} from "@/lib/desafios/conquistas";
 
 export async function alternarMarcacao(itemId: string) {
   const session = await requererPapel(["CLIENTE"]);
+  const clienteId = session.user.id;
 
-  await prisma.itemDesafio.findUniqueOrThrow({ where: { id: itemId } });
+  const item = await prisma.itemDesafio.findUniqueOrThrow({
+    where: { id: itemId },
+    include: { categoria: true },
+  });
 
   const hoje = obterDataDeHoje();
-  const clienteId = session.user.id;
 
   const existente = await prisma.marcacaoItem.findUnique({
     where: { itemId_clienteId_data: { itemId, clienteId, data: hoje } },
@@ -24,7 +31,10 @@ export async function alternarMarcacao(itemId: string) {
     await prisma.marcacaoItem.create({
       data: { itemId, clienteId, data: hoje },
     });
+    await verificarConquistasBonus(clienteId, item.categoria.desafioId, hoje);
   }
+
+  await verificarConquistasRankingSemanal(item.categoria.desafioId, hoje);
 
   revalidatePath("/cliente/desafios");
 }
