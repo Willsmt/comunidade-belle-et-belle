@@ -11,7 +11,7 @@ vi.mock("@/auth", () => ({
   auth: mockAuth,
 }));
 
-import { obterDesafioAtivoParaCliente } from "./queries";
+import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
 
 afterEach(async () => {
   await limparBanco();
@@ -153,5 +153,66 @@ describe("obterDesafioAtivoParaCliente — desafios surpresa (Postgres real)", (
     expect(resultado?.desafio.desafiosSurpresa[0]?.participacoes[0]?.clienteId).toBe(
       clienteA.id,
     );
+  });
+});
+
+describe("obterFluxoEncerramento (Postgres real)", () => {
+  it("retorna null quando não há nenhum desafio encerrado", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente6@x.com", status: "ATIVO", name: "Cliente 6" },
+    });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id } });
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(resultado).toBeNull();
+  });
+
+  it("retorna o ranking geral e a jornada do cliente do desafio encerrado mais recente", async () => {
+    const clienteA = await prisma.user.create({
+      data: { email: "a6@x.com", status: "ATIVO", name: "Cliente A" },
+    });
+    mockAuth.mockResolvedValue({ user: { id: clienteA.id } });
+
+    await prisma.desafio.create({
+      data: {
+        titulo: "Edição antiga",
+        dataInicio: new Date("2026-06-01"),
+        dataFim: new Date("2026-06-30"),
+        ativo: false,
+      },
+    });
+    const desafioRecente = await prisma.desafio.create({
+      data: {
+        titulo: "Edição recente",
+        dataInicio: new Date("2026-07-01"),
+        dataFim: new Date("2026-07-30"),
+        ativo: false,
+      },
+    });
+    const categoria = await prisma.categoriaDesafio.create({
+      data: { desafioId: desafioRecente.id, nome: "Pele", cor: "#f5c" },
+    });
+    const item = await prisma.itemDesafio.create({
+      data: { categoriaId: categoria.id, descricao: "Água", pontos: 10 },
+    });
+    await prisma.marcacaoItem.create({
+      data: { itemId: item.id, clienteId: clienteA.id, data: new Date("2026-07-05") },
+    });
+    await prisma.jornadaDesafio.create({
+      data: {
+        desafioId: desafioRecente.id,
+        clienteId: clienteA.id,
+        avisoEncerramentoVisto: true,
+      },
+    });
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(resultado?.desafio.id).toBe(desafioRecente.id);
+    expect(resultado?.avisoVisto).toBe(true);
+    expect(resultado?.rankingGeral).toEqual([
+      { clienteId: clienteA.id, nome: "Cliente A", pontos: 10 },
+    ]);
   });
 });

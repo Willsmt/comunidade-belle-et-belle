@@ -28,7 +28,7 @@ vi.mock("@/lib/storage/jornada-desafio", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
 
-import { obterDesafioAtivoParaCliente } from "./queries";
+import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
 
 describe("obterDesafioAtivoParaCliente", () => {
   beforeEach(() => {
@@ -140,5 +140,74 @@ describe("obterDesafioAtivoParaCliente", () => {
       { clienteId: "cliente-2", nome: "Marina", pontos: 10 },
       { clienteId: "cliente-1", nome: "Você", pontos: 8 },
     ]);
+  });
+});
+
+describe("obterFluxoEncerramento", () => {
+  beforeEach(() => {
+    mockAuth.mockReset();
+    mockFindFirst.mockReset();
+    mockFindMany.mockReset();
+    mockJornadaFindUnique.mockReset();
+    mockGerarUrlAssinada.mockReset();
+  });
+
+  it("exige sessão válida", async () => {
+    mockAuth.mockResolvedValue(null);
+
+    await expect(obterFluxoEncerramento()).rejects.toThrow("Sessão inválida");
+  });
+
+  it("retorna null quando não há nenhum desafio encerrado", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue(null);
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(resultado).toBeNull();
+  });
+
+  it("busca o desafio encerrado mais recente com o ranking geral e a jornada do cliente", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({ id: "d1", titulo: "Glow Up" });
+    mockFindMany.mockResolvedValue([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      where: { ativo: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    expect(mockJornadaFindUnique).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+    });
+    expect(resultado?.avisoVisto).toBe(false);
+    expect(resultado?.fotoAntesUrl).toBeNull();
+    expect(resultado?.fotoDepoisUrl).toBeNull();
+  });
+
+  it("retorna os dados salvos da jornada quando já existem", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({ id: "d1", titulo: "Glow Up" });
+    mockFindMany.mockResolvedValue([]);
+    mockJornadaFindUnique.mockResolvedValue({
+      avisoEncerramentoVisto: true,
+      reflexaoMudou: "Tudo",
+      reflexaoOrgulho: "Disciplina",
+      reflexaoContinuar: "Água",
+      fotoAntesChave: "jornada-desafio/cliente-1/antes.webp",
+      fotoDepoisChave: "jornada-desafio/cliente-1/depois.webp",
+    });
+    mockGerarUrlAssinada
+      .mockResolvedValueOnce("https://url-antes.exemplo")
+      .mockResolvedValueOnce("https://url-depois.exemplo");
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(resultado?.avisoVisto).toBe(true);
+    expect(resultado?.reflexaoMudou).toBe("Tudo");
+    expect(resultado?.fotoAntesUrl).toBe("https://url-antes.exemplo");
+    expect(resultado?.fotoDepoisUrl).toBe("https://url-depois.exemplo");
   });
 });

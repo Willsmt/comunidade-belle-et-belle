@@ -111,3 +111,48 @@ export async function obterDesafioAtivoParaCliente() {
     fotoDepoisUrl,
   };
 }
+
+export async function obterFluxoEncerramento() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Sessão inválida");
+  }
+
+  const desafio = await prisma.desafio.findFirst({
+    where: { ativo: false },
+    orderBy: { criadoEm: "desc" },
+  });
+
+  if (!desafio) {
+    return null;
+  }
+
+  const clienteId = session.user.id;
+
+  const [jornada, rankingGeral] = await Promise.all([
+    prisma.jornadaDesafio.findUnique({
+      where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+    }),
+    calcularRanking(desafio.id),
+  ]);
+
+  const fotoAntesUrl = jornada?.fotoAntesChave
+    ? await gerarUrlAssinada(jornada.fotoAntesChave)
+    : null;
+  const fotoDepoisUrl = jornada?.fotoDepoisChave
+    ? await gerarUrlAssinada(jornada.fotoDepoisChave)
+    : null;
+
+  return {
+    desafio,
+    clienteId,
+    avisoVisto: jornada?.avisoEncerramentoVisto ?? false,
+    reflexaoMudou: jornada?.reflexaoMudou ?? null,
+    reflexaoOrgulho: jornada?.reflexaoOrgulho ?? null,
+    reflexaoContinuar: jornada?.reflexaoContinuar ?? null,
+    fotoAntesUrl,
+    fotoDepoisUrl,
+    rankingGeral,
+  };
+}

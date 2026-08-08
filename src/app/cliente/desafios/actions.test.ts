@@ -76,6 +76,8 @@ import {
   participarDesafioSurpresa,
   enviarFotoAntes,
   enviarFotoDepois,
+  marcarAvisoEncerramentoVisto,
+  salvarReflexao,
 } from "./actions";
 
 describe("alternarMarcacao", () => {
@@ -267,20 +269,20 @@ describe("enviarFotoAntes", () => {
     expect(mockDesafioFindFirst).not.toHaveBeenCalled();
   });
 
-  it("rejeita se não houver desafio ativo", async () => {
+  it("rejeita se não houver nenhum desafio (nem ativo, nem encerrado)", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue(null);
+    mockDesafioFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
 
     const arquivo = new File(["x"], "foto.png", { type: "image/png" });
     await expect(
       enviarFotoAntes(buildFormDataComArquivo("foto", arquivo)),
-    ).rejects.toThrow("Nenhum desafio ativo no momento");
+    ).rejects.toThrow("Nenhum desafio disponível no momento");
     expect(mockUploadFotoJornada).not.toHaveBeenCalled();
   });
 
   it("rejeita sem arquivo", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockDesafioFindFirst.mockResolvedValueOnce({ id: "d1" });
 
     await expect(enviarFotoAntes(buildFormDataComArquivo("foto"))).rejects.toThrow(
       "Envie uma foto",
@@ -288,9 +290,9 @@ describe("enviarFotoAntes", () => {
     expect(mockUploadFotoJornada).not.toHaveBeenCalled();
   });
 
-  it("cria a jornada com a foto de antes quando ainda não existe registro", async () => {
+  it("usa o desafio ativo quando existe, sem checar o encerrado", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockDesafioFindFirst.mockResolvedValueOnce({ id: "d1" });
     mockJornadaFindUnique.mockResolvedValue(null);
     mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
     mockJornadaUpsert.mockResolvedValue({});
@@ -298,8 +300,7 @@ describe("enviarFotoAntes", () => {
     const arquivo = new File(["x"], "foto.png", { type: "image/png" });
     await enviarFotoAntes(buildFormDataComArquivo("foto", arquivo));
 
-    expect(mockUploadFotoJornada).toHaveBeenCalledWith(arquivo, "cliente-1");
-    expect(mockDeletarFotoJornada).not.toHaveBeenCalled();
+    expect(mockDesafioFindFirst).toHaveBeenCalledTimes(1);
     expect(mockJornadaUpsert).toHaveBeenCalledWith({
       where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
       create: {
@@ -309,12 +310,38 @@ describe("enviarFotoAntes", () => {
       },
       update: { fotoAntesChave: "jornada-desafio/cliente-1/nova.webp" },
     });
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
+  });
+
+  it("cai pro desafio encerrado mais recente quando não há nenhum ativo", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "d-antigo" });
+    mockJornadaFindUnique.mockResolvedValue(null);
+    mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockJornadaUpsert.mockResolvedValue({});
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await enviarFotoAntes(buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockDesafioFindFirst).toHaveBeenNthCalledWith(2, {
+      where: { ativo: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    expect(mockJornadaUpsert).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d-antigo", clienteId: "cliente-1" } },
+      create: {
+        desafioId: "d-antigo",
+        clienteId: "cliente-1",
+        fotoAntesChave: "jornada-desafio/cliente-1/nova.webp",
+      },
+      update: { fotoAntesChave: "jornada-desafio/cliente-1/nova.webp" },
+    });
   });
 
   it("apaga a foto antiga ao trocar por uma nova", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockDesafioFindFirst.mockResolvedValueOnce({ id: "d1" });
     mockJornadaFindUnique.mockResolvedValue({
       fotoAntesChave: "jornada-desafio/cliente-1/antiga.webp",
     });
@@ -341,9 +368,11 @@ describe("enviarFotoDepois", () => {
     mockRevalidatePath.mockReset();
   });
 
-  it("cria a jornada com a foto de depois quando ainda não existe registro", async () => {
+  it("usa o desafio encerrado mais recente quando não há nenhum ativo", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockDesafioFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "d-antigo" });
     mockJornadaFindUnique.mockResolvedValue(null);
     mockUploadFotoJornada.mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
     mockJornadaUpsert.mockResolvedValue({});
@@ -352,9 +381,9 @@ describe("enviarFotoDepois", () => {
     await enviarFotoDepois(buildFormDataComArquivo("foto", arquivo));
 
     expect(mockJornadaUpsert).toHaveBeenCalledWith({
-      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+      where: { desafioId_clienteId: { desafioId: "d-antigo", clienteId: "cliente-1" } },
       create: {
-        desafioId: "d1",
+        desafioId: "d-antigo",
         clienteId: "cliente-1",
         fotoDepoisChave: "jornada-desafio/cliente-1/nova.webp",
       },
@@ -364,7 +393,7 @@ describe("enviarFotoDepois", () => {
 
   it("apaga a foto antiga ao trocar por uma nova", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockDesafioFindFirst.mockResolvedValueOnce({ id: "d1" });
     mockJornadaFindUnique.mockResolvedValue({
       fotoDepoisChave: "jornada-desafio/cliente-1/antiga.webp",
     });
@@ -377,5 +406,113 @@ describe("enviarFotoDepois", () => {
     expect(mockDeletarFotoJornada).toHaveBeenCalledWith(
       "jornada-desafio/cliente-1/antiga.webp",
     );
+  });
+});
+
+describe("marcarAvisoEncerramentoVisto", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockDesafioFindFirst.mockReset();
+    mockJornadaUpsert.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(marcarAvisoEncerramentoVisto()).rejects.toThrow("Acesso negado");
+    expect(mockDesafioFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejeita se não houver desafio encerrado", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue(null);
+
+    await expect(marcarAvisoEncerramentoVisto()).rejects.toThrow(
+      "Nenhum desafio encerrado encontrado",
+    );
+    expect(mockJornadaUpsert).not.toHaveBeenCalled();
+  });
+
+  it("marca o aviso como visto pro desafio encerrado mais recente", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaUpsert.mockResolvedValue({});
+
+    await marcarAvisoEncerramentoVisto();
+
+    expect(mockDesafioFindFirst).toHaveBeenCalledWith({
+      where: { ativo: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    expect(mockJornadaUpsert).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+      create: { desafioId: "d1", clienteId: "cliente-1", avisoEncerramentoVisto: true },
+      update: { avisoEncerramentoVisto: true },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
+  });
+});
+
+describe("salvarReflexao", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockDesafioFindFirst.mockReset();
+    mockJornadaUpsert.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  function buildFormDataReflexao(campos: Record<string, string>) {
+    const formData = new FormData();
+    for (const [chave, valor] of Object.entries(campos)) {
+      formData.set(chave, valor);
+    }
+    return formData;
+  }
+
+  it("exige papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(salvarReflexao(buildFormDataReflexao({}))).rejects.toThrow(
+      "Acesso negado",
+    );
+    expect(mockDesafioFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejeita se não houver desafio encerrado", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue(null);
+
+    await expect(salvarReflexao(buildFormDataReflexao({}))).rejects.toThrow(
+      "Nenhum desafio encerrado encontrado",
+    );
+    expect(mockJornadaUpsert).not.toHaveBeenCalled();
+  });
+
+  it("salva as três respostas, com null nos campos deixados em branco", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({ id: "d1" });
+    mockJornadaUpsert.mockResolvedValue({});
+
+    await salvarReflexao(
+      buildFormDataReflexao({ reflexaoMudou: "Tudo", reflexaoOrgulho: "Disciplina" }),
+    );
+
+    expect(mockJornadaUpsert).toHaveBeenCalledWith({
+      where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
+      create: {
+        desafioId: "d1",
+        clienteId: "cliente-1",
+        reflexaoMudou: "Tudo",
+        reflexaoOrgulho: "Disciplina",
+        reflexaoContinuar: null,
+      },
+      update: {
+        reflexaoMudou: "Tudo",
+        reflexaoOrgulho: "Disciplina",
+        reflexaoContinuar: null,
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
   });
 });

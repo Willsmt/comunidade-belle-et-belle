@@ -76,14 +76,25 @@ export async function participarDesafioSurpresa(
   revalidatePath("/cliente/desafios");
 }
 
+async function obterDesafioRelevante() {
+  const ativo = await prisma.desafio.findFirst({ where: { ativo: true } });
+  if (ativo) {
+    return ativo;
+  }
+  return prisma.desafio.findFirst({
+    where: { ativo: false },
+    orderBy: { criadoEm: "desc" },
+  });
+}
+
 async function enviarFotoJornada(
   clienteId: string,
   arquivo: FormDataEntryValue | null,
   campo: "fotoAntesChave" | "fotoDepoisChave",
 ) {
-  const desafio = await prisma.desafio.findFirst({ where: { ativo: true } });
+  const desafio = await obterDesafioRelevante();
   if (!desafio) {
-    throw new Error("Nenhum desafio ativo no momento");
+    throw new Error("Nenhum desafio disponível no momento");
   }
 
   if (!(arquivo instanceof File) || arquivo.size === 0) {
@@ -118,4 +129,61 @@ export async function enviarFotoAntes(formData: FormData) {
 export async function enviarFotoDepois(formData: FormData) {
   const session = await requererPapel(["CLIENTE"]);
   await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoDepoisChave");
+}
+
+export async function marcarAvisoEncerramentoVisto() {
+  const session = await requererPapel(["CLIENTE"]);
+  const clienteId = session.user.id;
+
+  const desafio = await prisma.desafio.findFirst({
+    where: { ativo: false },
+    orderBy: { criadoEm: "desc" },
+  });
+  if (!desafio) {
+    throw new Error("Nenhum desafio encerrado encontrado");
+  }
+
+  await prisma.jornadaDesafio.upsert({
+    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+    create: { desafioId: desafio.id, clienteId, avisoEncerramentoVisto: true },
+    update: { avisoEncerramentoVisto: true },
+  });
+
+  revalidatePath("/cliente/desafios");
+}
+
+export async function salvarReflexao(formData: FormData) {
+  const session = await requererPapel(["CLIENTE"]);
+  const clienteId = session.user.id;
+
+  const desafio = await prisma.desafio.findFirst({
+    where: { ativo: false },
+    orderBy: { criadoEm: "desc" },
+  });
+  if (!desafio) {
+    throw new Error("Nenhum desafio encerrado encontrado");
+  }
+
+  const parseTexto = (campo: string) => {
+    const valor = formData.get(campo);
+    return typeof valor === "string" && valor.trim() !== "" ? valor : null;
+  };
+
+  await prisma.jornadaDesafio.upsert({
+    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+    create: {
+      desafioId: desafio.id,
+      clienteId,
+      reflexaoMudou: parseTexto("reflexaoMudou"),
+      reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
+      reflexaoContinuar: parseTexto("reflexaoContinuar"),
+    },
+    update: {
+      reflexaoMudou: parseTexto("reflexaoMudou"),
+      reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
+      reflexaoContinuar: parseTexto("reflexaoContinuar"),
+    },
+  });
+
+  revalidatePath("/cliente/desafios");
 }
