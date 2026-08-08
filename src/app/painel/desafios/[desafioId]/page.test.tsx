@@ -17,6 +17,10 @@ vi.mock("./actions", () => ({
   criarRegraCombo: vi.fn(),
   criarRegraCategoriaCompleta: vi.fn(),
   removerRegraBonus: vi.fn(),
+  criarDesafioSurpresa: vi.fn(),
+  removerDesafioSurpresa: vi.fn(),
+  aprovarParticipacao: vi.fn(),
+  rejeitarParticipacao: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,13 +38,14 @@ describe("DesafioDetalhePage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("renderiza o título, o formulário de categoria e a mensagem de lista vazia", async () => {
+  it("renderiza o título, o formulário de categoria e as mensagens de lista vazia", async () => {
     vi.mocked(obterDesafioComCategorias).mockResolvedValue({
       id: "d1",
       titulo: "Glow Up",
       ativo: true,
       categorias: [],
       regrasBonus: [],
+      desafiosSurpresa: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -50,7 +55,7 @@ describe("DesafioDetalhePage", () => {
       screen.getByRole("form", { name: /criar categoria/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/nenhuma categoria ainda/i)).toBeInTheDocument();
-    expect(screen.getByText(/nenhuma regra de bônus ainda/i)).toBeInTheDocument();
+    expect(screen.getByText(/nenhum desafio surpresa criado ainda/i)).toBeInTheDocument();
   });
 
   it("renderiza categoria com seus itens e o form de novo item", async () => {
@@ -69,6 +74,7 @@ describe("DesafioDetalhePage", () => {
         },
       ],
       regrasBonus: [],
+      desafiosSurpresa: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -89,6 +95,7 @@ describe("DesafioDetalhePage", () => {
       ativo: true,
       categorias: [],
       regrasBonus: [],
+      desafiosSurpresa: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -139,6 +146,7 @@ describe("DesafioDetalhePage", () => {
           categoriaId: "c1",
         },
       ],
+      desafiosSurpresa: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -146,5 +154,45 @@ describe("DesafioDetalhePage", () => {
     expect(screen.getByText(/completar 4 itens no dia/i)).toBeInTheDocument();
     expect(screen.getByText(/água \+ academia/i)).toBeInTheDocument();
     expect(screen.getByText(/completar a categoria "pele"/i)).toBeInTheDocument();
+  });
+
+  it("renderiza desafios surpresa com participações pendentes e aprovadas", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [],
+      regrasBonus: [],
+      desafiosSurpresa: [
+        {
+          id: "s1",
+          titulo: "Corrida 5km",
+          descricao: "Manda o print",
+          pontos: 50,
+          exigeComprovacao: true,
+          participacoes: [
+            {
+              id: "p1",
+              cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+              validado: false,
+            },
+            {
+              id: "p2",
+              cliente: { id: "c2", name: "Cliente 2", email: "c2@x.com" },
+              validado: true,
+            },
+          ],
+        },
+      ],
+    } as never);
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    expect(screen.getByText("Corrida 5km")).toBeInTheDocument();
+    expect(screen.getByText("Cliente 1")).toBeInTheDocument();
+    expect(screen.getByText("Cliente 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /aprovar/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /rejeitar/i })).toBeInTheDocument();
+    expect(screen.getByText("Aprovada")).toBeInTheDocument();
   });
 });

@@ -157,3 +157,70 @@ export async function removerRegraBonus(regraId: string) {
 
   revalidatePath(`/painel/desafios/${regra.desafioId}`);
 }
+
+export async function criarDesafioSurpresa(desafioId: string, formData: FormData) {
+  await requererAcessoPainel();
+
+  const titulo = formData.get("titulo");
+  const descricao = formData.get("descricao");
+  const pontosRaw = formData.get("pontos");
+  const exigeComprovacao = formData.get("exigeComprovacao") === "on";
+
+  if (typeof titulo !== "string" || titulo.trim() === "") {
+    throw new Error("Informe o título do desafio surpresa");
+  }
+
+  const pontos = typeof pontosRaw === "string" ? Number(pontosRaw) : NaN;
+  if (!Number.isInteger(pontos) || pontos <= 0) {
+    throw new Error("Informe uma pontuação válida");
+  }
+
+  await prisma.desafioSurpresa.create({
+    data: {
+      desafioId,
+      titulo,
+      descricao: typeof descricao === "string" && descricao.trim() !== "" ? descricao : null,
+      pontos,
+      exigeComprovacao,
+    },
+  });
+
+  revalidatePath(`/painel/desafios/${desafioId}`);
+}
+
+export async function removerDesafioSurpresa(desafioSurpresaId: string) {
+  await requererAcessoPainel();
+
+  const desafioSurpresa = await prisma.desafioSurpresa.delete({
+    where: { id: desafioSurpresaId },
+  });
+
+  revalidatePath(`/painel/desafios/${desafioSurpresa.desafioId}`);
+}
+
+export async function aprovarParticipacao(participacaoId: string) {
+  const session = await requererAcessoPainel();
+
+  const participacao = await prisma.participacaoSurpresa.update({
+    where: { id: participacaoId },
+    data: {
+      validado: true,
+      validadoPor: session.user.id,
+      validadoEm: new Date(),
+    },
+    include: { desafioSurpresa: true },
+  });
+
+  revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);
+}
+
+export async function rejeitarParticipacao(participacaoId: string) {
+  await requererAcessoPainel();
+
+  const participacao = await prisma.participacaoSurpresa.delete({
+    where: { id: participacaoId },
+    include: { desafioSurpresa: true },
+  });
+
+  revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);
+}

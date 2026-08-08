@@ -16,6 +16,17 @@ export function obterDesafioComCategorias(desafioId: string) {
           itensCombo: true,
         },
       },
+      desafiosSurpresa: {
+        orderBy: { criadoEm: "desc" },
+        include: {
+          participacoes: {
+            orderBy: { criadoEm: "asc" },
+            include: {
+              cliente: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      },
     },
   });
 }

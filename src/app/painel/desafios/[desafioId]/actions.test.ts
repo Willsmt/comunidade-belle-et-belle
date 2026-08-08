@@ -9,6 +9,10 @@ const {
   mockItemDelete,
   mockRegraCreate,
   mockRegraDelete,
+  mockSurpresaCreate,
+  mockSurpresaDelete,
+  mockParticipacaoUpdate,
+  mockParticipacaoDelete,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererAcessoPainel: vi.fn(),
@@ -19,6 +23,10 @@ const {
   mockItemDelete: vi.fn(),
   mockRegraCreate: vi.fn(),
   mockRegraDelete: vi.fn(),
+  mockSurpresaCreate: vi.fn(),
+  mockSurpresaDelete: vi.fn(),
+  mockParticipacaoUpdate: vi.fn(),
+  mockParticipacaoDelete: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -34,6 +42,8 @@ vi.mock("@/lib/prisma", () => ({
     },
     itemDesafio: { create: mockItemCreate, delete: mockItemDelete },
     regraBonus: { create: mockRegraCreate, delete: mockRegraDelete },
+    desafioSurpresa: { create: mockSurpresaCreate, delete: mockSurpresaDelete },
+    participacaoSurpresa: { update: mockParticipacaoUpdate, delete: mockParticipacaoDelete },
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -47,6 +57,10 @@ import {
   criarRegraCombo,
   criarRegraCategoriaCompleta,
   removerRegraBonus,
+  criarDesafioSurpresa,
+  removerDesafioSurpresa,
+  aprovarParticipacao,
+  rejeitarParticipacao,
 } from "./actions";
 
 function buildFormData(campos: Record<string, string | string[]>) {
@@ -382,6 +396,176 @@ describe("removerRegraBonus", () => {
     await removerRegraBonus("r1");
 
     expect(mockRegraDelete).toHaveBeenCalledWith({ where: { id: "r1" } });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("criarDesafioSurpresa", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockSurpresaCreate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(
+      criarDesafioSurpresa("d1", buildFormData({ titulo: "Corrida 5km", pontos: "50" })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockSurpresaCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem título", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarDesafioSurpresa("d1", buildFormData({ pontos: "50" })),
+    ).rejects.toThrow("Informe o título do desafio surpresa");
+    expect(mockSurpresaCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita pontuação inválida", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarDesafioSurpresa("d1", buildFormData({ titulo: "Corrida 5km", pontos: "0" })),
+    ).rejects.toThrow("Informe uma pontuação válida");
+    expect(mockSurpresaCreate).not.toHaveBeenCalled();
+  });
+
+  it("cria o desafio surpresa sem exigir comprovação por padrão", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockSurpresaCreate.mockResolvedValue({});
+
+    await criarDesafioSurpresa("d1", buildFormData({ titulo: "Corrida 5km", pontos: "50" }));
+
+    expect(mockSurpresaCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        titulo: "Corrida 5km",
+        descricao: null,
+        pontos: 50,
+        exigeComprovacao: false,
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("cria o desafio surpresa exigindo comprovação e com descrição", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockSurpresaCreate.mockResolvedValue({});
+
+    await criarDesafioSurpresa(
+      "d1",
+      buildFormData({
+        titulo: "Corrida 5km",
+        descricao: "Manda o print",
+        pontos: "50",
+        exigeComprovacao: "on",
+      }),
+    );
+
+    expect(mockSurpresaCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        titulo: "Corrida 5km",
+        descricao: "Manda o print",
+        pontos: 50,
+        exigeComprovacao: true,
+      },
+    });
+  });
+});
+
+describe("removerDesafioSurpresa", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockSurpresaDelete.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(removerDesafioSurpresa("s1")).rejects.toThrow("Acesso negado");
+    expect(mockSurpresaDelete).not.toHaveBeenCalled();
+  });
+
+  it("remove o desafio surpresa e revalida a página do desafio dele", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockSurpresaDelete.mockResolvedValue({ id: "s1", desafioId: "d1" });
+
+    await removerDesafioSurpresa("s1");
+
+    expect(mockSurpresaDelete).toHaveBeenCalledWith({ where: { id: "s1" } });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("aprovarParticipacao", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockParticipacaoUpdate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(aprovarParticipacao("p1")).rejects.toThrow("Acesso negado");
+    expect(mockParticipacaoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("marca a participação como validada com quem aprovou e quando", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoUpdate.mockResolvedValue({
+      id: "p1",
+      desafioSurpresa: { desafioId: "d1" },
+    });
+
+    await aprovarParticipacao("p1");
+
+    expect(mockParticipacaoUpdate).toHaveBeenCalledWith({
+      where: { id: "p1" },
+      data: {
+        validado: true,
+        validadoPor: "patty-1",
+        validadoEm: expect.any(Date),
+      },
+      include: { desafioSurpresa: true },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("rejeitarParticipacao", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockParticipacaoDelete.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(rejeitarParticipacao("p1")).rejects.toThrow("Acesso negado");
+    expect(mockParticipacaoDelete).not.toHaveBeenCalled();
+  });
+
+  it("remove a participação e revalida a página do desafio dela", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoDelete.mockResolvedValue({
+      id: "p1",
+      desafioSurpresa: { desafioId: "d1" },
+    });
+
+    await rejeitarParticipacao("p1");
+
+    expect(mockParticipacaoDelete).toHaveBeenCalledWith({
+      where: { id: "p1" },
+      include: { desafioSurpresa: true },
+    });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
   });
 });

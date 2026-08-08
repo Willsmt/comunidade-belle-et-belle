@@ -78,3 +78,35 @@ describe("obterDesafioComCategorias (Postgres real)", () => {
     ).toEqual(["Academia", "Água"]);
   });
 });
+
+describe("obterDesafioComCategorias — desafios surpresa (Postgres real)", () => {
+  it("retorna desafios surpresa com as participações e o cliente de cada uma", async () => {
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+      },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente@x.com", status: "ATIVO", name: "Cliente X" },
+    });
+    const surpresa = await prisma.desafioSurpresa.create({
+      data: {
+        desafioId: desafio.id,
+        titulo: "Corrida 5km",
+        pontos: 50,
+        exigeComprovacao: true,
+      },
+    });
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId: surpresa.id, clienteId: cliente.id },
+    });
+
+    const resultado = await obterDesafioComCategorias(desafio.id);
+
+    expect(resultado?.desafiosSurpresa).toHaveLength(1);
+    expect(resultado?.desafiosSurpresa[0]?.participacoes).toHaveLength(1);
+    expect(resultado?.desafiosSurpresa[0]?.participacoes[0]?.cliente.name).toBe("Cliente X");
+  });
+});

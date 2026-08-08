@@ -9,6 +9,10 @@ import {
   criarRegraCombo,
   criarRegraCategoriaCompleta,
   removerRegraBonus,
+  criarDesafioSurpresa,
+  removerDesafioSurpresa,
+  aprovarParticipacao,
+  rejeitarParticipacao,
 } from "./actions";
 import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
 
@@ -23,8 +27,6 @@ export default async function DesafioDetalhePage({
   if (!desafio) {
     notFound();
   }
-
-  const todosOsItens = desafio.categorias.flatMap((categoria) => categoria.itens);
 
   return (
     <section>
@@ -153,11 +155,13 @@ export default async function DesafioDetalhePage({
         <label htmlFor="itensCombo">
           Itens do combo
           <select id="itensCombo" name="itensCombo" multiple required>
-            {todosOsItens.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.descricao}
-              </option>
-            ))}
+            {desafio.categorias
+              .flatMap((categoria) => categoria.itens)
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.descricao}
+                </option>
+              ))}
           </select>
         </label>
         <label htmlFor="pontosExtras-combo">
@@ -189,6 +193,76 @@ export default async function DesafioDetalhePage({
         </label>
         <button type="submit">Criar regra</button>
       </form>
+
+      <h2>Desafios surpresa</h2>
+      <form
+        action={criarDesafioSurpresa.bind(null, desafioId)}
+        aria-label="Criar desafio surpresa"
+      >
+        <label htmlFor="tituloSurpresa">
+          Título
+          <input id="tituloSurpresa" name="titulo" type="text" required />
+        </label>
+        <label htmlFor="descricaoSurpresa">
+          Descrição
+          <input id="descricaoSurpresa" name="descricao" type="text" />
+        </label>
+        <label htmlFor="pontosSurpresa">
+          Pontos
+          <input id="pontosSurpresa" name="pontos" type="number" min="1" required />
+        </label>
+        <label htmlFor="exigeComprovacao">
+          <input id="exigeComprovacao" name="exigeComprovacao" type="checkbox" />
+          Exige comprovação (foto)
+        </label>
+        <button type="submit">Criar</button>
+      </form>
+
+      {desafio.desafiosSurpresa.length === 0 ? (
+        <p>Nenhum desafio surpresa criado ainda.</p>
+      ) : (
+        desafio.desafiosSurpresa.map((surpresa) => (
+          <div key={surpresa.id}>
+            <h3>{surpresa.titulo}</h3>
+            {surpresa.descricao && <p>{surpresa.descricao}</p>}
+            <p>
+              {surpresa.pontos} pts{surpresa.exigeComprovacao ? " · exige comprovação" : ""}
+            </p>
+            <BotaoComConfirmacao
+              label="Remover"
+              mensagemConfirmacao={`Remover o desafio surpresa "${surpresa.titulo}"?`}
+              action={removerDesafioSurpresa.bind(null, surpresa.id)}
+            />
+
+            <h4>Participações</h4>
+            {surpresa.participacoes.length === 0 ? (
+              <p>Nenhuma participação ainda.</p>
+            ) : (
+              <ul>
+                {surpresa.participacoes.map((participacao) => (
+                  <li key={participacao.id}>
+                    <span>{participacao.cliente.name ?? participacao.cliente.email}</span>
+                    {participacao.validado ? (
+                      <span>Aprovada</span>
+                    ) : (
+                      <>
+                        <form action={aprovarParticipacao.bind(null, participacao.id)}>
+                          <button type="submit">Aprovar</button>
+                        </form>
+                        <BotaoComConfirmacao
+                          label="Rejeitar"
+                          mensagemConfirmacao="Rejeitar essa participação? Ela será removida e a cliente pode enviar de novo."
+                          action={rejeitarParticipacao.bind(null, participacao.id)}
+                        />
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))
+      )}
     </section>
   );
 }
