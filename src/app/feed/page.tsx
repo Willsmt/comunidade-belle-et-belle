@@ -2,15 +2,27 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { listarPosts } from "./queries";
-import { apagarPost } from "./actions";
+import {
+  apagarPost,
+  alternarCurtida,
+  comentar,
+  apagarComentario,
+} from "./actions";
 
-export default async function FeedPage() {
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
+  const { cursor } = await searchParams;
   const session = await auth();
-  const podeModerar = session?.user
-    ? temAlgumPapel(session.user.papeis, ["GESTORA", "ADMIN"])
-    : false;
 
-  const posts = await listarPosts();
+  if (!session?.user) {
+    return null;
+  }
+
+  const podeModerar = temAlgumPapel(session.user.papeis, ["GESTORA", "ADMIN"]);
+  const { posts, proximoCursor } = await listarPosts(session.user.id, cursor);
 
   return (
     <section>
@@ -21,8 +33,8 @@ export default async function FeedPage() {
       ) : (
         <ul>
           {posts.map((post) => {
-            const podeEditar = session?.user?.id === post.autorId;
-            const podeApagar = podeEditar || podeModerar;
+            const podeEditar = session.user.id === post.autorId;
+            const podeApagarPost = podeEditar || podeModerar;
 
             return (
               <li key={post.id}>
@@ -33,20 +45,69 @@ export default async function FeedPage() {
                 {post.texto && <p>{post.texto}</p>}
                 <p>{post.criadoEm.toLocaleDateString("pt-BR")}</p>
 
+                <form action={alternarCurtida}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <button type="submit">
+                    {post.curtidoPeloUsuario ? "Descurtir" : "Curtir"} (
+                    {post.totalCurtidas})
+                  </button>
+                </form>
+
                 {podeEditar && (
                   <Link href={`/feed/${post.id}/editar`}>Editar</Link>
                 )}
 
-                {podeApagar && (
+                {podeApagarPost && (
                   <form action={apagarPost}>
                     <input type="hidden" name="postId" value={post.id} />
-                    <button type="submit">Apagar</button>
+                    <button type="submit">Apagar post</button>
                   </form>
                 )}
+
+                <h2>Comentários</h2>
+                {post.comentarios.length === 0 ? (
+                  <p>Nenhum comentário ainda.</p>
+                ) : (
+                  <ul>
+                    {post.comentarios.map((comentario) => {
+                      const podeApagarComentario =
+                        session.user.id === comentario.autorId || podeModerar;
+                      return (
+                        <li key={comentario.id}>
+                          <p>{comentario.autor.name}</p>
+                          <p>{comentario.texto}</p>
+                          {podeApagarComentario && (
+                            <form action={apagarComentario}>
+                              <input
+                                type="hidden"
+                                name="comentarioId"
+                                value={comentario.id}
+                              />
+                              <button type="submit">Apagar</button>
+                            </form>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <form action={comentar}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <label>
+                    Comentar
+                    <input type="text" name="texto" />
+                  </label>
+                  <button type="submit">Enviar</button>
+                </form>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {proximoCursor && (
+        <Link href={`/feed?cursor=${proximoCursor}`}>Carregar mais</Link>
       )}
     </section>
   );

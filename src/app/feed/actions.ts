@@ -133,3 +133,79 @@ export async function apagarPost(formData: FormData) {
 
   revalidatePath("/feed");
 }
+
+export async function alternarCurtida(formData: FormData) {
+  const session = await requererSessao();
+
+  const postId = formData.get("postId");
+  if (typeof postId !== "string") {
+    throw new Error("Post inválido");
+  }
+
+  const existente = await prisma.like.findUnique({
+    where: { postId_usuarioId: { postId, usuarioId: session.user.id } },
+  });
+
+  if (existente) {
+    await prisma.like.delete({ where: { id: existente.id } });
+  } else {
+    await prisma.like.create({
+      data: { postId, usuarioId: session.user.id },
+    });
+  }
+
+  revalidatePath("/feed");
+}
+
+export async function comentar(formData: FormData) {
+  const session = await requererSessao();
+
+  const postId = formData.get("postId");
+  const texto = formData.get("texto");
+
+  if (typeof postId !== "string") {
+    throw new Error("Post inválido");
+  }
+  if (typeof texto !== "string" || texto.trim() === "") {
+    throw new Error("Escreva um comentário");
+  }
+
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (!post) {
+    throw new Error("Post não encontrado");
+  }
+
+  await prisma.comentario.create({
+    data: { postId, autorId: session.user.id, texto: texto.trim() },
+  });
+
+  revalidatePath("/feed");
+}
+
+export async function apagarComentario(formData: FormData) {
+  const session = await requererSessao();
+
+  const comentarioId = formData.get("comentarioId");
+  if (typeof comentarioId !== "string") {
+    throw new Error("Comentário inválido");
+  }
+
+  const comentario = await prisma.comentario.findUnique({
+    where: { id: comentarioId },
+  });
+  if (!comentario) {
+    throw new Error("Comentário não encontrado");
+  }
+
+  const podeModerar = temAlgumPapel(session.user.papeis, [
+    ...PAPEIS_MODERACAO,
+  ]);
+
+  if (comentario.autorId !== session.user.id && !podeModerar) {
+    throw new Error("Acesso negado");
+  }
+
+  await prisma.comentario.delete({ where: { id: comentarioId } });
+
+  revalidatePath("/feed");
+}

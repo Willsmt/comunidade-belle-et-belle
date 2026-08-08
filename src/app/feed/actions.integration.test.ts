@@ -24,7 +24,14 @@ vi.mock("@/lib/storage/objetos", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { criarPost, editarPost, apagarPost } from "./actions";
+import {
+  criarPost,
+  editarPost,
+  apagarPost,
+  alternarCurtida,
+  comentar,
+  apagarComentario,
+} from "./actions";
 import { listarPosts } from "./queries";
 
 afterEach(async () => {
@@ -61,6 +68,19 @@ function formDataEditar(postId: string, texto: string) {
 function formDataPostId(postId: string) {
   const formData = new FormData();
   formData.set("postId", postId);
+  return formData;
+}
+
+function formDataComentar(postId: string, texto: string) {
+  const formData = new FormData();
+  formData.set("postId", postId);
+  formData.set("texto", texto);
+  return formData;
+}
+
+function formDataComentarioId(comentarioId: string) {
+  const formData = new FormData();
+  formData.set("comentarioId", comentarioId);
   return formData;
 }
 
@@ -178,6 +198,69 @@ describe("apagarPost (Postgres real)", () => {
   });
 });
 
+describe("alternarCurtida (Postgres real)", () => {
+  it("cria e depois remove o like real (toggle completo)", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const autor = await criarUsuario("autor@x.com", "Autora");
+    const post = await prisma.post.create({
+      data: { autorId: autor.id, texto: "post curtível" },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(cliente.id));
+
+    await alternarCurtida(formDataPostId(post.id));
+    expect(
+      await prisma.like.count({ where: { postId: post.id, usuarioId: cliente.id } }),
+    ).toBe(1);
+
+    await alternarCurtida(formDataPostId(post.id));
+    expect(
+      await prisma.like.count({ where: { postId: post.id, usuarioId: cliente.id } }),
+    ).toBe(0);
+  });
+});
+
+describe("comentar e apagarComentario (Postgres real)", () => {
+  it("cria o comentário real e o autor consegue apagar", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const autor = await criarUsuario("autor@x.com", "Autora");
+    const post = await prisma.post.create({
+      data: { autorId: autor.id, texto: "post comentável" },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(cliente.id));
+
+    await comentar(formDataComentar(post.id, "muito bom!"));
+
+    const comentario = await prisma.comentario.findFirstOrThrow({
+      where: { postId: post.id },
+    });
+    expect(comentario.texto).toBe("muito bom!");
+    expect(comentario.autorId).toBe(cliente.id);
+
+    await apagarComentario(formDataComentarioId(comentario.id));
+    expect(
+      await prisma.comentario.count({ where: { id: comentario.id } }),
+    ).toBe(0);
+  });
+
+  it("moderadora real apaga comentário de outra pessoa", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const patty = await criarUsuario("patty@x.com", "Patty");
+    const post = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post" },
+    });
+    const comentario = await prisma.comentario.create({
+      data: { postId: post.id, autorId: cliente.id, texto: "comentário da cliente" },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(patty.id, ["GESTORA"]));
+
+    await apagarComentario(formDataComentarioId(comentario.id));
+
+    expect(
+      await prisma.comentario.count({ where: { id: comentario.id } }),
+    ).toBe(0);
+  });
+});
+
 describe("listarPosts (Postgres real)", () => {
   it("lista posts mais recentes primeiro, com nome do autor", async () => {
     const cliente = await criarUsuario("cliente@x.com", "Cliente X");
@@ -194,11 +277,87 @@ describe("listarPosts (Postgres real)", () => {
     });
     mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
 
-    const resultado = await listarPosts();
+    const { posts } = await listarPosts(cliente.id);
 
-    expect(resultado.map((p) => p.id)).toEqual([recente.id, antigo.id]);
-    expect(resultado[0].autor.name).toBe("Cliente X");
-    expect(resultado[0].urlImagem).toBe("https://url-assinada.exemplo");
-    expect(resultado[1].urlImagem).toBeNull();
+    expect(posts.map((p) => p.id)).toEqual([recente.id, antigo.id]);
+    expect(posts[0].autor.name).toBe("Cliente X");
+    expect(posts[0].urlImagem).toBe("https://url-assinada.exemplo");
+    expect(posts[1].urlImagem).toBeNull();
+  });
+
+  it("marca curtidoPeloUsuario e retorna o total de curtidas", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const outraCliente = await criarUsuario("outra@x.com", "Outra Cliente");
+    const post = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post" },
+    });
+    await prisma.like.create({ data: { postId: post.id, usuarioId: cliente.id } });
+    await prisma.like.create({ data: { postId: post.id, usuarioId: outraCliente.id } });
+
+    const { posts } = await listarPosts(cliente.id);
+
+    expect(posts[0].curtidoPeloUsuario).toBe(true);
+    expect(posts[0].totalCurtidas).toBe(2);
+
+    const { posts: postsOutraCliente } = await listarPosts(outraCliente.id);
+    expect(postsOutraCliente[0].curtidoPeloUsuario).toBe(true);
+  });
+
+  it("inclui os comentários do post, mais antigos primeiro, com nome do autor", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const outraCliente = await criarUsuario("outra@x.com", "Outra Cliente");
+    const post = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post" },
+    });
+    const primeiro = await prisma.comentario.create({
+      data: {
+        postId: post.id,
+        autorId: outraCliente.id,
+        texto: "primeiro",
+        criadoEm: new Date("2026-01-01"),
+      },
+    });
+    const segundo = await prisma.comentario.create({
+      data: {
+        postId: post.id,
+        autorId: cliente.id,
+        texto: "segundo",
+        criadoEm: new Date("2026-01-02"),
+      },
+    });
+
+    const { posts } = await listarPosts(cliente.id);
+
+    expect(posts[0].comentarios.map((c) => c.id)).toEqual([primeiro.id, segundo.id]);
+    expect(posts[0].comentarios[1].autor.name).toBe("Cliente X");
+  });
+
+  it("pagina com cursor, retornando proximoCursor quando há mais posts que o tamanho da página", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const criados = [];
+    for (let i = 0; i < 11; i++) {
+      criados.push(
+        await prisma.post.create({
+          data: {
+            autorId: cliente.id,
+            texto: `post ${i}`,
+            criadoEm: new Date(2026, 0, i + 1),
+          },
+        }),
+      );
+    }
+
+    const primeiraPagina = await listarPosts(cliente.id);
+    expect(primeiraPagina.posts).toHaveLength(10);
+    expect(primeiraPagina.posts[0].id).toBe(criados[10].id);
+    expect(primeiraPagina.proximoCursor).toBe(criados[1].id);
+
+    const segundaPagina = await listarPosts(
+      cliente.id,
+      primeiraPagina.proximoCursor ?? undefined,
+    );
+    expect(segundaPagina.posts).toHaveLength(1);
+    expect(segundaPagina.posts[0].id).toBe(criados[0].id);
+    expect(segundaPagina.proximoCursor).toBeNull();
   });
 });

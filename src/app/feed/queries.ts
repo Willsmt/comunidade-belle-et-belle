@@ -1,21 +1,42 @@
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/objetos";
 
-export async function listarPosts() {
+const TAMANHO_PAGINA = 10;
+
+export async function listarPosts(usuarioId: string, cursor?: string) {
   const posts = await prisma.post.findMany({
     orderBy: { criadoEm: "desc" },
-    take: 20,
-    include: { autor: { select: { id: true, name: true } } },
+    take: TAMANHO_PAGINA + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: {
+      autor: { select: { id: true, name: true } },
+      likes: { where: { usuarioId }, select: { id: true } },
+      comentarios: {
+        orderBy: { criadoEm: "asc" },
+        include: { autor: { select: { id: true, name: true } } },
+      },
+      _count: { select: { likes: true } },
+    },
   });
 
-  return Promise.all(
-    posts.map(async (post) => ({
+  const temMais = posts.length > TAMANHO_PAGINA;
+  const pagina = temMais ? posts.slice(0, TAMANHO_PAGINA) : posts;
+
+  const paginaComUrl = await Promise.all(
+    pagina.map(async (post) => ({
       ...post,
       urlImagem: post.imagemChave
         ? await gerarUrlAssinada(post.imagemChave)
         : null,
+      curtidoPeloUsuario: post.likes.length > 0,
+      totalCurtidas: post._count.likes,
     })),
   );
+
+  return {
+    posts: paginaComUrl,
+    proximoCursor: temMais ? pagina[pagina.length - 1].id : null,
+  };
 }
 
 export async function obterPost(postId: string) {
