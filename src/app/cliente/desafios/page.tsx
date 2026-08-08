@@ -195,6 +195,14 @@ export default async function DesafiosClientePage() {
           <button type="submit">Salvar reflexão</button>
         </form>
       </section>
+
+      <section aria-label="Baixar imagem">
+        <h2>Baixe sua imagem de comemoração</h2>
+        <p>Uma imagem prontinha pra postar, com suas fotos, conquistas e reflexão.</p>
+        <a href="/cliente/desafios/poster" download="meu-glow-up.png">
+          Baixar minha imagem
+        </a>
+      </section>
     </section>
   );
 }
