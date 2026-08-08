@@ -56,3 +56,10 @@ export async function listarFotosEvolucaoDoUsuario(usuarioId: string) {
     })),
   );
 }
+
+export async function obterTeaserDesafioAtivo() {
+  return prisma.desafio.findFirst({
+    where: { ativo: true },
+    select: { id: true, titulo: true, dataFim: true },
+  });
+}

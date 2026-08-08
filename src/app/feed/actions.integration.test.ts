@@ -32,7 +32,7 @@ import {
   comentar,
   apagarComentario,
 } from "./actions";
-import { listarPosts } from "./queries";
+import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
 
 afterEach(async () => {
   await limparBanco();
@@ -258,6 +258,38 @@ describe("comentar e apagarComentario (Postgres real)", () => {
     expect(
       await prisma.comentario.count({ where: { id: comentario.id } }),
     ).toBe(0);
+  });
+});
+
+describe("obterTeaserDesafioAtivo (Postgres real)", () => {
+  it("retorna o desafio ativo real", async () => {
+    await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up 30 dias",
+        dataInicio: new Date("2026-01-01"),
+        dataFim: new Date("2026-01-30"),
+        ativo: true,
+      },
+    });
+
+    const teaser = await obterTeaserDesafioAtivo();
+
+    expect(teaser?.titulo).toBe("Glow Up 30 dias");
+  });
+
+  it("retorna null quando não há desafio ativo", async () => {
+    await prisma.desafio.create({
+      data: {
+        titulo: "Desafio encerrado",
+        dataInicio: new Date("2025-01-01"),
+        dataFim: new Date("2025-01-30"),
+        ativo: false,
+      },
+    });
+
+    const teaser = await obterTeaserDesafioAtivo();
+
+    expect(teaser).toBeNull();
   });
 });
 

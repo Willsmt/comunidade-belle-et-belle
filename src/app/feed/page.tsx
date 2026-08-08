@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
-import { listarPosts } from "./queries";
+import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
 import {
   apagarPost,
   alternarCurtida,
@@ -22,11 +22,22 @@ export default async function FeedPage({
   }
 
   const podeModerar = temAlgumPapel(session.user.papeis, ["GESTORA", "ADMIN"]);
-  const { posts, proximoCursor } = await listarPosts(session.user.id, cursor);
+  const [{ posts, proximoCursor }, desafioAtivo] = await Promise.all([
+    listarPosts(session.user.id, cursor),
+    obterTeaserDesafioAtivo(),
+  ]);
 
   return (
     <section>
       <h1>Feed</h1>
+
+      {desafioAtivo && (
+        <p>
+          Desafio ativo: <strong>{desafioAtivo.titulo}</strong> (até{" "}
+          {desafioAtivo.dataFim.toLocaleDateString("pt-BR")}) —{" "}
+          <Link href="/cliente/desafios">ver desafio</Link>
+        </p>
+      )}
 
       {posts.length === 0 ? (
         <p>Nenhum post ainda.</p>
