@@ -21,6 +21,7 @@ export default async function PainelLayout({
         <Link href="/painel/aprovacoes">Aprovações</Link>
         <Link href="/painel/membros">Membros</Link>
         <Link href="/painel/vinculos">Vínculos</Link>
+        <Link href="/painel/desafios">Desafios</Link>
       </nav>
       <main>{children}</main>
     </div>
