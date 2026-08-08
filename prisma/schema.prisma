@@ -66,6 +66,10 @@ model User {
   participacoesSurpresa ParticipacaoSurpresa[]
   conquistas            Conquista[]
   jornadasDesafio       JornadaDesafio[]
+  // contexto Feed
+  posts       Post[]
+  likes       Like[]
+  comentarios Comentario[]
   @@index([status])
 }
 model UsuarioPapel {
@@ -149,6 +153,7 @@ model FotoEvolucao {
   data      DateTime @default(now())
   publica   Boolean  @default(false)
   criadoEm  DateTime @default(now())
+  posts     Post[]
   @@index([clienteId, data])
 }
 model VinculoParceria {
@@ -306,4 +311,39 @@ model JornadaDesafio {
   criadoEm               DateTime @default(now())
   atualizadoEm           DateTime @updatedAt
   @@unique([desafioId, clienteId])
+}
+// ---------- contexto: Feed ----------
+model Post {
+  id             String        @id @default(cuid())
+  autor          User          @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  autorId        String
+  texto          String?
+  imagemChave    String?
+  fotoEvolucao   FotoEvolucao? @relation(fields: [fotoEvolucaoId], references: [id])
+  fotoEvolucaoId String?
+  likes          Like[]
+  comentarios    Comentario[]
+  criadoEm       DateTime      @default(now())
+  atualizadoEm   DateTime      @updatedAt
+  @@index([autorId, criadoEm])
+}
+model Like {
+  id        String   @id @default(cuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId String
+  criadoEm  DateTime @default(now())
+  @@unique([postId, usuarioId])
+  @@index([usuarioId])
+}
+model Comentario {
+  id       String   @id @default(cuid())
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId   String
+  autor    User     @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  autorId  String
+  texto    String
+  criadoEm DateTime @default(now())
+  @@index([postId, criadoEm])
 }
