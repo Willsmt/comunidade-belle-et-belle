@@ -1,12 +1,19 @@
+import type { Papel } from "@/generated/prisma/client";
 import { auth } from "@/auth";
-import { podeAcessarPainel } from "./pode-acessar-painel";
+import { temAlgumPapel } from "./pode-acessar-painel";
 
-export async function requererAcessoPainel() {
+const PAPEIS_COM_ACESSO_AO_PAINEL: readonly Papel[] = ["GESTORA", "ADMIN"];
+
+export async function requererPapel(permitidos: Papel[]) {
   const session = await auth();
 
-  if (!session?.user || !podeAcessarPainel(session.user.papeis)) {
+  if (!session?.user || !temAlgumPapel(session.user.papeis, permitidos)) {
     throw new Error("Acesso negado");
   }
 
   return session;
+}
+
+export function requererAcessoPainel() {
+  return requererPapel([...PAPEIS_COM_ACESSO_AO_PAINEL]);
 }
