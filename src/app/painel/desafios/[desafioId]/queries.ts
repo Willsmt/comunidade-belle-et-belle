@@ -10,6 +10,12 @@ export function obterDesafioComCategorias(desafioId: string) {
           itens: { orderBy: { descricao: "asc" } },
         },
       },
+      regrasBonus: {
+        orderBy: { criadoEm: "asc" },
+        include: {
+          itensCombo: true,
+        },
+      },
     },
   });
 }

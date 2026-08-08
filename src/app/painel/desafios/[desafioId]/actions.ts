@@ -75,3 +75,85 @@ export async function removerItem(itemId: string) {
 
   revalidatePath(`/painel/desafios/${item.categoria.desafioId}`);
 }
+
+function parsePontosExtras(formData: FormData) {
+  const pontosRaw = formData.get("pontosExtras");
+  const pontos = typeof pontosRaw === "string" ? Number(pontosRaw) : NaN;
+
+  if (!Number.isInteger(pontos) || pontos <= 0) {
+    throw new Error("Informe uma pontuação extra válida");
+  }
+
+  return pontos;
+}
+
+export async function criarRegraLimiar(desafioId: string, formData: FormData) {
+  await requererAcessoPainel();
+
+  const pontosExtras = parsePontosExtras(formData);
+
+  const limiarRaw = formData.get("limiarItens");
+  const limiarItens = typeof limiarRaw === "string" ? Number(limiarRaw) : NaN;
+  if (!Number.isInteger(limiarItens) || limiarItens <= 0) {
+    throw new Error("Informe um limiar de itens válido");
+  }
+
+  await prisma.regraBonus.create({
+    data: { desafioId, tipo: "LIMIAR_DIARIO", pontosExtras, limiarItens },
+  });
+
+  revalidatePath(`/painel/desafios/${desafioId}`);
+}
+
+export async function criarRegraCombo(desafioId: string, formData: FormData) {
+  await requererAcessoPainel();
+
+  const pontosExtras = parsePontosExtras(formData);
+
+  const itensCombo = formData
+    .getAll("itensCombo")
+    .filter((valor): valor is string => typeof valor === "string");
+  if (itensCombo.length < 2) {
+    throw new Error("Selecione pelo menos 2 itens pro combo");
+  }
+
+  await prisma.regraBonus.create({
+    data: {
+      desafioId,
+      tipo: "COMBO",
+      pontosExtras,
+      itensCombo: { connect: itensCombo.map((id) => ({ id })) },
+    },
+  });
+
+  revalidatePath(`/painel/desafios/${desafioId}`);
+}
+
+export async function criarRegraCategoriaCompleta(desafioId: string, formData: FormData) {
+  await requererAcessoPainel();
+
+  const pontosExtras = parsePontosExtras(formData);
+
+  const categoriaId = formData.get("categoriaId");
+  if (typeof categoriaId !== "string" || categoriaId === "") {
+    throw new Error("Selecione a categoria");
+  }
+
+  await prisma.categoriaDesafio.findUniqueOrThrow({ where: { id: categoriaId } });
+
+  await prisma.regraBonus.create({
+    data: { desafioId, tipo: "CATEGORIA_COMPLETA", pontosExtras, categoriaId },
+  });
+
+  revalidatePath(`/painel/desafios/${desafioId}`);
+}
+
+export async function removerRegraBonus(regraId: string) {
+  await requererAcessoPainel();
+
+  const regra = await prisma.regraBonus.delete({
+    where: { id: regraId },
+  });
+
+  revalidatePath(`/painel/desafios/${regra.desafioId}`);
+}

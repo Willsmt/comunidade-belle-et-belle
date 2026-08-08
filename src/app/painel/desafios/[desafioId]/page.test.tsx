@@ -13,6 +13,10 @@ vi.mock("./actions", () => ({
   removerCategoria: vi.fn(),
   criarItem: vi.fn(),
   removerItem: vi.fn(),
+  criarRegraLimiar: vi.fn(),
+  criarRegraCombo: vi.fn(),
+  criarRegraCategoriaCompleta: vi.fn(),
+  removerRegraBonus: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,6 +40,7 @@ describe("DesafioDetalhePage", () => {
       titulo: "Glow Up",
       ativo: true,
       categorias: [],
+      regrasBonus: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -45,6 +50,7 @@ describe("DesafioDetalhePage", () => {
       screen.getByRole("form", { name: /criar categoria/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/nenhuma categoria ainda/i)).toBeInTheDocument();
+    expect(screen.getByText(/nenhuma regra de bônus ainda/i)).toBeInTheDocument();
   });
 
   it("renderiza categoria com seus itens e o form de novo item", async () => {
@@ -62,6 +68,7 @@ describe("DesafioDetalhePage", () => {
           ],
         },
       ],
+      regrasBonus: [],
     } as never);
 
     render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
@@ -73,5 +80,71 @@ describe("DesafioDetalhePage", () => {
     expect(
       screen.getByRole("form", { name: /criar item em pele/i }),
     ).toBeInTheDocument();
+  });
+
+  it("renderiza os três formulários de nova regra de bônus", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [],
+      regrasBonus: [],
+    } as never);
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    expect(
+      screen.getByRole("form", { name: /criar regra de limiar diário/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("form", { name: /criar regra de combo/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("form", { name: /criar regra de categoria completa/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renderiza cada tipo de regra de bônus com a descrição certa", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [{ id: "c1", nome: "Pele", cor: "#f5c", itens: [] }],
+      regrasBonus: [
+        {
+          id: "r1",
+          tipo: "LIMIAR_DIARIO",
+          pontosExtras: 10,
+          limiarItens: 4,
+          itensCombo: [],
+          categoriaId: null,
+        },
+        {
+          id: "r2",
+          tipo: "COMBO",
+          pontosExtras: 15,
+          limiarItens: null,
+          itensCombo: [
+            { id: "i1", descricao: "Água" },
+            { id: "i2", descricao: "Academia" },
+          ],
+          categoriaId: null,
+        },
+        {
+          id: "r3",
+          tipo: "CATEGORIA_COMPLETA",
+          pontosExtras: 20,
+          limiarItens: null,
+          itensCombo: [],
+          categoriaId: "c1",
+        },
+      ],
+    } as never);
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    expect(screen.getByText(/completar 4 itens no dia/i)).toBeInTheDocument();
+    expect(screen.getByText(/água \+ academia/i)).toBeInTheDocument();
+    expect(screen.getByText(/completar a categoria "pele"/i)).toBeInTheDocument();
   });
 });

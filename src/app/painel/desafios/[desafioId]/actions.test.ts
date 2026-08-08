@@ -7,6 +7,8 @@ const {
   mockCategoriaFindUniqueOrThrow,
   mockItemCreate,
   mockItemDelete,
+  mockRegraCreate,
+  mockRegraDelete,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererAcessoPainel: vi.fn(),
@@ -15,6 +17,8 @@ const {
   mockCategoriaFindUniqueOrThrow: vi.fn(),
   mockItemCreate: vi.fn(),
   mockItemDelete: vi.fn(),
+  mockRegraCreate: vi.fn(),
+  mockRegraDelete: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -29,16 +33,32 @@ vi.mock("@/lib/prisma", () => ({
       findUniqueOrThrow: mockCategoriaFindUniqueOrThrow,
     },
     itemDesafio: { create: mockItemCreate, delete: mockItemDelete },
+    regraBonus: { create: mockRegraCreate, delete: mockRegraDelete },
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
-import { criarCategoria, removerCategoria, criarItem, removerItem } from "./actions";
+import {
+  criarCategoria,
+  removerCategoria,
+  criarItem,
+  removerItem,
+  criarRegraLimiar,
+  criarRegraCombo,
+  criarRegraCategoriaCompleta,
+  removerRegraBonus,
+} from "./actions";
 
-function buildFormData(campos: Record<string, string>) {
+function buildFormData(campos: Record<string, string | string[]>) {
   const formData = new FormData();
   for (const [chave, valor] of Object.entries(campos)) {
-    formData.set(chave, valor);
+    if (Array.isArray(valor)) {
+      for (const item of valor) {
+        formData.append(chave, item);
+      }
+    } else {
+      formData.set(chave, valor);
+    }
   }
   return formData;
 }
@@ -206,6 +226,162 @@ describe("removerItem", () => {
       where: { id: "i1" },
       include: { categoria: true },
     });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("criarRegraLimiar", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockRegraCreate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(
+      criarRegraLimiar("d1", buildFormData({ pontosExtras: "10", limiarItens: "4" })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita pontuação extra inválida", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarRegraLimiar("d1", buildFormData({ pontosExtras: "0", limiarItens: "4" })),
+    ).rejects.toThrow("Informe uma pontuação extra válida");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita limiar inválido", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarRegraLimiar("d1", buildFormData({ pontosExtras: "10", limiarItens: "0" })),
+    ).rejects.toThrow("Informe um limiar de itens válido");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("cria a regra de limiar diário", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraLimiar("d1", buildFormData({ pontosExtras: "10", limiarItens: "4" }));
+
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: { desafioId: "d1", tipo: "LIMIAR_DIARIO", pontosExtras: 10, limiarItens: 4 },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("criarRegraCombo", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockRegraCreate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(
+      criarRegraCombo("d1", buildFormData({ pontosExtras: "10", itensCombo: ["i1", "i2"] })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita com menos de 2 itens selecionados", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarRegraCombo("d1", buildFormData({ pontosExtras: "10", itensCombo: ["i1"] })),
+    ).rejects.toThrow("Selecione pelo menos 2 itens pro combo");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("cria a regra de combo conectando os itens selecionados", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraCombo("d1", buildFormData({ pontosExtras: "10", itensCombo: ["i1", "i2"] }));
+
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        tipo: "COMBO",
+        pontosExtras: 10,
+        itensCombo: { connect: [{ id: "i1" }, { id: "i2" }] },
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("criarRegraCategoriaCompleta", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockCategoriaFindUniqueOrThrow.mockReset();
+    mockRegraCreate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(
+      criarRegraCategoriaCompleta("d1", buildFormData({ pontosExtras: "10", categoriaId: "c1" })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem categoria selecionada", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarRegraCategoriaCompleta("d1", buildFormData({ pontosExtras: "10" })),
+    ).rejects.toThrow("Selecione a categoria");
+    expect(mockRegraCreate).not.toHaveBeenCalled();
+  });
+
+  it("cria a regra de categoria completa", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockCategoriaFindUniqueOrThrow.mockResolvedValue({ id: "c1" });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraCategoriaCompleta("d1", buildFormData({ pontosExtras: "10", categoriaId: "c1" }));
+
+    expect(mockCategoriaFindUniqueOrThrow).toHaveBeenCalledWith({ where: { id: "c1" } });
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: { desafioId: "d1", tipo: "CATEGORIA_COMPLETA", pontosExtras: 10, categoriaId: "c1" },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("removerRegraBonus", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockRegraDelete.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+
+    await expect(removerRegraBonus("r1")).rejects.toThrow("Acesso negado");
+    expect(mockRegraDelete).not.toHaveBeenCalled();
+  });
+
+  it("remove a regra e revalida a página do desafio dela", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockRegraDelete.mockResolvedValue({ id: "r1", desafioId: "d1" });
+
+    await removerRegraBonus("r1");
+
+    expect(mockRegraDelete).toHaveBeenCalledWith({ where: { id: "r1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
   });
 });

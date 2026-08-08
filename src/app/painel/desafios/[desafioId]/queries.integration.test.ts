@@ -43,4 +43,38 @@ describe("obterDesafioComCategorias (Postgres real)", () => {
 
     expect(resultado).toBeNull();
   });
+
+  it("retorna regras de bônus com os itens do combo incluídos", async () => {
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+      },
+    });
+    const categoria = await prisma.categoriaDesafio.create({
+      data: { desafioId: desafio.id, nome: "Pele", cor: "#f5c" },
+    });
+    const item1 = await prisma.itemDesafio.create({
+      data: { categoriaId: categoria.id, descricao: "Água", pontos: 5 },
+    });
+    const item2 = await prisma.itemDesafio.create({
+      data: { categoriaId: categoria.id, descricao: "Academia", pontos: 10 },
+    });
+    await prisma.regraBonus.create({
+      data: {
+        desafioId: desafio.id,
+        tipo: "COMBO",
+        pontosExtras: 15,
+        itensCombo: { connect: [{ id: item1.id }, { id: item2.id }] },
+      },
+    });
+
+    const resultado = await obterDesafioComCategorias(desafio.id);
+
+    expect(resultado?.regrasBonus).toHaveLength(1);
+    expect(
+      resultado?.regrasBonus[0]?.itensCombo.map((i) => i.descricao).sort(),
+    ).toEqual(["Academia", "Água"]);
+  });
 });

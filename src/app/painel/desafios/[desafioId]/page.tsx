@@ -1,6 +1,15 @@
 import { notFound } from "next/navigation";
 import { obterDesafioComCategorias } from "./queries";
-import { criarCategoria, removerCategoria, criarItem, removerItem } from "./actions";
+import {
+  criarCategoria,
+  removerCategoria,
+  criarItem,
+  removerItem,
+  criarRegraLimiar,
+  criarRegraCombo,
+  criarRegraCategoriaCompleta,
+  removerRegraBonus,
+} from "./actions";
 import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
 
 export default async function DesafioDetalhePage({
@@ -14,6 +23,8 @@ export default async function DesafioDetalhePage({
   if (!desafio) {
     notFound();
   }
+
+  const todosOsItens = desafio.categorias.flatMap((categoria) => categoria.itens);
 
   return (
     <section>
@@ -87,6 +98,97 @@ export default async function DesafioDetalhePage({
           </div>
         ))
       )}
+
+      <h2>Regras de bônus</h2>
+      {desafio.regrasBonus.length === 0 ? (
+        <p>Nenhuma regra de bônus ainda.</p>
+      ) : (
+        <ul>
+          {desafio.regrasBonus.map((regra) => (
+            <li key={regra.id}>
+              {regra.tipo === "LIMIAR_DIARIO" && (
+                <span>
+                  Completar {regra.limiarItens} itens no dia → +{regra.pontosExtras} pts
+                </span>
+              )}
+              {regra.tipo === "COMBO" && (
+                <span>
+                  Combo ({regra.itensCombo.map((item) => item.descricao).join(" + ")}) → +
+                  {regra.pontosExtras} pts
+                </span>
+              )}
+              {regra.tipo === "CATEGORIA_COMPLETA" && (
+                <span>
+                  Completar a categoria &quot;
+                  {desafio.categorias.find((categoria) => categoria.id === regra.categoriaId)
+                    ?.nome ?? "categoria removida"}
+                  &quot; → +{regra.pontosExtras} pts
+                </span>
+              )}
+              <BotaoComConfirmacao
+                label="Remover"
+                mensagemConfirmacao="Remover essa regra de bônus?"
+                action={removerRegraBonus.bind(null, regra.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>Nova regra: limiar diário</h3>
+      <form action={criarRegraLimiar.bind(null, desafioId)} aria-label="Criar regra de limiar diário">
+        <label htmlFor="limiarItens">
+          Itens no dia
+          <input id="limiarItens" name="limiarItens" type="number" min="1" required />
+        </label>
+        <label htmlFor="pontosExtras-limiar">
+          Pontos extras
+          <input id="pontosExtras-limiar" name="pontosExtras" type="number" min="1" required />
+        </label>
+        <button type="submit">Criar regra</button>
+      </form>
+
+      <h3>Nova regra: combo</h3>
+      <form action={criarRegraCombo.bind(null, desafioId)} aria-label="Criar regra de combo">
+        <label htmlFor="itensCombo">
+          Itens do combo
+          <select id="itensCombo" name="itensCombo" multiple required>
+            {todosOsItens.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.descricao}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label htmlFor="pontosExtras-combo">
+          Pontos extras
+          <input id="pontosExtras-combo" name="pontosExtras" type="number" min="1" required />
+        </label>
+        <button type="submit">Criar regra</button>
+      </form>
+
+      <h3>Nova regra: categoria completa</h3>
+      <form
+        action={criarRegraCategoriaCompleta.bind(null, desafioId)}
+        aria-label="Criar regra de categoria completa"
+      >
+        <label htmlFor="categoriaId">
+          Categoria
+          <select id="categoriaId" name="categoriaId" defaultValue="">
+            <option value="">Selecione</option>
+            {desafio.categorias.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>
+                {categoria.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label htmlFor="pontosExtras-categoria">
+          Pontos extras
+          <input id="pontosExtras-categoria" name="pontosExtras" type="number" min="1" required />
+        </label>
+        <button type="submit">Criar regra</button>
+      </form>
     </section>
   );
 }

@@ -15,7 +15,7 @@ describe("obterDesafioComCategorias", () => {
     mockFindUnique.mockReset();
   });
 
-  it("busca o desafio com categorias e itens ordenados", async () => {
+  it("busca o desafio com categorias, itens e regras de bônus", async () => {
     mockFindUnique.mockResolvedValue(null);
 
     await obterDesafioComCategorias("d1");
@@ -27,6 +27,12 @@ describe("obterDesafioComCategorias", () => {
           orderBy: { nome: "asc" },
           include: {
             itens: { orderBy: { descricao: "asc" } },
+          },
+        },
+        regrasBonus: {
+          orderBy: { criadoEm: "asc" },
+          include: {
+            itensCombo: true,
           },
         },
       },
