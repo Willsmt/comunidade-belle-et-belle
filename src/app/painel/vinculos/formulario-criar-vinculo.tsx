@@ -2,6 +2,7 @@
 
 import { criarVinculo } from "./actions";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
+import { Button } from "@/components/ui/button";
 
 export function FormularioCriarVinculo({
   clientes,
@@ -19,10 +20,22 @@ export function FormularioCriarVinculo({
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Criar vínculo">
-      <label htmlFor="clienteId">
+    <form
+      onSubmit={handleSubmit}
+      aria-label="Criar vínculo"
+      className="flex flex-col gap-4"
+    >
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="clienteId"
+      >
         Cliente
-        <select id="clienteId" name="clienteId" defaultValue="">
+        <select
+          id="clienteId"
+          name="clienteId"
+          defaultValue=""
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           <option value="">Selecione</option>
           {clientes.map((cliente) => (
             <option key={cliente.id} value={cliente.id}>
@@ -32,9 +45,17 @@ export function FormularioCriarVinculo({
         </select>
       </label>
 
-      <label htmlFor="parceriaId">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="parceriaId"
+      >
         Parceria
-        <select id="parceriaId" name="parceriaId" defaultValue="">
+        <select
+          id="parceriaId"
+          name="parceriaId"
+          defaultValue=""
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           <option value="">Selecione</option>
           {parcerias.map((parceria) => (
             <option key={parceria.id} value={parceria.id}>
@@ -44,10 +65,14 @@ export function FormularioCriarVinculo({
         </select>
       </label>
 
-      {erro && <p role="alert">{erro}</p>}
-      <button type="submit" disabled={isPending}>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Vinculando..." : "Vincular"}
-      </button>
+      </Button>
     </form>
   );
 }
