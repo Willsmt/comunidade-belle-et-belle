@@ -88,6 +88,44 @@ describe("obterPerfilPublico (Postgres real)", () => {
   });
 });
 
+describe("obterPerfilPublico — posts (Postgres real)", () => {
+  it("mostra todos os posts do autor, sem filtro de privacidade", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer6@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente6@example.com", status: "ATIVO", name: "Cliente 6" },
+    });
+    const postComImagem = await prisma.post.create({
+      data: {
+        autorId: cliente.id,
+        texto: "com foto",
+        imagemChave: "posts/cliente6/x.webp",
+        criadoEm: new Date("2026-02-01"),
+      },
+    });
+    const postSoTexto = await prisma.post.create({
+      data: {
+        autorId: cliente.id,
+        texto: "só reflexão",
+        criadoEm: new Date("2026-01-01"),
+      },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(resultado?.posts.map((p) => p.id)).toEqual([
+      postComImagem.id,
+      postSoTexto.id,
+    ]);
+    expect(resultado?.posts[0]?.urlImagem).toBe("https://url-assinada.exemplo");
+    expect(resultado?.posts[1]?.urlImagem).toBeNull();
+  });
+});
+
 describe("obterPerfilPublico — emblemas (Postgres real)", () => {
   it("respeita o toggle de privacidade de emblemas ponta a ponta", async () => {
     const viewer = await prisma.user.create({

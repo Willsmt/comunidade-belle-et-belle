@@ -75,6 +75,27 @@ export default async function PerfilPublicoPage({
           </ul>
         </section>
       )}
+      <section aria-label="Posts">
+        <h2>Posts</h2>
+        {perfil.posts.length === 0 ? (
+          <p>Nenhum post ainda</p>
+        ) : (
+          <ul>
+            {perfil.posts.map((post) => (
+              <li key={post.id}>
+                {post.urlImagem && (
+                  <img
+                    src={post.urlImagem}
+                    alt="Imagem do post"
+                    width={200}
+                  />
+                )}
+                {post.texto && <p>{post.texto}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

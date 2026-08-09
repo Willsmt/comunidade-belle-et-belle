@@ -49,6 +49,22 @@ export async function obterPerfilPublico(clienteId: string) {
     })),
   );
 
+  const postsDoAutor = await prisma.post.findMany({
+    where: { autorId: clienteId },
+    orderBy: { criadoEm: "desc" },
+  });
+
+  const posts = await Promise.all(
+    postsDoAutor.map(async (post) => ({
+      id: post.id,
+      texto: post.texto,
+      criadoEm: post.criadoEm,
+      urlImagem: post.imagemChave
+        ? await gerarUrlAssinada(post.imagemChave)
+        : null,
+    })),
+  );
+
   return {
     nome: usuario.name,
     bio: usuario.perfil?.bioPublica ? usuario.perfil.bio : null,
@@ -61,5 +77,6 @@ export async function obterPerfilPublico(clienteId: string) {
     })),
     ultimaMedida,
     fotos,
+    posts,
   };
 }

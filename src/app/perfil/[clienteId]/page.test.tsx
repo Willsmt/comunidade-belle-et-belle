@@ -35,6 +35,7 @@ describe("PerfilPublicoPage", () => {
       conquistas: [],
       ultimaMedida: { peso: { toString: () => "60" } } as never,
       fotos: [],
+      posts: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
@@ -53,6 +54,7 @@ describe("PerfilPublicoPage", () => {
       conquistas: [],
       ultimaMedida: null,
       fotos: [],
+      posts: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-2") }));
@@ -70,6 +72,7 @@ describe("PerfilPublicoPage", () => {
       ],
       ultimaMedida: null,
       fotos: [],
+      posts: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-4") }));
@@ -90,10 +93,35 @@ describe("PerfilPublicoPage", () => {
       fotos: [
         { id: "foto-1", data: new Date(), urlAssinada: "https://exemplo/foto-1" },
       ],
+      posts: [],
     });
 
     render(await PerfilPublicoPage({ params: buildParams("cliente-3") }));
 
     expect(screen.getByAltText("Foto de evolução")).toBeInTheDocument();
+  });
+
+  it("renderiza os posts do autor quando existem", async () => {
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 5",
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [
+        {
+          id: "post-1",
+          texto: "reflexão do dia",
+          criadoEm: new Date(),
+          urlImagem: "https://exemplo/post-1",
+        },
+      ],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-5") }));
+
+    expect(screen.getByText("reflexão do dia")).toBeInTheDocument();
+    expect(screen.getByAltText("Imagem do post")).toBeInTheDocument();
   });
 });

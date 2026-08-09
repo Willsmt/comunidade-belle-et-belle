@@ -6,6 +6,7 @@ const {
   mockFindFirstMedida,
   mockFindManyConquista,
   mockFindManyFoto,
+  mockFindManyPost,
   mockGerarUrlAssinada,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
@@ -13,6 +14,7 @@ const {
   mockFindFirstMedida: vi.fn(),
   mockFindManyConquista: vi.fn(),
   mockFindManyFoto: vi.fn(),
+  mockFindManyPost: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
 }));
 
@@ -23,6 +25,7 @@ vi.mock("@/lib/prisma", () => ({
     registroMedida: { findFirst: mockFindFirstMedida },
     conquista: { findMany: mockFindManyConquista },
     fotoEvolucao: { findMany: mockFindManyFoto },
+    post: { findMany: mockFindManyPost },
   },
 }));
 vi.mock("@/lib/storage/fotos", () => ({
@@ -38,6 +41,7 @@ describe("obterPerfilPublico", () => {
     mockFindFirstMedida.mockReset();
     mockFindManyConquista.mockReset().mockResolvedValue([]);
     mockFindManyFoto.mockReset().mockResolvedValue([]);
+    mockFindManyPost.mockReset().mockResolvedValue([]);
     mockGerarUrlAssinada.mockReset();
   });
 
@@ -160,6 +164,7 @@ describe("obterPerfilPublico", () => {
       conquistas: [],
       ultimaMedida: null,
       fotos: [],
+      posts: [],
     });
   });
 
@@ -182,6 +187,47 @@ describe("obterPerfilPublico", () => {
         id: "foto-1",
         data: new Date("2026-02-01"),
         urlAssinada: "https://url-assinada.exemplo",
+      },
+    ]);
+  });
+
+  it("busca todos os posts do autor, sem filtro de privacidade, com signed URL quando há imagem", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({ name: "Cliente 1", perfil: null });
+    mockFindManyPost.mockResolvedValue([
+      {
+        id: "post-1",
+        texto: "reflexão do dia",
+        imagemChave: "posts/cliente-1/x.webp",
+        criadoEm: new Date("2026-02-01"),
+      },
+      {
+        id: "post-2",
+        texto: "só texto",
+        imagemChave: null,
+        criadoEm: new Date("2026-01-01"),
+      },
+    ]);
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockFindManyPost).toHaveBeenCalledWith({
+      where: { autorId: "cliente-1" },
+      orderBy: { criadoEm: "desc" },
+    });
+    expect(resultado?.posts).toEqual([
+      {
+        id: "post-1",
+        texto: "reflexão do dia",
+        criadoEm: new Date("2026-02-01"),
+        urlImagem: "https://url-assinada.exemplo",
+      },
+      {
+        id: "post-2",
+        texto: "só texto",
+        criadoEm: new Date("2026-01-01"),
+        urlImagem: null,
       },
     ]);
   });
