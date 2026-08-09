@@ -2,6 +2,8 @@
 
 import { criarRegraLimiar } from "./actions";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FormularioCriarRegraLimiar({ desafioId }: { desafioId: string }) {
   const { isPending, erro, executar } = useAcaoComErro();
@@ -13,19 +15,33 @@ export function FormularioCriarRegraLimiar({ desafioId }: { desafioId: string })
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Criar regra de limiar diário">
-      <label htmlFor="limiarItens">
+    <form
+      onSubmit={handleSubmit}
+      aria-label="Criar regra de limiar diário"
+      className="flex flex-col gap-4"
+    >
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="limiarItens"
+      >
         Itens no dia
-        <input id="limiarItens" name="limiarItens" type="number" min="1" required />
+        <Input id="limiarItens" name="limiarItens" type="number" min="1" required />
       </label>
-      <label htmlFor="pontosExtras-limiar">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="pontosExtras-limiar"
+      >
         Pontos extras
-        <input id="pontosExtras-limiar" name="pontosExtras" type="number" min="1" required />
+        <Input id="pontosExtras-limiar" name="pontosExtras" type="number" min="1" required />
       </label>
-      {erro && <p role="alert">{erro}</p>}
-      <button type="submit" disabled={isPending}>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Criando..." : "Criar regra"}
-      </button>
+      </Button>
     </form>
   );
 }

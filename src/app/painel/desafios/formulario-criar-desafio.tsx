@@ -2,6 +2,8 @@
 
 import { criarDesafio } from "./actions";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FormularioCriarDesafio() {
   const { isPending, erro, executar } = useAcaoComErro();
@@ -13,31 +15,47 @@ export function FormularioCriarDesafio() {
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Criar desafio">
-      <label htmlFor="titulo">
+    <form onSubmit={handleSubmit} aria-label="Criar desafio" className="flex flex-col gap-4">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="titulo"
+      >
         Título
-        <input id="titulo" name="titulo" type="text" required />
+        <Input id="titulo" name="titulo" type="text" required />
       </label>
 
-      <label htmlFor="fraseMotivacional">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="fraseMotivacional"
+      >
         Frase motivacional
-        <input id="fraseMotivacional" name="fraseMotivacional" type="text" />
+        <Input id="fraseMotivacional" name="fraseMotivacional" type="text" />
       </label>
 
-      <label htmlFor="dataInicio">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="dataInicio"
+      >
         Data de início
-        <input id="dataInicio" name="dataInicio" type="date" required />
+        <Input id="dataInicio" name="dataInicio" type="date" required />
       </label>
 
-      <label htmlFor="dataFim">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="dataFim"
+      >
         Data de fim
-        <input id="dataFim" name="dataFim" type="date" required />
+        <Input id="dataFim" name="dataFim" type="date" required />
       </label>
 
-      {erro && <p role="alert">{erro}</p>}
-      <button type="submit" disabled={isPending}>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Criando..." : "Criar"}
-      </button>
+      </Button>
     </form>
   );
 }

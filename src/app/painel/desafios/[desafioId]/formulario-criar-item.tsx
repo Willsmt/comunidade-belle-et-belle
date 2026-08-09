@@ -2,6 +2,8 @@
 
 import { criarItem } from "./actions";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FormularioCriarItem({
   categoriaId,
@@ -19,26 +21,48 @@ export function FormularioCriarItem({
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label={`Criar item em ${categoriaNome}`}>
-      <label htmlFor={`descricao-${categoriaId}`}>
+    <form
+      onSubmit={handleSubmit}
+      aria-label={`Criar item em ${categoriaNome}`}
+      className="mt-3 flex flex-col gap-3"
+    >
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor={`descricao-${categoriaId}`}
+      >
         Descrição
-        <input id={`descricao-${categoriaId}`} name="descricao" type="text" required />
+        <Input id={`descricao-${categoriaId}`} name="descricao" type="text" required />
       </label>
-      <label htmlFor={`pontos-${categoriaId}`}>
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor={`pontos-${categoriaId}`}
+      >
         Pontos
-        <input id={`pontos-${categoriaId}`} name="pontos" type="number" min="1" required />
+        <Input id={`pontos-${categoriaId}`} name="pontos" type="number" min="1" required />
       </label>
-      <label htmlFor={`frequencia-${categoriaId}`}>
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor={`frequencia-${categoriaId}`}
+      >
         Frequência
-        <select id={`frequencia-${categoriaId}`} name="frequencia" defaultValue="DIARIO">
+        <select
+          id={`frequencia-${categoriaId}`}
+          name="frequencia"
+          defaultValue="DIARIO"
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           <option value="DIARIO">Diário</option>
           <option value="SEMANAL">Semanal</option>
         </select>
       </label>
-      {erro && <p role="alert">{erro}</p>}
-      <button type="submit" disabled={isPending}>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
+      <Button type="submit" size="sm" disabled={isPending}>
         {isPending ? "Adicionando..." : "Adicionar item"}
-      </button>
+      </Button>
     </form>
   );
 }
