@@ -1,5 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
+export function contarAdminsGestorasAtivos() {
+  return prisma.user.count({
+    where: {
+      status: "ATIVO",
+      papeis: { some: { papel: { in: ["ADMIN", "GESTORA"] } } },
+    },
+  });
+}
+
 export function listarMembros() {
   return prisma.user.findMany({
     where: { status: { in: ["ATIVO", "SUSPENSO"] } },
