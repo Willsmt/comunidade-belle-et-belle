@@ -4,6 +4,13 @@ export function listarMembros() {
   return prisma.user.findMany({
     where: { status: { in: ["ATIVO", "SUSPENSO"] } },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, email: true, image: true, status: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      status: true,
+      papeis: { select: { papel: true } },
+    },
   });
 }

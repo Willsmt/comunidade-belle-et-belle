@@ -33,3 +33,25 @@ export async function deletarMembro(userId: string) {
 
   revalidatePath("/painel/membros");
 }
+
+export async function promoverAParceria(userId: string) {
+  await requererAcessoPainel();
+
+  await prisma.usuarioPapel.upsert({
+    where: { userId_papel: { userId, papel: "PARCERIA" } },
+    create: { userId, papel: "PARCERIA" },
+    update: {},
+  });
+
+  revalidatePath("/painel/membros");
+}
+
+export async function revogarParceria(userId: string) {
+  await requererAcessoPainel();
+
+  await prisma.usuarioPapel.deleteMany({
+    where: { userId, papel: "PARCERIA" },
+  });
+
+  revalidatePath("/painel/membros");
+}
