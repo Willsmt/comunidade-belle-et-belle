@@ -9,7 +9,7 @@ const ROTA_AGUARDANDO = "/aguardando-aprovacao";
 const ROTA_SUSPENSA = "/conta-suspensa";
 const ROTA_BOAS_VINDAS = "/bem-vinda";
 
-const ROTAS_DE_GATE = [ROTA_AGUARDANDO, ROTA_SUSPENSA, ROTA_BOAS_VINDAS];
+const ROTAS_DE_GATE = [ROTA_LOGIN, ROTA_AGUARDANDO, ROTA_SUSPENSA, ROTA_BOAS_VINDAS];
 
 type SessaoUsuario = {
   status: StatusConta;

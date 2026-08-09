@@ -48,6 +48,7 @@ describe("decideRoute", () => {
 
   it("ATIVO com consentimento é tirado das telas de gate se tentar voltar nelas", () => {
     const usuario = { status: "ATIVO" as const, temConsentimento: true };
+    expect(decideRoute(usuario, "/login")).toEqual({ action: "redirect", to: "/" });
     expect(decideRoute(usuario, "/aguardando-aprovacao")).toEqual({ action: "redirect", to: "/" });
     expect(decideRoute(usuario, "/bem-vinda")).toEqual({ action: "redirect", to: "/" });
     expect(decideRoute(usuario, "/conta-suspensa")).toEqual({ action: "redirect", to: "/" });
