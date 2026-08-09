@@ -3,6 +3,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { atualizarPerfilParceria } from "./actions";
 import type { PerfilParceria } from "@/generated/prisma/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FormularioPerfilParceria({
   perfil,
@@ -30,41 +32,66 @@ export function FormularioPerfilParceria({
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Editar perfil da parceria">
+    <form
+      onSubmit={handleSubmit}
+      aria-label="Editar perfil da parceria"
+      className="flex flex-col gap-4"
+    >
       {fotoUrl && (
         <img
           src={fotoUrl}
           alt="Foto de perfil atual"
-          width={120}
-          height={120}
+          width={96}
+          height={96}
+          className="size-24 rounded-full object-cover"
         />
       )}
-      <label htmlFor="foto">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="foto"
+      >
         Foto de perfil
         <input
           type="file"
           id="foto"
           name="foto"
           accept="image/jpeg,image/png,image/webp"
+          className="text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
         />
       </label>
-      <label htmlFor="especialidade">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="especialidade"
+      >
         Especialidade
-        <input
+        <Input
           type="text"
           id="especialidade"
           name="especialidade"
           defaultValue={perfil?.especialidade ?? ""}
         />
       </label>
-      <label htmlFor="bio">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="bio"
+      >
         Bio
-        <textarea id="bio" name="bio" defaultValue={perfil?.bio ?? ""} />
+        <textarea
+          id="bio"
+          name="bio"
+          defaultValue={perfil?.bio ?? ""}
+          rows={4}
+          className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        />
       </label>
-      <button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Salvando..." : "Salvar"}
-      </button>
-      {erro && <p role="alert">{erro}</p>}
+      </Button>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
     </form>
   );
 }
