@@ -20,7 +20,7 @@ export default async function EditarPostPage({
     <section>
       <h1>Editar post</h1>
 
-      <form action={editarPost} encType="multipart/form-data">
+      <form action={editarPost}>
         <input type="hidden" name="postId" value={post.id} />
 
         <label>

@@ -12,7 +12,7 @@ export default async function NovoPostPage() {
     <section>
       <h1>Novo post</h1>
 
-      <form action={criarPost} encType="multipart/form-data">
+      <form action={criarPost}>
         <label>
           Texto (opcional)
           <textarea name="texto" rows={4} />
