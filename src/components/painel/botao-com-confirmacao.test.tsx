@@ -35,4 +35,20 @@ describe("BotaoComConfirmacao", () => {
 
     await waitFor(() => expect(mockAction).toHaveBeenCalledTimes(1));
   });
+
+  it("mostra a mensagem de erro da action em vez de falhar em silêncio", async () => {
+    confirmSpy.mockReturnValue(true);
+    mockAction.mockRejectedValue(new Error("Você não pode deletar a própria conta."));
+    render(
+      <BotaoComConfirmacao label="Deletar" mensagemConfirmacao="Tem certeza?" action={mockAction} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Deletar" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Você não pode deletar a própria conta.",
+      ),
+    );
+  });
 });

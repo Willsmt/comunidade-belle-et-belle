@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
+import { sair } from "@/lib/auth/actions";
 
 export default async function ClienteLayout({
   children,
@@ -24,6 +25,9 @@ export default async function ClienteLayout({
         <Link href="/cliente/planos">Meus planos</Link>
         <Link href="/cliente/parcerias">Minhas parcerias</Link>
         <Link href="/cliente/desafios">Desafios</Link>
+        <form action={sair}>
+          <button type="submit">Sair</button>
+        </form>
       </nav>
       <main>{children}</main>
     </div>

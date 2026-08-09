@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NavPrincipal } from "./nav-principal";
+
+vi.mock("@/lib/auth/actions", () => ({
+  sair: vi.fn(),
+}));
 
 describe("NavPrincipal", () => {
   it("mostra só o Feed quando a pessoa não acumula nenhum papel de área", () => {

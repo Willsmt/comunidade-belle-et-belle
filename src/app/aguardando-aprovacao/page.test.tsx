@@ -15,6 +15,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
 }));
 
+vi.mock("@/lib/auth/actions", () => ({
+  sair: vi.fn(),
+}));
+
 function mockSessao(status: string) {
   vi.mocked(useSession).mockReturnValue({
     data: {

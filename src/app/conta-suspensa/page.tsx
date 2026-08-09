@@ -1,3 +1,5 @@
+import { sair } from "@/lib/auth/actions";
+
 export default function ContaSuspensaPage() {
   return (
     <main>
@@ -6,6 +8,9 @@ export default function ContaSuspensaPage() {
         Sua conta foi suspensa. Entre em contato com a Patrícia para mais
         informações.
       </p>
+      <form action={sair}>
+        <button type="submit">Sair</button>
+      </form>
     </main>
   );
 }

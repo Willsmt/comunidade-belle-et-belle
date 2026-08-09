@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { sair } from "@/lib/auth/actions";
 
 const INTERVALO_VERIFICACAO_SEGUNDOS = 12;
 
@@ -37,6 +38,9 @@ export default function AguardandoAprovacaoPage() {
       <button type="button" onClick={() => update()}>
         Verificar novamente
       </button>
+      <form action={sair}>
+        <button type="submit">Sair</button>
+      </form>
     </main>
   );
 }

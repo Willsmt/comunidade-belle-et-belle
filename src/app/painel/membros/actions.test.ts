@@ -3,6 +3,7 @@ const {
   mockRequererAcesso,
   mockUpdate,
   mockDelete,
+  mockCount,
   mockUpsert,
   mockDeleteMany,
   mockUpdateManyVinculo,
@@ -12,6 +13,7 @@ const {
   mockRequererAcesso: vi.fn(),
   mockUpdate: vi.fn(),
   mockDelete: vi.fn(),
+  mockCount: vi.fn(),
   mockUpsert: vi.fn(),
   mockDeleteMany: vi.fn(),
   mockUpdateManyVinculo: vi.fn(),
@@ -23,7 +25,7 @@ vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { update: mockUpdate, delete: mockDelete },
+    user: { update: mockUpdate, delete: mockDelete, count: mockCount },
     usuarioPapel: { upsert: mockUpsert, deleteMany: mockDeleteMany },
     vinculoParceria: { updateMany: mockUpdateManyVinculo },
     $transaction: mockTransaction,
@@ -41,12 +43,14 @@ beforeEach(() => {
   mockRequererAcesso.mockReset();
   mockUpdate.mockReset();
   mockDelete.mockReset();
+  mockCount.mockReset();
   mockUpsert.mockReset();
   mockDeleteMany.mockReset();
   mockUpdateManyVinculo.mockReset();
   mockTransaction.mockReset();
   mockRevalidatePath.mockReset();
   mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+  mockCount.mockResolvedValue(1);
   mockTransaction.mockImplementation((ops: Promise<unknown>[]) =>
     Promise.all(ops),
   );
@@ -60,10 +64,33 @@ describe("suspenderMembro", () => {
   it("muda status pra SUSPENSO", async () => {
     mockUpdate.mockResolvedValue({});
     await suspenderMembro("u1");
+    expect(mockCount).toHaveBeenCalledWith({
+      where: {
+        id: { not: "u1" },
+        status: "ATIVO",
+        papeis: { some: { papel: { in: ["ADMIN", "GESTORA"] } } },
+      },
+    });
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: "u1" },
       data: { status: "SUSPENSO" },
     });
+  });
+  it("bloqueia auto-suspensão, independente de quantos outros ADMIN/GESTORA existam", async () => {
+    mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+    mockCount.mockResolvedValue(5);
+    await expect(suspenderMembro("patty-1")).rejects.toThrow(
+      "Você não pode suspender a própria conta.",
+    );
+    expect(mockCount).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+  it("bloqueia se não sobrar nenhuma conta ADMIN/GESTORA ativa depois da ação", async () => {
+    mockCount.mockResolvedValue(0);
+    await expect(suspenderMembro("u1")).rejects.toThrow(
+      "Não é possível suspender: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 describe("reativarMembro", () => {
@@ -90,7 +117,30 @@ describe("deletarMembro", () => {
   it("deleta o registro", async () => {
     mockDelete.mockResolvedValue({});
     await deletarMembro("u1");
+    expect(mockCount).toHaveBeenCalledWith({
+      where: {
+        id: { not: "u1" },
+        status: "ATIVO",
+        papeis: { some: { papel: { in: ["ADMIN", "GESTORA"] } } },
+      },
+    });
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
+  });
+  it("bloqueia auto-exclusão, independente de quantos outros ADMIN/GESTORA existam", async () => {
+    mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+    mockCount.mockResolvedValue(5);
+    await expect(deletarMembro("patty-1")).rejects.toThrow(
+      "Você não pode deletar a própria conta.",
+    );
+    expect(mockCount).not.toHaveBeenCalled();
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+  it("bloqueia se não sobrar nenhuma conta ADMIN/GESTORA ativa depois da ação", async () => {
+    mockCount.mockResolvedValue(0);
+    await expect(deletarMembro("u1")).rejects.toThrow(
+      "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });
 describe("promoverAParceria", () => {

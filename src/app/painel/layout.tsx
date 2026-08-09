@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarPainel } from "@/lib/auth/pode-acessar-painel";
+import { sair } from "@/lib/auth/actions";
 
 export default async function PainelLayout({
   children,
@@ -22,6 +23,9 @@ export default async function PainelLayout({
         <Link href="/painel/membros">Membros</Link>
         <Link href="/painel/vinculos">Vínculos</Link>
         <Link href="/painel/desafios">Desafios</Link>
+        <form action={sair}>
+          <button type="submit">Sair</button>
+        </form>
       </nav>
       <main>{children}</main>
     </div>

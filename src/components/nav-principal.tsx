@@ -5,6 +5,7 @@ import {
   podeAcessarAreaParceria,
   podeAcessarPainel,
 } from "@/lib/auth/pode-acessar-painel";
+import { sair } from "@/lib/auth/actions";
 
 export function NavPrincipal({ papeis }: { papeis: Papel[] }) {
   return (
@@ -19,6 +20,9 @@ export function NavPrincipal({ papeis }: { papeis: Papel[] }) {
       {podeAcessarPainel(papeis) && (
         <Link href="/painel/aprovacoes">Painel</Link>
       )}
+      <form action={sair}>
+        <button type="submit">Sair</button>
+      </form>
     </nav>
   );
 }

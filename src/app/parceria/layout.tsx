@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarAreaParceria } from "@/lib/auth/pode-acessar-painel";
+import { sair } from "@/lib/auth/actions";
 
 export default async function ParceriaLayout({
   children,
@@ -20,6 +21,9 @@ export default async function ParceriaLayout({
       <nav aria-label="Área da parceria">
         <Link href="/parceria/planos">Meus planos</Link>
         <Link href="/parceria/perfil">Meu perfil</Link>
+        <form action={sair}>
+          <button type="submit">Sair</button>
+        </form>
       </nav>
       <main>{children}</main>
     </div>

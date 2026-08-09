@@ -1,11 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 
+const PAPEIS_COM_ACESSO_AO_PAINEL: readonly Papel[] = ["ADMIN", "GESTORA"];
+
+async function garantirNaoUltimoAdminOuGestoraAtivo(
+  userId: string,
+  mensagemErro: string,
+) {
+  const outrosAtivos = await prisma.user.count({
+    where: {
+      id: { not: userId },
+      status: "ATIVO",
+      papeis: { some: { papel: { in: [...PAPEIS_COM_ACESSO_AO_PAINEL] } } },
+    },
+  });
+
+  if (outrosAtivos === 0) {
+    throw new Error(mensagemErro);
+  }
+}
+
 export async function suspenderMembro(userId: string) {
-  await requererAcessoPainel();
+  const session = await requererAcessoPainel();
+
+  if (session.user.id === userId) {
+    throw new Error("Você não pode suspender a própria conta.");
+  }
+
+  await garantirNaoUltimoAdminOuGestoraAtivo(
+    userId,
+    "Não é possível suspender: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+  );
 
   await prisma.user.update({
     where: { id: userId },
@@ -27,7 +56,16 @@ export async function reativarMembro(userId: string) {
 }
 
 export async function deletarMembro(userId: string) {
-  await requererAcessoPainel();
+  const session = await requererAcessoPainel();
+
+  if (session.user.id === userId) {
+    throw new Error("Você não pode deletar a própria conta.");
+  }
+
+  await garantirNaoUltimoAdminOuGestoraAtivo(
+    userId,
+    "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+  );
 
   await prisma.user.delete({ where: { id: userId } });
 

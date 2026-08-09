@@ -20,6 +20,10 @@ vi.mock("./actions", () => ({
   aceitarTermo: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/actions", () => ({
+  sair: vi.fn(),
+}));
+
 describe("BemVindaPage", () => {
   beforeEach(() => {
     mockUpdate.mockClear();

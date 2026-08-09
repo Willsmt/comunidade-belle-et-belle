@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { aceitarTermo } from "./actions";
+import { sair } from "@/lib/auth/actions";
 
 export default function BemVindaPage() {
   const { update } = useSession();
@@ -37,6 +38,9 @@ export default function BemVindaPage() {
         {isPending ? "Registrando..." : "Aceito, continuar"}
       </button>
       {erro && <p role="alert">{erro}</p>}
+      <form action={sair}>
+        <button type="submit">Sair</button>
+      </form>
     </main>
   );
 }
