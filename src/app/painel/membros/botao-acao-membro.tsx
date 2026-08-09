@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 export function BotaoAcaoMembro({
   label,
   labelPendente,
-  action,
+  membroId,
+  acao,
 }: {
   label: string;
   labelPendente: string;
-  action: () => Promise<void>;
+  membroId: string;
+  acao: (membroId: string) => Promise<void>;
 }) {
   const { isPending, erro, executar } = useAcaoComErro();
 
@@ -21,7 +23,7 @@ export function BotaoAcaoMembro({
         variant="outline"
         size="sm"
         disabled={isPending}
-        onClick={() => executar(action)}
+        onClick={() => executar(() => acao(membroId))}
       >
         {isPending ? labelPendente : label}
       </Button>

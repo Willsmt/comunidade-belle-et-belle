@@ -74,7 +74,8 @@ export default async function MembrosPage() {
                       <BotaoAcaoMembro
                         label="Reativar"
                         labelPendente="Reativando..."
-                        action={() => reativarMembro(membro.id)}
+                        membroId={membro.id}
+                        acao={reativarMembro}
                       />
                     )}
                     {eParceria ? (
@@ -91,7 +92,8 @@ export default async function MembrosPage() {
                       <BotaoAcaoMembro
                         label="Promover a Parceria"
                         labelPendente="Promovendo..."
-                        action={() => promoverAParceria(membro.id)}
+                        membroId={membro.id}
+                        acao={promoverAParceria}
                       />
                     )}
                     {souAdmin &&
@@ -105,7 +107,8 @@ export default async function MembrosPage() {
                         <BotaoAcaoMembro
                           label="Promover a Gestora"
                           labelPendente="Promovendo..."
-                          action={() => promoverAGestora(membro.id)}
+                          membroId={membro.id}
+                          acao={promoverAGestora}
                         />
                       ))}
                     {!escondeAcoesDeRisco && (
