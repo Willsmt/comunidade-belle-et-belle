@@ -49,9 +49,17 @@ export async function promoverAParceria(userId: string) {
 export async function revogarParceria(userId: string) {
   await requererAcessoPainel();
 
-  await prisma.usuarioPapel.deleteMany({
-    where: { userId, papel: "PARCERIA" },
-  });
+  await prisma.$transaction([
+    prisma.usuarioPapel.deleteMany({
+      where: { userId, papel: "PARCERIA" },
+    }),
+    prisma.vinculoParceria.updateMany({
+      where: { parceriaId: userId, ativo: true },
+      data: { ativo: false },
+    }),
+  ]);
 
   revalidatePath("/painel/membros");
+  revalidatePath("/painel/vinculos");
+  revalidatePath("/cliente/parcerias");
 }

@@ -34,4 +34,38 @@ describe("listarMembros (Postgres real)", () => {
     const encontrada = resultado.find((m) => m.id === parceria.id);
     expect(encontrada?.papeis).toEqual([{ papel: "PARCERIA" }]);
   });
+
+  it("conta só os vínculos ativos como parceria no _count", async () => {
+    const cliente1 = await prisma.user.create({
+      data: { email: "cliente1@example.com", status: "ATIVO", name: "Cliente 1" },
+    });
+    const cliente2 = await prisma.user.create({
+      data: { email: "cliente2@example.com", status: "ATIVO", name: "Cliente 2" },
+    });
+    const parceria = await prisma.user.create({
+      data: { email: "parceria3@example.com", status: "ATIVO", name: "Parceria 3" },
+    });
+
+    await prisma.vinculoParceria.create({
+      data: {
+        clienteId: cliente1.id,
+        parceriaId: parceria.id,
+        ativo: true,
+        criadoPorId: parceria.id,
+      },
+    });
+    await prisma.vinculoParceria.create({
+      data: {
+        clienteId: cliente2.id,
+        parceriaId: parceria.id,
+        ativo: false,
+        criadoPorId: parceria.id,
+      },
+    });
+
+    const resultado = await listarMembros();
+
+    const encontrada = resultado.find((m) => m.id === parceria.id);
+    expect(encontrada?._count.vinculosComoParceria).toBe(1);
+  });
 });

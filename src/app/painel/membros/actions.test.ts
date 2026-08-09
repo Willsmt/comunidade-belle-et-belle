@@ -5,6 +5,8 @@ const {
   mockDelete,
   mockUpsert,
   mockDeleteMany,
+  mockUpdateManyVinculo,
+  mockTransaction,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererAcesso: vi.fn(),
@@ -12,6 +14,8 @@ const {
   mockDelete: vi.fn(),
   mockUpsert: vi.fn(),
   mockDeleteMany: vi.fn(),
+  mockUpdateManyVinculo: vi.fn(),
+  mockTransaction: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -21,6 +25,8 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { update: mockUpdate, delete: mockDelete },
     usuarioPapel: { upsert: mockUpsert, deleteMany: mockDeleteMany },
+    vinculoParceria: { updateMany: mockUpdateManyVinculo },
+    $transaction: mockTransaction,
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -37,8 +43,13 @@ beforeEach(() => {
   mockDelete.mockReset();
   mockUpsert.mockReset();
   mockDeleteMany.mockReset();
+  mockUpdateManyVinculo.mockReset();
+  mockTransaction.mockReset();
   mockRevalidatePath.mockReset();
   mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+  mockTransaction.mockImplementation((ops: Promise<unknown>[]) =>
+    Promise.all(ops),
+  );
 });
 describe("suspenderMembro", () => {
   it("nega sem acesso", async () => {
@@ -102,13 +113,19 @@ describe("revogarParceria", () => {
   it("nega sem acesso", async () => {
     mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
     await expect(revogarParceria("u1")).rejects.toThrow("Acesso negado");
-    expect(mockDeleteMany).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
   });
-  it("remove o papel PARCERIA do usuário", async () => {
+  it("remove o papel PARCERIA e desativa os vínculos ativos dessa parceria, na mesma transação", async () => {
     mockDeleteMany.mockResolvedValue({ count: 1 });
+    mockUpdateManyVinculo.mockResolvedValue({ count: 2 });
     await revogarParceria("u1");
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { userId: "u1", papel: "PARCERIA" },
     });
+    expect(mockUpdateManyVinculo).toHaveBeenCalledWith({
+      where: { parceriaId: "u1", ativo: true },
+      data: { ativo: false },
+    });
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
   });
 });

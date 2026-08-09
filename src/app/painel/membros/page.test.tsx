@@ -19,8 +19,13 @@ vi.mock("./actions", () => ({
 }));
 
 function buildMembro(
-  overrides: { status?: StatusConta; papeis?: { papel: Papel }[] } = {},
+  overrides: {
+    status?: StatusConta;
+    papeis?: { papel: Papel }[];
+    vinculosAtivos?: number;
+  } = {},
 ) {
+  const { vinculosAtivos = 0, ...resto } = overrides;
   return {
     id: "membro-1",
     name: "Fulana",
@@ -28,7 +33,8 @@ function buildMembro(
     image: null,
     status: "ATIVO" as StatusConta,
     papeis: [] as { papel: Papel }[],
-    ...overrides,
+    _count: { vinculosComoParceria: vinculosAtivos },
+    ...resto,
   };
 }
 
@@ -68,9 +74,9 @@ describe("MembrosPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("ao clicar em Revogar Parceria: pede confirmação e chama a action", async () => {
+  it("sem vínculos ativos: aviso genérico, sem menção a vínculos", async () => {
     vi.mocked(listarMembros).mockResolvedValue([
-      buildMembro({ papeis: [{ papel: "PARCERIA" }] }),
+      buildMembro({ papeis: [{ papel: "PARCERIA" }], vinculosAtivos: 0 }),
     ]);
     vi.mocked(revogarParceria).mockResolvedValue(undefined);
 
@@ -80,7 +86,29 @@ describe("MembrosPage", () => {
       screen.getByRole("button", { name: /revogar parceria/i }),
     );
 
-    expect(window.confirm).toHaveBeenCalled();
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.not.stringMatching(/vínculo/i),
+    );
+    await waitFor(() =>
+      expect(revogarParceria).toHaveBeenCalledWith("membro-1"),
+    );
+  });
+
+  it("com vínculos ativos: avisa quantos serão desativados", async () => {
+    vi.mocked(listarMembros).mockResolvedValue([
+      buildMembro({ papeis: [{ papel: "PARCERIA" }], vinculosAtivos: 3 }),
+    ]);
+    vi.mocked(revogarParceria).mockResolvedValue(undefined);
+
+    render(await MembrosPage());
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /revogar parceria/i }),
+    );
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining("3 vínculo(s) ativo(s)"),
+    );
     await waitFor(() =>
       expect(revogarParceria).toHaveBeenCalledWith("membro-1"),
     );

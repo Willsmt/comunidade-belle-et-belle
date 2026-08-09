@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 import { listarMembros } from "./queries";
 describe("listarMembros", () => {
-  it("busca usuários ATIVO ou SUSPENSO ordenados por nome, incluindo os papéis", async () => {
+  it("busca usuários ATIVO ou SUSPENSO ordenados por nome, incluindo papéis e contagem de vínculos ativos como parceria", async () => {
     mockFindMany.mockResolvedValue([]);
     await listarMembros();
     expect(mockFindMany).toHaveBeenCalledWith({
@@ -18,6 +18,11 @@ describe("listarMembros", () => {
         image: true,
         status: true,
         papeis: { select: { papel: true } },
+        _count: {
+          select: {
+            vinculosComoParceria: { where: { ativo: true } },
+          },
+        },
       },
     });
   });

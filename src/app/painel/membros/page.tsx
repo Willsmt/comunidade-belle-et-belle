@@ -44,7 +44,11 @@ export default async function MembrosPage() {
               {eParceria ? (
                 <BotaoComConfirmacao
                   label="Revogar Parceria"
-                  mensagemConfirmacao={`Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria.`}
+                  mensagemConfirmacao={
+                    membro._count.vinculosComoParceria > 0
+                      ? `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria e os ${membro._count.vinculosComoParceria} vínculo(s) ativo(s) com clientes serão desativados.`
+                      : `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria.`
+                  }
                   action={revogarParceria.bind(null, membro.id)}
                 />
               ) : (

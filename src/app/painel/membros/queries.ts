@@ -11,6 +11,11 @@ export function listarMembros() {
       image: true,
       status: true,
       papeis: { select: { papel: true } },
+      _count: {
+        select: {
+          vinculosComoParceria: { where: { ativo: true } },
+        },
+      },
     },
   });
 }
