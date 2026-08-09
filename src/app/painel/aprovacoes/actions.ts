@@ -7,14 +7,21 @@ import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 export async function aprovarConta(userId: string) {
   const session = await requererAcessoPainel();
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      status: "ATIVO",
-      aprovadoPor: session.user.id,
-      aprovadoEm: new Date(),
-    },
-  });
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: "ATIVO",
+        aprovadoPor: session.user.id,
+        aprovadoEm: new Date(),
+      },
+    }),
+    prisma.usuarioPapel.upsert({
+      where: { userId_papel: { userId, papel: "CLIENTE" } },
+      create: { userId, papel: "CLIENTE" },
+      update: {},
+    }),
+  ]);
 
   revalidatePath("/painel/aprovacoes");
 }
