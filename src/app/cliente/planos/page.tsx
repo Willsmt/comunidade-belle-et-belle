@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listarPlanosRecebidos } from "./queries";
 
 export default async function PlanosRecebidosPage() {
@@ -6,6 +7,7 @@ export default async function PlanosRecebidosPage() {
   return (
     <section>
       <h1>Meus planos</h1>
+      <Link href="/cliente/parcerias">Ver minhas parcerias</Link>
 
       {planos.length === 0 ? (
         <p>Nenhum plano recebido ainda.</p>
