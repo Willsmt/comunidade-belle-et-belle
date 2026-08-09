@@ -71,6 +71,19 @@ describe("FeedPage", () => {
     expect(screen.getByText(/nenhum post ainda/i)).toBeInTheDocument();
   });
 
+  it("mostra o link 'Novo post' pra /feed/novo", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(listarPosts).mockResolvedValue({ posts: [], proximoCursor: null } as never);
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(screen.getByRole("link", { name: /novo post/i })).toHaveAttribute(
+      "href",
+      "/feed/novo",
+    );
+  });
+
   it("mostra o teaser do desafio ativo quando existe, linkando pros Desafios", async () => {
     mockAuth.mockResolvedValue(buildSessao("cliente-1"));
     vi.mocked(listarPosts).mockResolvedValue({ posts: [], proximoCursor: null } as never);

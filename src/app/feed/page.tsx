@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, MessageCircle } from "lucide-react";
+import { Pencil, Plus, MessageCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
@@ -31,7 +31,16 @@ export default async function FeedPage({
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
-      <h1 className="font-heading text-2xl text-foreground">Feed</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-heading text-2xl text-foreground">Feed</h1>
+        <Link
+          href="/feed/novo"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <Plus className="size-3.5" />
+          Novo post
+        </Link>
+      </div>
 
       {desafioAtivo && (
         <Link href="/cliente/desafios" className="mt-4 block">
