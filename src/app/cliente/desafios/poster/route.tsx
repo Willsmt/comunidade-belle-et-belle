@@ -64,10 +64,10 @@ export async function GET() {
             marginTop: 12,
           }}
         >
-          <div style={{ fontSize: 40, fontWeight: 700, color: "#d6336c" }}>
+          <div style={{ fontSize: 40, fontWeight: 700, color: "#D81E78" }}>
             {desafio.titulo}
           </div>
-          <div style={{ fontSize: 20, color: "#862e4a", marginTop: 8 }}>
+          <div style={{ fontSize: 20, color: "#B01561", marginTop: 8 }}>
             30 dias de disciplina e amor próprio 💗
           </div>
         </div>
@@ -100,7 +100,7 @@ export async function GET() {
                 {conquista.emblema.icone && (
                   <span style={{ fontSize: 20 }}>{conquista.emblema.icone}</span>
                 )}
-                <span style={{ fontSize: 16, color: "#862e4a", fontWeight: 700 }}>
+                <span style={{ fontSize: 16, color: "#B01561", fontWeight: 700 }}>
                   {conquista.emblema.nome}
                 </span>
               </div>
@@ -118,7 +118,7 @@ export async function GET() {
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ fontSize: 18, color: "#862e4a", marginBottom: 8 }}>Antes</div>
+            <div style={{ fontSize: 18, color: "#B01561", marginBottom: 8 }}>Antes</div>
             {fotoAntesUrl ? (
               <img
                 src={fotoAntesUrl}
@@ -146,7 +146,7 @@ export async function GET() {
             )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ fontSize: 18, color: "#862e4a", marginBottom: 8 }}>Depois</div>
+            <div style={{ fontSize: 18, color: "#B01561", marginBottom: 8 }}>Depois</div>
             {fotoDepoisUrl ? (
               <img
                 src={fotoDepoisUrl}
@@ -177,7 +177,7 @@ export async function GET() {
 
         <div style={{ display: "flex", flexDirection: "column", marginTop: 40, gap: 20 }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, color: "#d6336c", fontWeight: 700 }}>
+            <div style={{ fontSize: 16, color: "#D81E78", fontWeight: 700 }}>
               O que mais mudou em mim nesses 30 dias?
             </div>
             <div style={{ fontSize: 18, color: "#3a2233" }}>
@@ -185,7 +185,7 @@ export async function GET() {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, color: "#d6336c", fontWeight: 700 }}>
+            <div style={{ fontSize: 16, color: "#D81E78", fontWeight: 700 }}>
               Do que mais me orgulho?
             </div>
             <div style={{ fontSize: 18, color: "#3a2233" }}>
@@ -193,7 +193,7 @@ export async function GET() {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ fontSize: 16, color: "#d6336c", fontWeight: 700 }}>
+            <div style={{ fontSize: 16, color: "#D81E78", fontWeight: 700 }}>
               O que vou continuar fazendo?
             </div>
             <div style={{ fontSize: 18, color: "#3a2233" }}>
@@ -208,7 +208,7 @@ export async function GET() {
             justifyContent: "center",
             marginTop: "auto",
             fontSize: 18,
-            color: "#d6336c",
+            color: "#D81E78",
             fontWeight: 700,
           }}
         >

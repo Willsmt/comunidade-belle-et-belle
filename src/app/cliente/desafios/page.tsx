@@ -1,3 +1,4 @@
+import { CheckCircle2, Gift, PartyPopper, Sparkles, Download } from "lucide-react";
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
 import {
   alternarMarcacao,
@@ -7,6 +8,9 @@ import {
 } from "./actions";
 import { RankingToggle } from "./ranking-toggle";
 import { FotosJornada } from "./fotos-jornada";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function DesafiosClientePage() {
   const resultado = await obterDesafioAtivoParaCliente();
@@ -23,9 +27,11 @@ export default async function DesafiosClientePage() {
     } = resultado;
 
     return (
-      <section>
-        <h1>{desafio.titulo}</h1>
-        {desafio.fraseMotivacional && <p>{desafio.fraseMotivacional}</p>}
+      <main className="mx-auto w-full max-w-lg px-4 py-6">
+        <h1 className="font-heading text-2xl text-foreground">{desafio.titulo}</h1>
+        {desafio.fraseMotivacional && (
+          <p className="mt-1 text-sm text-muted-foreground">{desafio.fraseMotivacional}</p>
+        )}
 
         <RankingToggle
           rankingSemanal={rankingSemanal}
@@ -36,76 +42,122 @@ export default async function DesafiosClientePage() {
         <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
 
         {desafio.categorias.length === 0 ? (
-          <p>Esse desafio ainda não tem categorias.</p>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Esse desafio ainda não tem categorias.
+          </p>
         ) : (
-          desafio.categorias.map((categoria) => (
-            <div key={categoria.id}>
-              <h2 style={{ color: categoria.cor }}>{categoria.nome}</h2>
-              {categoria.itens.length === 0 ? (
-                <p>Nenhum item nessa categoria.</p>
-              ) : (
-                <ul>
-                  {categoria.itens.map((item) => {
-                    const marcado = itensMarcadosHoje.has(item.id);
-                    return (
-                      <li key={item.id}>
-                        <span>{item.descricao}</span>
-                        <span>{item.pontos} pts</span>
-                        <form action={alternarMarcacao.bind(null, item.id)}>
-                          <button type="submit">{marcado ? "✓ Marcado" : "Marcar"}</button>
-                        </form>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ))
+          <div className="mt-6 flex flex-col gap-4">
+            {desafio.categorias.map((categoria) => (
+              <Card key={categoria.id}>
+                <CardHeader>
+                  <CardTitle style={{ color: categoria.cor }}>{categoria.nome}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {categoria.itens.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum item nessa categoria.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {categoria.itens.map((item) => {
+                        const marcado = itensMarcadosHoje.has(item.id);
+                        return (
+                          <li
+                            key={item.id}
+                            className="flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2"
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm text-foreground">{item.descricao}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {item.pontos} pts
+                              </span>
+                            </div>
+                            <form action={alternarMarcacao.bind(null, item.id)}>
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant={marcado ? "default" : "outline"}
+                              >
+                                <CheckCircle2 className={marcado ? "fill-primary-foreground" : ""} />
+                                {marcado ? "Marcado" : "Marcar"}
+                              </Button>
+                            </form>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
 
-        <h2>Desafios surpresa</h2>
+        <h2 className="mt-6 flex items-center gap-1.5 font-heading text-lg text-foreground">
+          <Gift className="size-4 text-primary" />
+          Desafios surpresa
+        </h2>
         {desafio.desafiosSurpresa.length === 0 ? (
-          <p>Nenhum desafio surpresa no momento.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Nenhum desafio surpresa no momento.
+          </p>
         ) : (
-          desafio.desafiosSurpresa.map((surpresa) => {
-            const participacao = surpresa.participacoes[0];
-            return (
-              <div key={surpresa.id}>
-                <h3>{surpresa.titulo}</h3>
-                {surpresa.descricao && <p>{surpresa.descricao}</p>}
-                <p>{surpresa.pontos} pts</p>
-
-                {participacao ? (
-                  <p>
-                    {participacao.validado
-                      ? "Participação aprovada ✓"
-                      : "Aguardando validação da Patty"}
-                  </p>
-                ) : (
-                  <form
-                    action={participarDesafioSurpresa.bind(null, surpresa.id)}
-                    aria-label={`Participar de ${surpresa.titulo}`}
-                  >
-                    {surpresa.exigeComprovacao && (
-                      <label htmlFor={`comprovacao-${surpresa.id}`}>
-                        Foto de comprovação
-                        <input
-                          id={`comprovacao-${surpresa.id}`}
-                          name="comprovacao"
-                          type="file"
-                          accept="image/*"
-                          required
-                        />
-                      </label>
+          <div className="mt-2 flex flex-col gap-4">
+            {desafio.desafiosSurpresa.map((surpresa) => {
+              const participacao = surpresa.participacoes[0];
+              return (
+                <Card key={surpresa.id}>
+                  <CardContent className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-heading text-base text-foreground">
+                        {surpresa.titulo}
+                      </h3>
+                      <Badge className="bg-primary text-primary-foreground">
+                        {surpresa.pontos} pts
+                      </Badge>
+                    </div>
+                    {surpresa.descricao && (
+                      <p className="text-sm text-muted-foreground">{surpresa.descricao}</p>
                     )}
-                    <button type="submit">Participar</button>
-                  </form>
-                )}
-              </div>
-            );
-          })
+
+                    {participacao ? (
+                      <p className="text-sm font-medium text-accent-foreground">
+                        {participacao.validado
+                          ? "Participação aprovada ✓"
+                          : "Aguardando validação da Patty"}
+                      </p>
+                    ) : (
+                      <form
+                        action={participarDesafioSurpresa.bind(null, surpresa.id)}
+                        aria-label={`Participar de ${surpresa.titulo}`}
+                        className="flex flex-col gap-2"
+                      >
+                        {surpresa.exigeComprovacao && (
+                          <label
+                            htmlFor={`comprovacao-${surpresa.id}`}
+                            className="flex flex-col gap-1 text-sm font-medium text-foreground"
+                          >
+                            Foto de comprovação
+                            <input
+                              id={`comprovacao-${surpresa.id}`}
+                              name="comprovacao"
+                              type="file"
+                              accept="image/*"
+                              required
+                              className="text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground"
+                            />
+                          </label>
+                        )}
+                        <Button type="submit" size="sm">
+                          Participar
+                        </Button>
+                      </form>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
-      </section>
+      </main>
     );
   }
 
@@ -113,10 +165,10 @@ export default async function DesafiosClientePage() {
 
   if (!encerramento) {
     return (
-      <section>
-        <h1>Desafios</h1>
-        <p>Nenhum desafio ativo no momento.</p>
-      </section>
+      <main className="mx-auto w-full max-w-lg px-4 py-6">
+        <h1 className="font-heading text-2xl text-foreground">Desafios</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Nenhum desafio ativo no momento.</p>
+      </main>
     );
   }
 
@@ -133,76 +185,137 @@ export default async function DesafiosClientePage() {
   } = encerramento;
 
   return (
-    <section>
-      <h1>{desafio.titulo}</h1>
+    <main className="mx-auto w-full max-w-lg px-4 py-6">
+      <h1 className="font-heading text-2xl text-foreground">{desafio.titulo}</h1>
 
       {!avisoVisto && (
-        <section aria-label="Aviso de encerramento">
-          <h2>O desafio terminou! 🎉</h2>
-          <p>Confira o ranking final abaixo.</p>
-          <form action={marcarAvisoEncerramentoVisto}>
-            <button type="submit">Continuar</button>
-          </form>
-        </section>
+        <Card
+          className="mt-4 border-primary/30 bg-secondary/60"
+          aria-label="Aviso de encerramento"
+        >
+          <CardContent className="flex flex-col items-center gap-2 text-center">
+            <PartyPopper className="size-6 text-primary" />
+            <h2 className="font-heading text-lg text-foreground">O desafio terminou! 🎉</h2>
+            <p className="text-sm text-muted-foreground">Confira o ranking final abaixo.</p>
+            <form action={marcarAvisoEncerramentoVisto}>
+              <Button type="submit" size="sm">
+                Continuar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <section aria-label="Ranking final">
-        <h2>Ranking final</h2>
-        {rankingGeral.length === 0 ? (
-          <p>Ninguém pontuou nesse desafio.</p>
-        ) : (
-          <ol>
-            {rankingGeral.map((linha, indice) => (
-              <li key={linha.clienteId}>
-                <span>{indice + 1}º</span>
-                <span>{linha.clienteId === clienteId ? "Você" : linha.nome}</span>
-                <span>{linha.pontos} pts</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <Card className="mt-4" aria-label="Ranking final">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-1.5">
+            <Sparkles className="size-4 text-primary" />
+            Ranking final
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rankingGeral.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ninguém pontuou nesse desafio.</p>
+          ) : (
+            <ol className="flex flex-col gap-1.5">
+              {rankingGeral.map((linha, indice) => {
+                const voce = linha.clienteId === clienteId;
+                return (
+                  <li
+                    key={linha.clienteId}
+                    className={
+                      voce
+                        ? "flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-sm text-secondary-foreground"
+                        : "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-foreground"
+                    }
+                  >
+                    <span className="w-5 font-heading text-xs text-muted-foreground">
+                      {indice + 1}º
+                    </span>
+                    <span className="flex-1 font-medium">{voce ? "Você" : linha.nome}</span>
+                    <span className="text-xs text-muted-foreground">{linha.pontos} pts</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
 
       <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
 
-      <section aria-label="Reflexão final">
-        <h2>Reflexão final</h2>
-        <form action={salvarReflexao} aria-label="Salvar reflexão final">
-          <label htmlFor="reflexaoMudou">
-            O que mais mudou em mim nesses 30 dias?
-            <textarea
-              id="reflexaoMudou"
-              name="reflexaoMudou"
-              defaultValue={reflexaoMudou ?? ""}
-            />
-          </label>
-          <label htmlFor="reflexaoOrgulho">
-            Do que mais me orgulho?
-            <textarea
-              id="reflexaoOrgulho"
-              name="reflexaoOrgulho"
-              defaultValue={reflexaoOrgulho ?? ""}
-            />
-          </label>
-          <label htmlFor="reflexaoContinuar">
-            O que vou continuar fazendo?
-            <textarea
-              id="reflexaoContinuar"
-              name="reflexaoContinuar"
-              defaultValue={reflexaoContinuar ?? ""}
-            />
-          </label>
-          <button type="submit">Salvar reflexão</button>
-        </form>
-      </section>
+      <Card className="mt-4" aria-label="Reflexão final">
+        <CardHeader>
+          <CardTitle>Reflexão final</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            action={salvarReflexao}
+            aria-label="Salvar reflexão final"
+            className="flex flex-col gap-3"
+          >
+            <label
+              htmlFor="reflexaoMudou"
+              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+            >
+              O que mais mudou em mim nesses 30 dias?
+              <textarea
+                id="reflexaoMudou"
+                name="reflexaoMudou"
+                defaultValue={reflexaoMudou ?? ""}
+                rows={3}
+                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label
+              htmlFor="reflexaoOrgulho"
+              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+            >
+              Do que mais me orgulho?
+              <textarea
+                id="reflexaoOrgulho"
+                name="reflexaoOrgulho"
+                defaultValue={reflexaoOrgulho ?? ""}
+                rows={3}
+                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label
+              htmlFor="reflexaoContinuar"
+              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+            >
+              O que vou continuar fazendo?
+              <textarea
+                id="reflexaoContinuar"
+                name="reflexaoContinuar"
+                defaultValue={reflexaoContinuar ?? ""}
+                rows={3}
+                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <Button type="submit">Salvar reflexão</Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <section aria-label="Baixar imagem">
-        <h2>Baixe sua imagem de comemoração</h2>
-        <p>Uma imagem prontinha pra postar, com suas fotos, conquistas e reflexão.</p>
-        <a href="/cliente/desafios/poster" download="meu-glow-up.png">
-          Baixar minha imagem
-        </a>
-      </section>
-    </section>
+      <Card className="mt-4 border-primary/30 bg-secondary/60" aria-label="Baixar imagem">
+        <CardContent className="flex flex-col items-center gap-2 text-center">
+          <h2 className="font-heading text-lg text-foreground">
+            Baixe sua imagem de comemoração
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Uma imagem prontinha pra postar, com suas fotos, conquistas e reflexão.
+          </p>
+          <a
+            href="/cliente/desafios/poster"
+            download="meu-glow-up.png"
+            className={buttonVariants({ size: "sm" })}
+          >
+            <Download className="size-3.5" />
+            Baixar minha imagem
+          </a>
+        </CardContent>
+      </Card>
+    </main>
   );
 }
