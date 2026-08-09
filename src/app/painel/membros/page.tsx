@@ -12,6 +12,8 @@ import {
 } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { BotaoAcaoMembro } from "./botao-acao-membro";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function MembrosPage() {
   const [membros, totalAdminsGestorasAtivos, session] = await Promise.all([
@@ -24,17 +26,17 @@ export default async function MembrosPage() {
 
   if (membros.length === 0) {
     return (
-      <section>
-        <h1>Membros</h1>
-        <p>Nenhum membro ainda.</p>
-      </section>
+      <main className="mx-auto w-full max-w-lg px-4 py-6">
+        <h1 className="font-heading text-2xl text-foreground">Membros</h1>
+        <p className="mt-6 text-sm text-muted-foreground">Nenhum membro ainda.</p>
+      </main>
     );
   }
 
   return (
-    <section>
-      <h1>Membros</h1>
-      <ul>
+    <main className="mx-auto w-full max-w-lg px-4 py-6">
+      <h1 className="font-heading text-2xl text-foreground">Membros</h1>
+      <ul className="mt-6 flex flex-col gap-4">
         {membros.map((membro) => {
           const eParceria = membro.papeis.some((p) => p.papel === "PARCERIA");
           const eGestora = membro.papeis.some((p) => p.papel === "GESTORA");
@@ -49,65 +51,77 @@ export default async function MembrosPage() {
           const escondeAcoesDeRisco = ehVoceMesma || ehUltimaAdminGestoraAtiva;
           return (
             <li key={membro.id}>
-              <span>{membro.name ?? membro.email}</span>
-              <span>{membro.status}</span>
-              {membro.status === "ATIVO" ? (
-                !escondeAcoesDeRisco && (
-                  <BotaoComConfirmacao
-                    label="Suspender"
-                    mensagemConfirmacao={`Suspender ${membro.name ?? membro.email}? Ela perde acesso até ser reativada.`}
-                    action={suspenderMembro.bind(null, membro.id)}
-                  />
-                )
-              ) : (
-                <BotaoAcaoMembro
-                  label="Reativar"
-                  labelPendente="Reativando..."
-                  action={() => reativarMembro(membro.id)}
-                />
-              )}
-              {eParceria ? (
-                <BotaoComConfirmacao
-                  label="Revogar Parceria"
-                  mensagemConfirmacao={
-                    membro._count.vinculosComoParceria > 0
-                      ? `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria e os ${membro._count.vinculosComoParceria} vínculo(s) ativo(s) com clientes serão desativados.`
-                      : `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria.`
-                  }
-                  action={revogarParceria.bind(null, membro.id)}
-                />
-              ) : (
-                <BotaoAcaoMembro
-                  label="Promover a Parceria"
-                  labelPendente="Promovendo..."
-                  action={() => promoverAParceria(membro.id)}
-                />
-              )}
-              {souAdmin &&
-                (eGestora ? (
-                  <BotaoComConfirmacao
-                    label="Revogar Gestora"
-                    mensagemConfirmacao={`Revogar o papel de gestora de ${membro.name ?? membro.email}? Ela perde acesso ao painel, a menos que também seja ADMIN.`}
-                    action={revogarGestora.bind(null, membro.id)}
-                  />
-                ) : (
-                  <BotaoAcaoMembro
-                    label="Promover a Gestora"
-                    labelPendente="Promovendo..."
-                    action={() => promoverAGestora(membro.id)}
-                  />
-                ))}
-              {!escondeAcoesDeRisco && (
-                <BotaoComConfirmacao
-                  label="Deletar"
-                  mensagemConfirmacao={`Deletar ${membro.name ?? membro.email} permanentemente? Essa ação não pode ser desfeita.`}
-                  action={deletarMembro.bind(null, membro.id)}
-                />
-              )}
+              <Card>
+                <CardContent className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {membro.name ?? membro.email}
+                    </span>
+                    <Badge variant={membro.status === "ATIVO" ? "secondary" : "destructive"}>
+                      {membro.status}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap items-start gap-2">
+                    {membro.status === "ATIVO" ? (
+                      !escondeAcoesDeRisco && (
+                        <BotaoComConfirmacao
+                          label="Suspender"
+                          mensagemConfirmacao={`Suspender ${membro.name ?? membro.email}? Ela perde acesso até ser reativada.`}
+                          action={suspenderMembro.bind(null, membro.id)}
+                        />
+                      )
+                    ) : (
+                      <BotaoAcaoMembro
+                        label="Reativar"
+                        labelPendente="Reativando..."
+                        action={() => reativarMembro(membro.id)}
+                      />
+                    )}
+                    {eParceria ? (
+                      <BotaoComConfirmacao
+                        label="Revogar Parceria"
+                        mensagemConfirmacao={
+                          membro._count.vinculosComoParceria > 0
+                            ? `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria e os ${membro._count.vinculosComoParceria} vínculo(s) ativo(s) com clientes serão desativados.`
+                            : `Revogar o papel de parceria de ${membro.name ?? membro.email}? Ela perde acesso à área de parceria.`
+                        }
+                        action={revogarParceria.bind(null, membro.id)}
+                      />
+                    ) : (
+                      <BotaoAcaoMembro
+                        label="Promover a Parceria"
+                        labelPendente="Promovendo..."
+                        action={() => promoverAParceria(membro.id)}
+                      />
+                    )}
+                    {souAdmin &&
+                      (eGestora ? (
+                        <BotaoComConfirmacao
+                          label="Revogar Gestora"
+                          mensagemConfirmacao={`Revogar o papel de gestora de ${membro.name ?? membro.email}? Ela perde acesso ao painel, a menos que também seja ADMIN.`}
+                          action={revogarGestora.bind(null, membro.id)}
+                        />
+                      ) : (
+                        <BotaoAcaoMembro
+                          label="Promover a Gestora"
+                          labelPendente="Promovendo..."
+                          action={() => promoverAGestora(membro.id)}
+                        />
+                      ))}
+                    {!escondeAcoesDeRisco && (
+                      <BotaoComConfirmacao
+                        label="Deletar"
+                        mensagemConfirmacao={`Deletar ${membro.name ?? membro.email} permanentemente? Essa ação não pode ser desfeita.`}
+                        action={deletarMembro.bind(null, membro.id)}
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </li>
           );
         })}
       </ul>
-    </section>
+    </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 
 export function BotaoComConfirmacao({
   label,
@@ -33,11 +34,21 @@ export function BotaoComConfirmacao({
   }
 
   return (
-    <>
-      <button type="button" onClick={handleClick} disabled={isPending}>
+    <div className="flex flex-col items-start gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleClick}
+        disabled={isPending}
+      >
         {isPending ? "..." : label}
-      </button>
-      {erro && <p role="alert">{erro}</p>}
-    </>
+      </Button>
+      {erro && (
+        <p role="alert" className="text-xs text-destructive">
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }
