@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { contarAdminsGestorasAtivos, listarMembros } from "./queries";
 import {
   suspenderMembro,
@@ -6,6 +7,8 @@ import {
   deletarMembro,
   promoverAParceria,
   revogarParceria,
+  promoverAGestora,
+  revogarGestora,
 } from "./actions";
 import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
 
@@ -16,6 +19,7 @@ export default async function MembrosPage() {
     auth(),
   ]);
   const meuId = session?.user?.id;
+  const souAdmin = temAlgumPapel(session?.user?.papeis ?? [], ["ADMIN"]);
 
   if (membros.length === 0) {
     return (
@@ -32,6 +36,7 @@ export default async function MembrosPage() {
       <ul>
         {membros.map((membro) => {
           const eParceria = membro.papeis.some((p) => p.papel === "PARCERIA");
+          const eGestora = membro.papeis.some((p) => p.papel === "GESTORA");
           const ehVoceMesma = membro.id === meuId;
           const ehAdminOuGestora = membro.papeis.some(
             (p) => p.papel === "ADMIN" || p.papel === "GESTORA",
@@ -73,6 +78,18 @@ export default async function MembrosPage() {
                   <button type="submit">Promover a Parceria</button>
                 </form>
               )}
+              {souAdmin &&
+                (eGestora ? (
+                  <BotaoComConfirmacao
+                    label="Revogar Gestora"
+                    mensagemConfirmacao={`Revogar o papel de gestora de ${membro.name ?? membro.email}? Ela perde acesso ao painel, a menos que também seja ADMIN.`}
+                    action={revogarGestora.bind(null, membro.id)}
+                  />
+                ) : (
+                  <form action={promoverAGestora.bind(null, membro.id)}>
+                    <button type="submit">Promover a Gestora</button>
+                  </form>
+                ))}
               {!escondeAcoesDeRisco && (
                 <BotaoComConfirmacao
                   label="Deletar"

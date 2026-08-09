@@ -38,6 +38,8 @@ import {
   deletarMembro,
   promoverAParceria,
   revogarParceria,
+  promoverAGestora,
+  revogarGestora,
 } from "./actions";
 beforeEach(() => {
   mockRequererAcesso.mockReset();
@@ -177,5 +179,69 @@ describe("revogarParceria", () => {
       data: { ativo: false },
     });
     expect(mockTransaction).toHaveBeenCalledTimes(1);
+  });
+});
+describe("promoverAGestora", () => {
+  it("nega sem acesso", async () => {
+    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    await expect(promoverAGestora("u1")).rejects.toThrow("Acesso negado");
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+  it("bloqueia se quem chama não for ADMIN", async () => {
+    mockRequererAcesso.mockResolvedValue({
+      user: { id: "patty-1", papeis: ["GESTORA"] },
+    });
+    await expect(promoverAGestora("u1")).rejects.toThrow(
+      "Só uma conta ADMIN pode gerenciar o papel de Gestora.",
+    );
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+  it("cria o papel GESTORA via upsert quando quem chama é ADMIN (idempotente se já existir)", async () => {
+    mockRequererAcesso.mockResolvedValue({
+      user: { id: "patty-1", papeis: ["ADMIN"] },
+    });
+    mockUpsert.mockResolvedValue({});
+    await promoverAGestora("u1");
+    expect(mockUpsert).toHaveBeenCalledWith({
+      where: { userId_papel: { userId: "u1", papel: "GESTORA" } },
+      create: { userId: "u1", papel: "GESTORA" },
+      update: {},
+    });
+  });
+});
+describe("revogarGestora", () => {
+  it("nega sem acesso", async () => {
+    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    await expect(revogarGestora("u1")).rejects.toThrow("Acesso negado");
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+  });
+  it("bloqueia se quem chama não for ADMIN", async () => {
+    mockRequererAcesso.mockResolvedValue({
+      user: { id: "patty-1", papeis: ["GESTORA"] },
+    });
+    await expect(revogarGestora("u1")).rejects.toThrow(
+      "Só uma conta ADMIN pode gerenciar o papel de Gestora.",
+    );
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+  });
+  it("bloqueia se não sobrar nenhuma conta ADMIN/GESTORA ativa depois da ação", async () => {
+    mockRequererAcesso.mockResolvedValue({
+      user: { id: "patty-1", papeis: ["ADMIN"] },
+    });
+    mockCount.mockResolvedValue(0);
+    await expect(revogarGestora("u1")).rejects.toThrow(
+      "Não é possível revogar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+  });
+  it("remove o papel GESTORA quando quem chama é ADMIN e não causa lockout", async () => {
+    mockRequererAcesso.mockResolvedValue({
+      user: { id: "patty-1", papeis: ["ADMIN"] },
+    });
+    mockDeleteMany.mockResolvedValue({ count: 1 });
+    await revogarGestora("u1");
+    expect(mockDeleteMany).toHaveBeenCalledWith({
+      where: { userId: "u1", papel: "GESTORA" },
+    });
   });
 });

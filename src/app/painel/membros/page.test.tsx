@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MembrosPage from "./page";
 import { contarAdminsGestorasAtivos, listarMembros } from "./queries";
-import { promoverAParceria, revogarParceria } from "./actions";
+import {
+  promoverAParceria,
+  revogarParceria,
+  promoverAGestora,
+  revogarGestora,
+} from "./actions";
 import { auth } from "@/auth";
 import type { Papel, StatusConta } from "@/generated/prisma/client";
 
@@ -18,6 +23,8 @@ vi.mock("./actions", () => ({
   deletarMembro: vi.fn(),
   promoverAParceria: vi.fn(),
   revogarParceria: vi.fn(),
+  promoverAGestora: vi.fn(),
+  revogarGestora: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -49,6 +56,8 @@ describe("MembrosPage", () => {
     vi.mocked(listarMembros).mockReset();
     vi.mocked(promoverAParceria).mockReset();
     vi.mocked(revogarParceria).mockReset();
+    vi.mocked(promoverAGestora).mockReset();
+    vi.mocked(revogarGestora).mockReset();
     vi.mocked(contarAdminsGestorasAtivos).mockReset();
     vi.mocked(auth).mockReset();
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -170,5 +179,60 @@ describe("MembrosPage", () => {
     expect(
       screen.queryByRole("button", { name: /deletar/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("não mostra Promover/Revogar Gestora pra quem não é ADMIN", async () => {
+    vi.mocked(listarMembros).mockResolvedValue([
+      buildMembro({ papeis: [{ papel: "GESTORA" }] }),
+    ]);
+
+    render(await MembrosPage());
+
+    expect(
+      screen.queryByRole("button", { name: /promover a gestora/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /revogar gestora/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ADMIN vê 'Promover a Gestora' pra quem ainda não tem o papel", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: "admin-1", papeis: ["ADMIN"] },
+    } as unknown as Awaited<ReturnType<typeof auth>>);
+    vi.mocked(listarMembros).mockResolvedValue([buildMembro()]);
+
+    render(await MembrosPage());
+
+    expect(
+      screen.getByRole("button", { name: /promover a gestora/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /revogar gestora/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ADMIN vê 'Revogar Gestora' pra quem já é GESTORA", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: "admin-1", papeis: ["ADMIN"] },
+    } as unknown as Awaited<ReturnType<typeof auth>>);
+    vi.mocked(listarMembros).mockResolvedValue([
+      buildMembro({ papeis: [{ papel: "GESTORA" }] }),
+    ]);
+    vi.mocked(revogarGestora).mockResolvedValue(undefined);
+
+    render(await MembrosPage());
+
+    expect(
+      screen.queryByRole("button", { name: /promover a gestora/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /revogar gestora/i }),
+    );
+
+    await waitFor(() =>
+      expect(revogarGestora).toHaveBeenCalledWith("membro-1"),
+    );
   });
 });
