@@ -1,6 +1,6 @@
 import { listarFotos } from "./queries";
 import { FormularioUpload } from "./formulario-upload";
-import { alternarVisibilidadeFoto, excluirFoto } from "./actions";
+import { ItemFoto } from "./item-foto";
 
 export default async function FotosPage() {
   const fotos = await listarFotos();
@@ -18,23 +18,13 @@ export default async function FotosPage() {
       ) : (
         <ul>
           {fotos.map((foto) => (
-            <li key={foto.id}>
-              <img src={foto.urlAssinada} alt="Foto de evolução" width={200} />
-              <p>{foto.data.toLocaleDateString("pt-BR")}</p>
-              <p>{foto.publica ? "Pública" : "Privada"}</p>
-
-              <form action={alternarVisibilidadeFoto}>
-                <input type="hidden" name="fotoId" value={foto.id} />
-                <button type="submit">
-                  {foto.publica ? "Tornar privada" : "Tornar pública"}
-                </button>
-              </form>
-
-              <form action={excluirFoto}>
-                <input type="hidden" name="fotoId" value={foto.id} />
-                <button type="submit">Excluir</button>
-              </form>
-            </li>
+            <ItemFoto
+              key={foto.id}
+              fotoId={foto.id}
+              urlAssinada={foto.urlAssinada}
+              data={foto.data.toLocaleDateString("pt-BR")}
+              publica={foto.publica}
+            />
           ))}
         </ul>
       )}

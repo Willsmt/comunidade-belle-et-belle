@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MembrosPage from "./page";
 import { contarAdminsGestorasAtivos, listarMembros } from "./queries";
 import {
+  reativarMembro,
   promoverAParceria,
   revogarParceria,
   promoverAGestora,
@@ -233,6 +234,54 @@ describe("MembrosPage", () => {
 
     await waitFor(() =>
       expect(revogarGestora).toHaveBeenCalledWith("membro-1"),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando reativar falha", async () => {
+    vi.mocked(listarMembros).mockResolvedValue([
+      buildMembro({ status: "SUSPENSO" }),
+    ]);
+    vi.mocked(reativarMembro).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await MembrosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /reativar/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando promover a parceria falha", async () => {
+    vi.mocked(listarMembros).mockResolvedValue([buildMembro()]);
+    vi.mocked(promoverAParceria).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await MembrosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /promover a parceria/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando promover a gestora falha", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: { id: "admin-1", papeis: ["ADMIN"] },
+    } as unknown as Awaited<ReturnType<typeof auth>>);
+    vi.mocked(listarMembros).mockResolvedValue([buildMembro()]);
+    vi.mocked(promoverAGestora).mockRejectedValue(
+      new Error("Só uma conta ADMIN pode gerenciar o papel de Gestora."),
+    );
+
+    render(await MembrosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /promover a gestora/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Só uma conta ADMIN pode gerenciar o papel de Gestora.",
+      ),
     );
   });
 });

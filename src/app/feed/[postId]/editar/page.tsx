@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { obterPost } from "../../queries";
-import { editarPost } from "../../actions";
+import { FormularioEditarPost } from "./formulario-editar-post";
 
 export default async function EditarPostPage({
   params,
@@ -19,26 +19,7 @@ export default async function EditarPostPage({
   return (
     <section>
       <h1>Editar post</h1>
-
-      <form action={editarPost}>
-        <input type="hidden" name="postId" value={post.id} />
-
-        <label>
-          Texto
-          <textarea name="texto" rows={4} defaultValue={post.texto ?? ""} />
-        </label>
-
-        <label>
-          Trocar imagem (opcional)
-          <input
-            type="file"
-            name="arquivo"
-            accept="image/jpeg,image/png,image/webp"
-          />
-        </label>
-
-        <button type="submit">Salvar</button>
-      </form>
+      <FormularioEditarPost postId={post.id} texto={post.texto ?? ""} />
     </section>
   );
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { listarDesafios } from "./queries";
-import { criarDesafio, encerrarDesafio, reabrirDesafio } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { encerrarDesafio } from "./actions";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { FormularioCriarDesafio } from "./formulario-criar-desafio";
+import { BotaoReabrirDesafio } from "./botao-reabrir-desafio";
 
 export default async function DesafiosPage() {
   const desafios = await listarDesafios();
@@ -13,29 +15,7 @@ export default async function DesafiosPage() {
       <Link href="/painel/desafios/emblemas">Gerenciar emblemas</Link>
 
       <h2>Nova edição</h2>
-      <form action={criarDesafio} aria-label="Criar desafio">
-        <label htmlFor="titulo">
-          Título
-          <input id="titulo" name="titulo" type="text" required />
-        </label>
-
-        <label htmlFor="fraseMotivacional">
-          Frase motivacional
-          <input id="fraseMotivacional" name="fraseMotivacional" type="text" />
-        </label>
-
-        <label htmlFor="dataInicio">
-          Data de início
-          <input id="dataInicio" name="dataInicio" type="date" required />
-        </label>
-
-        <label htmlFor="dataFim">
-          Data de fim
-          <input id="dataFim" name="dataFim" type="date" required />
-        </label>
-
-        <button type="submit">Criar</button>
-      </form>
+      <FormularioCriarDesafio />
 
       <h2>Edições</h2>
       {desafios.length === 0 ? (
@@ -60,9 +40,7 @@ export default async function DesafiosPage() {
                   action={encerrarDesafio.bind(null, desafio.id)}
                 />
               ) : (
-                <form action={reabrirDesafio.bind(null, desafio.id)}>
-                  <button type="submit">Reabrir</button>
-                </form>
+                <BotaoReabrirDesafio desafioId={desafio.id} />
               )}
             </li>
           ))}

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DesafioDetalhePage from "./page";
 import { obterDesafioComCategorias } from "./queries";
+import { criarCategoria, aprovarParticipacao } from "./actions";
 
 vi.mock("./queries", () => ({
   obterDesafioComCategorias: vi.fn(),
@@ -194,5 +195,64 @@ describe("DesafioDetalhePage", () => {
     expect(screen.getByRole("button", { name: /aprovar/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rejeitar/i })).toBeInTheDocument();
     expect(screen.getByText("Aprovada")).toBeInTheDocument();
+  });
+
+  it("mostra a mensagem de erro original quando criar categoria falha", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [],
+      regrasBonus: [],
+      desafiosSurpresa: [],
+    } as never);
+    vi.mocked(criarCategoria).mockRejectedValue(
+      new Error("Informe o nome da categoria"),
+    );
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    fireEvent.submit(screen.getByRole("form", { name: /criar categoria/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Informe o nome da categoria",
+      ),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando aprovar participação falha", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [],
+      regrasBonus: [],
+      desafiosSurpresa: [
+        {
+          id: "s1",
+          titulo: "Corrida 5km",
+          descricao: null,
+          pontos: 50,
+          exigeComprovacao: false,
+          participacoes: [
+            {
+              id: "p1",
+              cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+              validado: false,
+            },
+          ],
+        },
+      ],
+    } as never);
+    vi.mocked(aprovarParticipacao).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    fireEvent.click(screen.getByRole("button", { name: /aprovar/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
+    );
   });
 });

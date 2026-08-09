@@ -1,14 +1,12 @@
-import { CheckCircle2, Gift, PartyPopper, Sparkles, Download } from "lucide-react";
+import { Gift, PartyPopper, Sparkles, Download } from "lucide-react";
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
-import {
-  alternarMarcacao,
-  participarDesafioSurpresa,
-  marcarAvisoEncerramentoVisto,
-  salvarReflexao,
-} from "./actions";
 import { RankingToggle } from "./ranking-toggle";
 import { FotosJornada } from "./fotos-jornada";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { BotaoMarcarItem } from "./botao-marcar-item";
+import { FormularioParticiparSurpresa } from "./formulario-participar-surpresa";
+import { BotaoContinuarEncerramento } from "./botao-continuar-encerramento";
+import { FormularioReflexao } from "./formulario-reflexao";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -70,16 +68,7 @@ export default async function DesafiosClientePage() {
                                 {item.pontos} pts
                               </span>
                             </div>
-                            <form action={alternarMarcacao.bind(null, item.id)}>
-                              <Button
-                                type="submit"
-                                size="sm"
-                                variant={marcado ? "default" : "outline"}
-                              >
-                                <CheckCircle2 className={marcado ? "fill-primary-foreground" : ""} />
-                                {marcado ? "Marcado" : "Marcar"}
-                              </Button>
-                            </form>
+                            <BotaoMarcarItem itemId={item.id} marcado={marcado} />
                           </li>
                         );
                       })}
@@ -125,31 +114,11 @@ export default async function DesafiosClientePage() {
                           : "Aguardando validação da Patty"}
                       </p>
                     ) : (
-                      <form
-                        action={participarDesafioSurpresa.bind(null, surpresa.id)}
-                        aria-label={`Participar de ${surpresa.titulo}`}
-                        className="flex flex-col gap-2"
-                      >
-                        {surpresa.exigeComprovacao && (
-                          <label
-                            htmlFor={`comprovacao-${surpresa.id}`}
-                            className="flex flex-col gap-1 text-sm font-medium text-foreground"
-                          >
-                            Foto de comprovação
-                            <input
-                              id={`comprovacao-${surpresa.id}`}
-                              name="comprovacao"
-                              type="file"
-                              accept="image/*"
-                              required
-                              className="text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground"
-                            />
-                          </label>
-                        )}
-                        <Button type="submit" size="sm">
-                          Participar
-                        </Button>
-                      </form>
+                      <FormularioParticiparSurpresa
+                        surpresaId={surpresa.id}
+                        titulo={surpresa.titulo}
+                        exigeComprovacao={surpresa.exigeComprovacao}
+                      />
                     )}
                   </CardContent>
                 </Card>
@@ -197,11 +166,7 @@ export default async function DesafiosClientePage() {
             <PartyPopper className="size-6 text-primary" />
             <h2 className="font-heading text-lg text-foreground">O desafio terminou! 🎉</h2>
             <p className="text-sm text-muted-foreground">Confira o ranking final abaixo.</p>
-            <form action={marcarAvisoEncerramentoVisto}>
-              <Button type="submit" size="sm">
-                Continuar
-              </Button>
-            </form>
+            <BotaoContinuarEncerramento />
           </CardContent>
         </Card>
       )}
@@ -249,52 +214,11 @@ export default async function DesafiosClientePage() {
           <CardTitle>Reflexão final</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            action={salvarReflexao}
-            aria-label="Salvar reflexão final"
-            className="flex flex-col gap-3"
-          >
-            <label
-              htmlFor="reflexaoMudou"
-              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-            >
-              O que mais mudou em mim nesses 30 dias?
-              <textarea
-                id="reflexaoMudou"
-                name="reflexaoMudou"
-                defaultValue={reflexaoMudou ?? ""}
-                rows={3}
-                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            </label>
-            <label
-              htmlFor="reflexaoOrgulho"
-              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-            >
-              Do que mais me orgulho?
-              <textarea
-                id="reflexaoOrgulho"
-                name="reflexaoOrgulho"
-                defaultValue={reflexaoOrgulho ?? ""}
-                rows={3}
-                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            </label>
-            <label
-              htmlFor="reflexaoContinuar"
-              className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-            >
-              O que vou continuar fazendo?
-              <textarea
-                id="reflexaoContinuar"
-                name="reflexaoContinuar"
-                defaultValue={reflexaoContinuar ?? ""}
-                rows={3}
-                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            </label>
-            <Button type="submit">Salvar reflexão</Button>
-          </form>
+          <FormularioReflexao
+            reflexaoMudou={reflexaoMudou}
+            reflexaoOrgulho={reflexaoOrgulho}
+            reflexaoContinuar={reflexaoContinuar}
+          />
         </CardContent>
       </Card>
 

@@ -1,6 +1,7 @@
 import { listarPendentes } from "./queries";
-import { aprovarConta, rejeitarConta } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { rejeitarConta } from "./actions";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { BotaoAprovarConta } from "./botao-aprovar-conta";
 
 export default async function AprovacoesPage() {
   const pendentes = await listarPendentes();
@@ -21,9 +22,7 @@ export default async function AprovacoesPage() {
         {pendentes.map((usuario) => (
           <li key={usuario.id}>
             <span>{usuario.name ?? usuario.email}</span>
-            <form action={aprovarConta.bind(null, usuario.id)}>
-              <button type="submit">Aprovar</button>
-            </form>
+            <BotaoAprovarConta userId={usuario.id} />
             <BotaoComConfirmacao
               label="Rejeitar"
               mensagemConfirmacao={`Rejeitar o pedido de ${usuario.name ?? usuario.email}? Essa ação não pode ser desfeita.`}

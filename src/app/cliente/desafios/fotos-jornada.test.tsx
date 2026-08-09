@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { FotosJornada } from "./fotos-jornada";
+import { enviarFotoAntes } from "./actions";
 
 vi.mock("./actions", () => ({
   enviarFotoAntes: vi.fn(),
@@ -27,5 +28,21 @@ describe("FotosJornada", () => {
     expect(screen.getByAltText("Foto de antes")).toBeInTheDocument();
     expect(screen.getByAltText("Foto de depois")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /trocar foto/i })).toHaveLength(2);
+  });
+
+  it("mostra a mensagem de erro original quando o envio da foto de antes falha", async () => {
+    vi.mocked(enviarFotoAntes).mockRejectedValue(
+      new Error("Nenhum desafio disponível no momento"),
+    );
+    render(<FotosJornada fotoAntesUrl={null} fotoDepoisUrl={null} />);
+
+    const [formAntes] = document.querySelectorAll("form");
+    fireEvent.submit(formAntes);
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Nenhum desafio disponível no momento",
+      ),
+    );
   });
 });

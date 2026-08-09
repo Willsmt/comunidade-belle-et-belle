@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FotosPage from "./page";
 import { listarFotos } from "./queries";
-import { enviarFoto } from "./actions";
+import { enviarFoto, alternarVisibilidadeFoto, excluirFoto } from "./actions";
 
 const mockRefresh = vi.fn();
 
@@ -74,5 +74,55 @@ describe("FotosPage", () => {
       screen.getByRole("button", { name: /tornar privada/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /excluir/i })).toBeInTheDocument();
+  });
+
+  it("mostra a mensagem de erro original quando alternar a visibilidade falha", async () => {
+    vi.mocked(listarFotos).mockResolvedValue([
+      {
+        id: "foto-1",
+        clienteId: "cliente-1",
+        chave: "chave-1",
+        data: new Date("2026-02-01"),
+        publica: true,
+        criadoEm: new Date("2026-02-01"),
+        urlAssinada: "https://exemplo/foto-1",
+      } as never,
+    ]);
+    vi.mocked(alternarVisibilidadeFoto).mockRejectedValue(
+      new Error("Foto não encontrada"),
+    );
+
+    render(await FotosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /tornar privada/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Foto não encontrada"),
+    );
+  });
+
+  it("pede confirmação e mostra a mensagem de erro original quando excluir falha", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(listarFotos).mockResolvedValue([
+      {
+        id: "foto-1",
+        clienteId: "cliente-1",
+        chave: "chave-1",
+        data: new Date("2026-02-01"),
+        publica: true,
+        criadoEm: new Date("2026-02-01"),
+        urlAssinada: "https://exemplo/foto-1",
+      } as never,
+    ]);
+    vi.mocked(excluirFoto).mockRejectedValue(new Error("Foto não encontrada"));
+
+    render(await FotosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /excluir/i }));
+
+    expect(window.confirm).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Foto não encontrada"),
+    );
   });
 });

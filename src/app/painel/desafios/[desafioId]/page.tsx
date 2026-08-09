@@ -1,20 +1,20 @@
 import { notFound } from "next/navigation";
 import { obterDesafioComCategorias } from "./queries";
 import {
-  criarCategoria,
   removerCategoria,
-  criarItem,
   removerItem,
-  criarRegraLimiar,
-  criarRegraCombo,
-  criarRegraCategoriaCompleta,
   removerRegraBonus,
-  criarDesafioSurpresa,
   removerDesafioSurpresa,
-  aprovarParticipacao,
   rejeitarParticipacao,
 } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { FormularioCriarCategoria } from "./formulario-criar-categoria";
+import { FormularioCriarItem } from "./formulario-criar-item";
+import { FormularioCriarRegraLimiar } from "./formulario-criar-regra-limiar";
+import { FormularioCriarRegraCombo } from "./formulario-criar-regra-combo";
+import { FormularioCriarRegraCategoriaCompleta } from "./formulario-criar-regra-categoria-completa";
+import { FormularioCriarDesafioSurpresa } from "./formulario-criar-desafio-surpresa";
+import { BotaoAprovarParticipacao } from "./botao-aprovar-participacao";
 
 export default async function DesafioDetalhePage({
   params,
@@ -34,17 +34,7 @@ export default async function DesafioDetalhePage({
       <p>{desafio.ativo ? "Ativo" : "Encerrado"}</p>
 
       <h2>Nova categoria</h2>
-      <form action={criarCategoria.bind(null, desafioId)} aria-label="Criar categoria">
-        <label htmlFor="nome">
-          Nome
-          <input id="nome" name="nome" type="text" required />
-        </label>
-        <label htmlFor="cor">
-          Cor
-          <input id="cor" name="cor" type="color" required />
-        </label>
-        <button type="submit">Criar categoria</button>
-      </form>
+      <FormularioCriarCategoria desafioId={desafioId} />
 
       <h2>Categorias</h2>
       {desafio.categorias.length === 0 ? (
@@ -79,24 +69,7 @@ export default async function DesafioDetalhePage({
               </ul>
             )}
 
-            <form action={criarItem.bind(null, categoria.id)} aria-label={`Criar item em ${categoria.nome}`}>
-              <label htmlFor={`descricao-${categoria.id}`}>
-                Descrição
-                <input id={`descricao-${categoria.id}`} name="descricao" type="text" required />
-              </label>
-              <label htmlFor={`pontos-${categoria.id}`}>
-                Pontos
-                <input id={`pontos-${categoria.id}`} name="pontos" type="number" min="1" required />
-              </label>
-              <label htmlFor={`frequencia-${categoria.id}`}>
-                Frequência
-                <select id={`frequencia-${categoria.id}`} name="frequencia" defaultValue="DIARIO">
-                  <option value="DIARIO">Diário</option>
-                  <option value="SEMANAL">Semanal</option>
-                </select>
-              </label>
-              <button type="submit">Adicionar item</button>
-            </form>
+            <FormularioCriarItem categoriaId={categoria.id} categoriaNome={categoria.nome} />
           </div>
         ))
       )}
@@ -138,85 +111,22 @@ export default async function DesafioDetalhePage({
       )}
 
       <h3>Nova regra: limiar diário</h3>
-      <form action={criarRegraLimiar.bind(null, desafioId)} aria-label="Criar regra de limiar diário">
-        <label htmlFor="limiarItens">
-          Itens no dia
-          <input id="limiarItens" name="limiarItens" type="number" min="1" required />
-        </label>
-        <label htmlFor="pontosExtras-limiar">
-          Pontos extras
-          <input id="pontosExtras-limiar" name="pontosExtras" type="number" min="1" required />
-        </label>
-        <button type="submit">Criar regra</button>
-      </form>
+      <FormularioCriarRegraLimiar desafioId={desafioId} />
 
       <h3>Nova regra: combo</h3>
-      <form action={criarRegraCombo.bind(null, desafioId)} aria-label="Criar regra de combo">
-        <label htmlFor="itensCombo">
-          Itens do combo
-          <select id="itensCombo" name="itensCombo" multiple required>
-            {desafio.categorias
-              .flatMap((categoria) => categoria.itens)
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.descricao}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label htmlFor="pontosExtras-combo">
-          Pontos extras
-          <input id="pontosExtras-combo" name="pontosExtras" type="number" min="1" required />
-        </label>
-        <button type="submit">Criar regra</button>
-      </form>
+      <FormularioCriarRegraCombo
+        desafioId={desafioId}
+        itens={desafio.categorias.flatMap((categoria) => categoria.itens)}
+      />
 
       <h3>Nova regra: categoria completa</h3>
-      <form
-        action={criarRegraCategoriaCompleta.bind(null, desafioId)}
-        aria-label="Criar regra de categoria completa"
-      >
-        <label htmlFor="categoriaId">
-          Categoria
-          <select id="categoriaId" name="categoriaId" defaultValue="">
-            <option value="">Selecione</option>
-            {desafio.categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label htmlFor="pontosExtras-categoria">
-          Pontos extras
-          <input id="pontosExtras-categoria" name="pontosExtras" type="number" min="1" required />
-        </label>
-        <button type="submit">Criar regra</button>
-      </form>
+      <FormularioCriarRegraCategoriaCompleta
+        desafioId={desafioId}
+        categorias={desafio.categorias}
+      />
 
       <h2>Desafios surpresa</h2>
-      <form
-        action={criarDesafioSurpresa.bind(null, desafioId)}
-        aria-label="Criar desafio surpresa"
-      >
-        <label htmlFor="tituloSurpresa">
-          Título
-          <input id="tituloSurpresa" name="titulo" type="text" required />
-        </label>
-        <label htmlFor="descricaoSurpresa">
-          Descrição
-          <input id="descricaoSurpresa" name="descricao" type="text" />
-        </label>
-        <label htmlFor="pontosSurpresa">
-          Pontos
-          <input id="pontosSurpresa" name="pontos" type="number" min="1" required />
-        </label>
-        <label htmlFor="exigeComprovacao">
-          <input id="exigeComprovacao" name="exigeComprovacao" type="checkbox" />
-          Exige comprovação (foto)
-        </label>
-        <button type="submit">Criar</button>
-      </form>
+      <FormularioCriarDesafioSurpresa desafioId={desafioId} />
 
       {desafio.desafiosSurpresa.length === 0 ? (
         <p>Nenhum desafio surpresa criado ainda.</p>
@@ -246,9 +156,7 @@ export default async function DesafioDetalhePage({
                       <span>Aprovada</span>
                     ) : (
                       <>
-                        <form action={aprovarParticipacao.bind(null, participacao.id)}>
-                          <button type="submit">Aprovar</button>
-                        </form>
+                        <BotaoAprovarParticipacao participacaoId={participacao.id} />
                         <BotaoComConfirmacao
                           label="Rejeitar"
                           mensagemConfirmacao="Rejeitar essa participação? Ela será removida e a cliente pode enviar de novo."

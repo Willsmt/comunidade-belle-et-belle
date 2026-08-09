@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 
@@ -18,6 +18,7 @@ vi.mock("./actions", () => ({
 
 import FeedPage from "./page";
 import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
+import { apagarPost, alternarCurtida, comentar } from "./actions";
 
 function buildSearchParams(cursor?: string) {
   return Promise.resolve(cursor ? { cursor } : {});
@@ -235,5 +236,66 @@ describe("FeedPage", () => {
     expect(
       screen.queryByRole("link", { name: /carregar mais/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("mostra a mensagem de erro original quando curtir falha", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView()],
+      proximoCursor: null,
+    } as never);
+    vi.mocked(alternarCurtida).mockRejectedValue(new Error("Post inválido"));
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    fireEvent.click(screen.getByRole("button", { name: /curtir \(0\)/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Post inválido"),
+    );
+  });
+
+  it("pede confirmação e mostra a mensagem de erro original quando apagar post falha", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView({ autorId: "cliente-1" })],
+      proximoCursor: null,
+    } as never);
+    vi.mocked(apagarPost).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    fireEvent.click(screen.getByRole("button", { name: /apagar post/i }));
+
+    expect(window.confirm).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando comentar falha", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView()],
+      proximoCursor: null,
+    } as never);
+    vi.mocked(comentar).mockRejectedValue(new Error("Escreva um comentário"));
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    fireEvent.change(screen.getByLabelText(/comentar/i), {
+      target: { value: "oi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Escreva um comentário",
+      ),
+    );
   });
 });

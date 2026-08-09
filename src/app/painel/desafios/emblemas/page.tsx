@@ -1,6 +1,7 @@
 import { listarEmblemas } from "./queries";
-import { criarEmblema, removerEmblema } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { removerEmblema } from "./actions";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { FormularioCriarEmblema } from "./formulario-criar-emblema";
 
 export default async function EmblemasPage() {
   const emblemas = await listarEmblemas();
@@ -10,21 +11,7 @@ export default async function EmblemasPage() {
       <h1>Emblemas</h1>
 
       <h2>Novo emblema</h2>
-      <form action={criarEmblema} aria-label="Criar emblema">
-        <label htmlFor="nome">
-          Nome
-          <input id="nome" name="nome" type="text" required />
-        </label>
-        <label htmlFor="icone">
-          Ícone
-          <input id="icone" name="icone" type="text" />
-        </label>
-        <label htmlFor="descricao">
-          Descrição
-          <input id="descricao" name="descricao" type="text" />
-        </label>
-        <button type="submit">Criar</button>
-      </form>
+      <FormularioCriarEmblema />
 
       <h2>Catálogo</h2>
       {emblemas.length === 0 ? (

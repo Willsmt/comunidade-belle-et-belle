@@ -1,6 +1,8 @@
 import { listarVinculos, listarClientesEParcerias } from "./queries";
-import { criarVinculo, desativarVinculo, reativarVinculo } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { desativarVinculo } from "./actions";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { FormularioCriarVinculo } from "./formulario-criar-vinculo";
+import { BotaoReativarVinculo } from "./botao-reativar-vinculo";
 
 export default async function VinculosPage() {
   const [vinculos, { clientes, parcerias }] = await Promise.all([
@@ -13,33 +15,7 @@ export default async function VinculosPage() {
       <h1>Vínculos cliente-parceria</h1>
 
       <h2>Novo vínculo</h2>
-      <form action={criarVinculo} aria-label="Criar vínculo">
-        <label htmlFor="clienteId">
-          Cliente
-          <select id="clienteId" name="clienteId" defaultValue="">
-            <option value="">Selecione</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>
-                {cliente.name ?? cliente.email}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label htmlFor="parceriaId">
-          Parceria
-          <select id="parceriaId" name="parceriaId" defaultValue="">
-            <option value="">Selecione</option>
-            {parcerias.map((parceria) => (
-              <option key={parceria.id} value={parceria.id}>
-                {parceria.name ?? parceria.email}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <button type="submit">Vincular</button>
-      </form>
+      <FormularioCriarVinculo clientes={clientes} parcerias={parcerias} />
 
       <h2>Vínculos existentes</h2>
       {vinculos.length === 0 ? (
@@ -64,9 +40,7 @@ export default async function VinculosPage() {
                   action={desativarVinculo.bind(null, vinculo.id)}
                 />
               ) : (
-                <form action={reativarVinculo.bind(null, vinculo.id)}>
-                  <button type="submit">Reativar</button>
-                </form>
+                <BotaoReativarVinculo vinculoId={vinculo.id} />
               )}
             </li>
           ))}

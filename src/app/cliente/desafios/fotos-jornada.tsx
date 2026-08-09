@@ -1,7 +1,10 @@
+"use client";
+
 import { Camera } from "lucide-react";
 import { enviarFotoAntes, enviarFotoDepois } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
 
 export function FotosJornada({
   fotoAntesUrl,
@@ -10,6 +13,21 @@ export function FotosJornada({
   fotoAntesUrl: string | null;
   fotoDepoisUrl: string | null;
 }) {
+  const antes = useAcaoComErro();
+  const depois = useAcaoComErro();
+
+  function handleSubmitAntes(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    antes.executar(() => enviarFotoAntes(formData));
+  }
+
+  function handleSubmitDepois(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    depois.executar(() => enviarFotoDepois(formData));
+  }
+
   return (
     <Card className="mt-4" role="region" aria-label="Minhas fotos do desafio">
       <CardHeader>
@@ -34,7 +52,7 @@ export function FotosJornada({
             </p>
           )}
           <form
-            action={enviarFotoAntes}
+            onSubmit={handleSubmitAntes}
             aria-label="Enviar foto de antes"
             className="flex w-full flex-col gap-1.5"
           >
@@ -45,7 +63,8 @@ export function FotosJornada({
               required
               className="text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground"
             />
-            <Button type="submit" size="sm" variant="secondary">
+            {antes.erro && <p role="alert">{antes.erro}</p>}
+            <Button type="submit" size="sm" variant="secondary" disabled={antes.isPending}>
               {fotoAntesUrl ? "Trocar foto" : "Enviar foto"}
             </Button>
           </form>
@@ -65,7 +84,7 @@ export function FotosJornada({
             </p>
           )}
           <form
-            action={enviarFotoDepois}
+            onSubmit={handleSubmitDepois}
             aria-label="Enviar foto de depois"
             className="flex w-full flex-col gap-1.5"
           >
@@ -76,7 +95,8 @@ export function FotosJornada({
               required
               className="text-xs text-muted-foreground file:mr-2 file:rounded-lg file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground"
             />
-            <Button type="submit" size="sm" variant="secondary">
+            {depois.erro && <p role="alert">{depois.erro}</p>}
+            <Button type="submit" size="sm" variant="secondary" disabled={depois.isPending}>
               {fotoDepoisUrl ? "Trocar foto" : "Enviar foto"}
             </Button>
           </form>

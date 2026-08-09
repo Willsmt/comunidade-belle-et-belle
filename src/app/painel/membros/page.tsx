@@ -10,7 +10,8 @@ import {
   promoverAGestora,
   revogarGestora,
 } from "./actions";
-import { BotaoComConfirmacao } from "@/components/painel/botao-com-confirmacao";
+import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { BotaoAcaoMembro } from "./botao-acao-membro";
 
 export default async function MembrosPage() {
   const [membros, totalAdminsGestorasAtivos, session] = await Promise.all([
@@ -59,9 +60,11 @@ export default async function MembrosPage() {
                   />
                 )
               ) : (
-                <form action={reativarMembro.bind(null, membro.id)}>
-                  <button type="submit">Reativar</button>
-                </form>
+                <BotaoAcaoMembro
+                  label="Reativar"
+                  labelPendente="Reativando..."
+                  action={() => reativarMembro(membro.id)}
+                />
               )}
               {eParceria ? (
                 <BotaoComConfirmacao
@@ -74,9 +77,11 @@ export default async function MembrosPage() {
                   action={revogarParceria.bind(null, membro.id)}
                 />
               ) : (
-                <form action={promoverAParceria.bind(null, membro.id)}>
-                  <button type="submit">Promover a Parceria</button>
-                </form>
+                <BotaoAcaoMembro
+                  label="Promover a Parceria"
+                  labelPendente="Promovendo..."
+                  action={() => promoverAParceria(membro.id)}
+                />
               )}
               {souAdmin &&
                 (eGestora ? (
@@ -86,9 +91,11 @@ export default async function MembrosPage() {
                     action={revogarGestora.bind(null, membro.id)}
                   />
                 ) : (
-                  <form action={promoverAGestora.bind(null, membro.id)}>
-                    <button type="submit">Promover a Gestora</button>
-                  </form>
+                  <BotaoAcaoMembro
+                    label="Promover a Gestora"
+                    labelPendente="Promovendo..."
+                    action={() => promoverAGestora(membro.id)}
+                  />
                 ))}
               {!escondeAcoesDeRisco && (
                 <BotaoComConfirmacao

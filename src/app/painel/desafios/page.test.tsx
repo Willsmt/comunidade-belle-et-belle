@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import DesafiosPage from "./page";
 import { listarDesafios } from "./queries";
+import { criarDesafio, reabrirDesafio } from "./actions";
 
 vi.mock("./queries", () => ({
   listarDesafios: vi.fn(),
@@ -64,5 +65,44 @@ describe("DesafiosPage", () => {
     expect(
       screen.getByRole("button", { name: /reabrir/i }),
     ).toBeInTheDocument();
+  });
+
+  it("mostra a mensagem de erro original quando criar desafio falha", async () => {
+    vi.mocked(listarDesafios).mockResolvedValue([]);
+    vi.mocked(criarDesafio).mockRejectedValue(
+      new Error("Já existe um desafio ativo (Glow Up). Encerre-o antes de criar um novo."),
+    );
+
+    render(await DesafiosPage());
+
+    fireEvent.submit(screen.getByRole("form", { name: /criar desafio/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Já existe um desafio ativo (Glow Up)",
+      ),
+    );
+  });
+
+  it("mostra a mensagem de erro original quando reabrir falha", async () => {
+    vi.mocked(listarDesafios).mockResolvedValue([
+      {
+        id: "d1",
+        titulo: "Glow Up",
+        ativo: false,
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        _count: { categorias: 0 },
+      },
+    ] as never);
+    vi.mocked(reabrirDesafio).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await DesafiosPage());
+
+    fireEvent.click(screen.getByRole("button", { name: /reabrir/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
+    );
   });
 });

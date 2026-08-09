@@ -1,17 +1,14 @@
 import Link from "next/link";
-import { Heart, MessageCircle, Pencil, Trash2 } from "lucide-react";
+import { Pencil, MessageCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
-import {
-  apagarPost,
-  alternarCurtida,
-  comentar,
-  apagarComentario,
-} from "./actions";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { BotaoApagarPost } from "./botao-apagar-post";
+import { BotaoCurtir } from "./botao-curtir";
+import { FormularioComentario } from "./formulario-comentario";
+import { BotaoApagarComentario } from "./botao-apagar-comentario";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 export default async function FeedPage({
@@ -93,19 +90,7 @@ export default async function FeedPage({
                             Editar
                           </Link>
                         )}
-                        {podeApagarPost && (
-                          <form action={apagarPost}>
-                            <input type="hidden" name="postId" value={post.id} />
-                            <Button
-                              type="submit"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label="Apagar post"
-                            >
-                              <Trash2 />
-                            </Button>
-                          </form>
-                        )}
+                        {podeApagarPost && <BotaoApagarPost postId={post.id} />}
                       </div>
                     )}
                   </CardHeader>
@@ -122,25 +107,11 @@ export default async function FeedPage({
                       <p className="text-sm text-foreground">{post.texto}</p>
                     )}
 
-                    <form action={alternarCurtida}>
-                      <input type="hidden" name="postId" value={post.id} />
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="sm"
-                        className={
-                          post.curtidoPeloUsuario
-                            ? "text-primary hover:text-primary"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        <Heart
-                          className={post.curtidoPeloUsuario ? "fill-primary" : ""}
-                        />
-                        {post.curtidoPeloUsuario ? "Descurtir" : "Curtir"} (
-                        {post.totalCurtidas})
-                      </Button>
-                    </form>
+                    <BotaoCurtir
+                      postId={post.id}
+                      curtidoPeloUsuario={post.curtidoPeloUsuario}
+                      totalCurtidas={post.totalCurtidas}
+                    />
                   </CardContent>
 
                   <CardFooter className="flex flex-col items-stretch gap-3">
@@ -170,17 +141,7 @@ export default async function FeedPage({
                                 {comentario.texto}
                               </p>
                               {podeApagarComentario && (
-                                <form action={apagarComentario}>
-                                  <input
-                                    type="hidden"
-                                    name="comentarioId"
-                                    value={comentario.id}
-                                  />
-                                  <Button type="submit" variant="ghost" size="icon-xs">
-                                    <Trash2 />
-                                    <span className="sr-only">Apagar</span>
-                                  </Button>
-                                </form>
+                                <BotaoApagarComentario comentarioId={comentario.id} />
                               )}
                             </li>
                           );
@@ -188,19 +149,7 @@ export default async function FeedPage({
                       </ul>
                     )}
 
-                    <form action={comentar} className="flex items-center gap-2">
-                      <input type="hidden" name="postId" value={post.id} />
-                      <Input
-                        type="text"
-                        name="texto"
-                        placeholder="Comentar"
-                        aria-label="Comentar"
-                        className="flex-1"
-                      />
-                      <Button type="submit" size="sm">
-                        Enviar
-                      </Button>
-                    </form>
+                    <FormularioComentario postId={post.id} />
                   </CardFooter>
                 </Card>
               </li>
