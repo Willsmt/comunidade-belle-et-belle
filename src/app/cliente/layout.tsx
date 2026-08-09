@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
-import { sair } from "@/lib/auth/actions";
+import { SubNav } from "@/components/sub-nav";
 
 export default async function ClienteLayout({
   children,
@@ -18,17 +17,17 @@ export default async function ClienteLayout({
 
   return (
     <div>
-      <nav aria-label="Área da cliente">
-        <Link href="/cliente/medidas">Minhas medidas</Link>
-        <Link href="/cliente/perfil">Meu perfil</Link>
-        <Link href="/cliente/fotos">Minhas fotos</Link>
-        <Link href="/cliente/planos">Meus planos</Link>
-        <Link href="/cliente/parcerias">Minhas parcerias</Link>
-        <Link href="/cliente/desafios">Desafios</Link>
-        <form action={sair}>
-          <button type="submit">Sair</button>
-        </form>
-      </nav>
+      <SubNav
+        ariaLabel="Área da cliente"
+        links={[
+          { href: "/cliente/medidas", label: "Minhas medidas" },
+          { href: "/cliente/perfil", label: "Meu perfil" },
+          { href: "/cliente/fotos", label: "Minhas fotos" },
+          { href: "/cliente/planos", label: "Meus planos" },
+          { href: "/cliente/parcerias", label: "Minhas parcerias" },
+          { href: "/cliente/desafios", label: "Desafios" },
+        ]}
+      />
       <main>{children}</main>
     </div>
   );

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Marcellus, Hanken_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/auth-session-provider";
-import { NavPrincipal } from "@/components/nav-principal";
+import { HeaderPrincipal } from "@/components/header-principal";
+import { BottomNav } from "@/components/bottom-nav";
 import { auth } from "@/auth";
 import { deveMostrarNavegacaoPrincipal } from "@/lib/auth/deve-mostrar-nav";
+import { cn } from "@/lib/utils";
 
 const marcellus = Marcellus({
   variable: "--font-marcellus",
@@ -46,8 +48,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <AuthSessionProvider>
-          {mostrarNav && <NavPrincipal papeis={papeis} />}
-          {children}
+          {mostrarNav && <HeaderPrincipal papeis={papeis} />}
+          <div className={cn("flex-1", mostrarNav && "pt-14 pb-16 md:pb-0")}>
+            {children}
+          </div>
+          {mostrarNav && <BottomNav papeis={papeis} />}
         </AuthSessionProvider>
       </body>
     </html>

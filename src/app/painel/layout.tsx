@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarPainel } from "@/lib/auth/pode-acessar-painel";
-import { sair } from "@/lib/auth/actions";
+import { SubNav } from "@/components/sub-nav";
 
 export default async function PainelLayout({
   children,
@@ -18,15 +17,15 @@ export default async function PainelLayout({
 
   return (
     <div>
-      <nav aria-label="Painel de gerenciamento">
-        <Link href="/painel/aprovacoes">Aprovações</Link>
-        <Link href="/painel/membros">Membros</Link>
-        <Link href="/painel/vinculos">Vínculos</Link>
-        <Link href="/painel/desafios">Desafios</Link>
-        <form action={sair}>
-          <button type="submit">Sair</button>
-        </form>
-      </nav>
+      <SubNav
+        ariaLabel="Painel de gerenciamento"
+        links={[
+          { href: "/painel/aprovacoes", label: "Aprovações" },
+          { href: "/painel/membros", label: "Membros" },
+          { href: "/painel/vinculos", label: "Vínculos" },
+          { href: "/painel/desafios", label: "Desafios" },
+        ]}
+      />
       <main>{children}</main>
     </div>
   );

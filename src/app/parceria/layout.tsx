@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { auth } from "@/auth";
 import { podeAcessarAreaParceria } from "@/lib/auth/pode-acessar-painel";
-import { sair } from "@/lib/auth/actions";
+import { SubNav } from "@/components/sub-nav";
 
 export default async function ParceriaLayout({
   children,
@@ -18,13 +17,13 @@ export default async function ParceriaLayout({
 
   return (
     <div>
-      <nav aria-label="Área da parceria">
-        <Link href="/parceria/planos">Meus planos</Link>
-        <Link href="/parceria/perfil">Meu perfil</Link>
-        <form action={sair}>
-          <button type="submit">Sair</button>
-        </form>
-      </nav>
+      <SubNav
+        ariaLabel="Área da parceria"
+        links={[
+          { href: "/parceria/planos", label: "Meus planos" },
+          { href: "/parceria/perfil", label: "Meu perfil" },
+        ]}
+      />
       <main>{children}</main>
     </div>
   );
