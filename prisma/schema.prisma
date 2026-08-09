@@ -61,6 +61,8 @@ model User {
   vinculosComoParceria VinculoParceria[] @relation("VinculoParceria")
   planosRecebidos      PlanoRecebido[]   @relation("PlanosCliente")
   planosEnviados       PlanoRecebido[]   @relation("PlanosParceria")
+  // contexto Parcerias
+  perfilParceria       PerfilParceria?
   // contexto Desafios
   marcacoes             MarcacaoItem[]
   participacoesSurpresa ParticipacaoSurpresa[]
@@ -346,4 +348,15 @@ model Comentario {
   texto    String
   criadoEm DateTime @default(now())
   @@index([postId, criadoEm])
+}
+
+model PerfilParceria {
+  id            String   @id @default(cuid())
+  usuarioId     String   @unique
+  usuario       User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  especialidade String?
+  bio           String?
+  fotoChave     String?
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
 }

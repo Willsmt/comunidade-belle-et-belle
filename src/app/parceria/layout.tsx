@@ -19,6 +19,7 @@ export default async function ParceriaLayout({
     <div>
       <nav aria-label="Área da parceria">
         <Link href="/parceria/planos">Meus planos</Link>
+        <Link href="/parceria/perfil">Meu perfil</Link>
       </nav>
       <main>{children}</main>
     </div>
