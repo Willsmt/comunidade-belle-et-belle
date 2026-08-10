@@ -41,4 +41,13 @@ describe("SubNav", () => {
       screen.getByRole("link", { name: "Minhas medidas" }),
     ).not.toHaveClass("bg-secondary");
   });
+
+  it("centraliza as abas a partir de md:, mantendo scroll por toque abaixo disso", () => {
+    vi.mocked(usePathname).mockReturnValue("/cliente/medidas");
+    render(<SubNav ariaLabel="Área da cliente" links={links} />);
+
+    const nav = screen.getByRole("navigation", { name: "Área da cliente" });
+    expect(nav).toHaveClass("md:justify-center");
+    expect(nav).toHaveClass("overflow-x-auto", "scrollbar-none");
+  });
 });

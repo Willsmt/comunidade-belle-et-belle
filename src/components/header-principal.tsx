@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import type { Papel } from "@/generated/prisma/client";
 import { sair } from "@/lib/auth/actions";
 import { itensNavegacaoPrincipal } from "@/lib/nav/itens-navegacao-principal";
-import { Button } from "@/components/ui/button";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function HeaderPrincipal({ papeis }: { papeis: Papel[] }) {
@@ -41,11 +42,22 @@ export function HeaderPrincipal({ papeis }: { papeis: Papel[] }) {
           })}
         </nav>
 
-        <form action={sair} className="md:justify-self-end">
-          <Button type="submit" variant="ghost" size="icon" aria-label="Sair">
-            <LogOut />
-          </Button>
-        </form>
+        <div className="flex items-center gap-1 md:justify-self-end">
+          {podeAcessarAreaCliente(papeis) && (
+            <Link
+              href="/cliente/perfil"
+              aria-label="Meu perfil"
+              className={buttonVariants({ variant: "ghost", size: "icon" })}
+            >
+              <User />
+            </Link>
+          )}
+          <form action={sair}>
+            <Button type="submit" variant="ghost" size="icon" aria-label="Sair">
+              <LogOut />
+            </Button>
+          </form>
+        </div>
       </div>
     </header>
   );

@@ -16,7 +16,7 @@ export function SubNav({
   return (
     <nav
       aria-label={ariaLabel}
-      className="scrollbar-none flex gap-1 overflow-x-auto border-b border-border px-4 py-2"
+      className="scrollbar-none flex gap-1 overflow-x-auto border-b border-border px-4 py-2 md:justify-center"
     >
       {links.map((link) => {
         const ativo = pathname === link.href;

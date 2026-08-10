@@ -67,4 +67,23 @@ describe("HeaderPrincipal", () => {
       "text-primary",
     );
   });
+
+  it("mostra o ícone de perfil pra quem tem papel CLIENTE, linkando pra /cliente/perfil", () => {
+    vi.mocked(usePathname).mockReturnValue("/feed");
+    render(<HeaderPrincipal papeis={["CLIENTE"]} />);
+
+    expect(screen.getByRole("link", { name: /meu perfil/i })).toHaveAttribute(
+      "href",
+      "/cliente/perfil",
+    );
+  });
+
+  it("não mostra o ícone de perfil pra quem não tem papel CLIENTE", () => {
+    vi.mocked(usePathname).mockReturnValue("/feed");
+    render(<HeaderPrincipal papeis={["GESTORA"]} />);
+
+    expect(
+      screen.queryByRole("link", { name: /meu perfil/i }),
+    ).not.toBeInTheDocument();
+  });
 });
