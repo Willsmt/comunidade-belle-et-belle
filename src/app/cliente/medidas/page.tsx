@@ -4,6 +4,7 @@ import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarMedidas } from "./queries";
 import { FormularioRegistro } from "./formulario-registro";
 import { GraficoEvolucao, type PontoEvolucao } from "./grafico-evolucao";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function MedidasPage() {
   const session = await auth();
@@ -25,44 +26,48 @@ export default async function MedidasPage() {
     .reverse();
 
   return (
-    <section>
-      <h1>Minhas medidas</h1>
+    <main className="mx-auto w-full max-w-lg px-4 py-6">
+      <h1 className="font-heading text-2xl text-foreground">Minhas medidas</h1>
 
-      <h2>Novo registro</h2>
-      <FormularioRegistro />
+      <h2 className="mt-6 font-heading text-lg text-foreground">Novo registro</h2>
+      <Card className="mt-2">
+        <CardContent>
+          <FormularioRegistro />
+        </CardContent>
+      </Card>
 
-      <h2>Evolução</h2>
-      <GraficoEvolucao pontos={pontosGrafico} />
+      <h2 className="mt-6 font-heading text-lg text-foreground">Evolução</h2>
+      <Card className="mt-2">
+        <CardContent>
+          <GraficoEvolucao pontos={pontosGrafico} />
+        </CardContent>
+      </Card>
 
-      <h2>Histórico</h2>
+      <h2 className="mt-6 font-heading text-lg text-foreground">Histórico</h2>
       {medidas.length === 0 ? (
-        <p>Nenhum registro ainda.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Nenhum registro ainda.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Peso (kg)</th>
-              <th>Cintura (cm)</th>
-              <th>Quadril (cm)</th>
-              <th>Braço (cm)</th>
-              <th>Coxa (cm)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {medidas.map((medida) => (
-              <tr key={medida.id}>
-                <td>{medida.data.toLocaleDateString("pt-BR")}</td>
-                <td>{medida.peso?.toString() ?? "—"}</td>
-                <td>{medida.cintura?.toString() ?? "—"}</td>
-                <td>{medida.quadril?.toString() ?? "—"}</td>
-                <td>{medida.braco?.toString() ?? "—"}</td>
-                <td>{medida.coxa?.toString() ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ul className="mt-2 flex flex-col gap-3">
+          {medidas.map((medida) => (
+            <li key={medida.id}>
+              <Card>
+                <CardContent className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    {medida.data.toLocaleDateString("pt-BR")}
+                  </span>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-3">
+                    <span>Peso: {medida.peso?.toString() ?? "—"} kg</span>
+                    <span>Cintura: {medida.cintura?.toString() ?? "—"} cm</span>
+                    <span>Quadril: {medida.quadril?.toString() ?? "—"} cm</span>
+                    <span>Braço: {medida.braco?.toString() ?? "—"} cm</span>
+                    <span>Coxa: {medida.coxa?.toString() ?? "—"} cm</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
       )}
-    </section>
+    </main>
   );
 }

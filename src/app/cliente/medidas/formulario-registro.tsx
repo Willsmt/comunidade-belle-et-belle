@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { criarRegistroMedida } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FormularioRegistro() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -33,35 +35,60 @@ export function FormularioRegistro() {
       ref={formRef}
       onSubmit={handleSubmit}
       aria-label="Novo registro de medidas"
+      className="flex flex-col gap-4"
     >
-      <label htmlFor="data">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="data"
+      >
         Data
-        <input id="data" type="date" name="data" />
+        <Input id="data" type="date" name="data" />
       </label>
-      <label htmlFor="peso">
-        Peso (kg)
-        <input id="peso" type="number" step="0.01" name="peso" />
-      </label>
-      <label htmlFor="cintura">
-        Cintura (cm)
-        <input id="cintura" type="number" step="0.01" name="cintura" />
-      </label>
-      <label htmlFor="quadril">
-        Quadril (cm)
-        <input id="quadril" type="number" step="0.01" name="quadril" />
-      </label>
-      <label htmlFor="braco">
-        Braço (cm)
-        <input id="braco" type="number" step="0.01" name="braco" />
-      </label>
-      <label htmlFor="coxa">
-        Coxa (cm)
-        <input id="coxa" type="number" step="0.01" name="coxa" />
-      </label>
-      <button type="submit" disabled={isPending}>
+      <div className="grid grid-cols-2 gap-4">
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="peso"
+        >
+          Peso (kg)
+          <Input id="peso" type="number" step="0.01" name="peso" />
+        </label>
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="cintura"
+        >
+          Cintura (cm)
+          <Input id="cintura" type="number" step="0.01" name="cintura" />
+        </label>
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="quadril"
+        >
+          Quadril (cm)
+          <Input id="quadril" type="number" step="0.01" name="quadril" />
+        </label>
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="braco"
+        >
+          Braço (cm)
+          <Input id="braco" type="number" step="0.01" name="braco" />
+        </label>
+        <label
+          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+          htmlFor="coxa"
+        >
+          Coxa (cm)
+          <Input id="coxa" type="number" step="0.01" name="coxa" />
+        </label>
+      </div>
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Salvando..." : "Salvar registro"}
-      </button>
-      {erro && <p role="alert">{erro}</p>}
+      </Button>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
     </form>
   );
 }

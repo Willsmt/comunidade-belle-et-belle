@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { enviarFoto } from "./actions";
+import { Button } from "@/components/ui/button";
 
 export function FormularioUpload() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -32,8 +33,12 @@ export function FormularioUpload() {
       onSubmit={handleSubmit}
       aria-label="Enviar foto de evolução"
       noValidate
+      className="flex flex-col gap-3"
     >
-      <label htmlFor="arquivo">
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="arquivo"
+      >
         Foto
         <input
           id="arquivo"
@@ -41,17 +46,22 @@ export function FormularioUpload() {
           name="arquivo"
           accept="image/jpeg,image/png,image/webp"
           required
+          className="text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground"
         />
       </label>
-      <p>
+      <p className="text-xs text-muted-foreground">
         Ao enviar, você autoriza o uso desta foto na comunidade Belle et
         Belle. Ela fica privada por padrão — você escolhe se quer torná-la
         pública no seu perfil.
       </p>
-      <button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending}>
         {isPending ? "Enviando..." : "Enviar foto"}
-      </button>
-      {erro && <p role="alert">{erro}</p>}
+      </Button>
+      {erro && (
+        <p role="alert" className="text-sm text-destructive">
+          {erro}
+        </p>
+      )}
     </form>
   );
 }
