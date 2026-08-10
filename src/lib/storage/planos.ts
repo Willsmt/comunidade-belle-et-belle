@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { uploadObjeto, gerarUrlAssinada } from "./objetos";
+import { uploadObjeto, gerarUrlAssinada, deletarObjeto } from "./objetos";
 
 const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024;
 
@@ -27,3 +27,7 @@ export async function uploadPlano(
 }
 
 export { gerarUrlAssinada };
+
+export async function deletarPlano(chave: string): Promise<void> {
+  await deletarObjeto(chave);
+}

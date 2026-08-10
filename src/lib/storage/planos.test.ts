@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockUploadObjeto, mockGetSignedUrl, mockObterR2Client, mockObterNomeBucket } =
-  vi.hoisted(() => ({
-    mockUploadObjeto: vi.fn(),
-    mockGetSignedUrl: vi.fn(),
-    mockObterR2Client: vi.fn(),
-    mockObterNomeBucket: vi.fn(),
-  }));
+const {
+  mockUploadObjeto,
+  mockGetSignedUrl,
+  mockObterR2Client,
+  mockObterNomeBucket,
+  mockSend,
+} = vi.hoisted(() => ({
+  mockUploadObjeto: vi.fn(),
+  mockGetSignedUrl: vi.fn(),
+  mockObterR2Client: vi.fn(),
+  mockObterNomeBucket: vi.fn(),
+  mockSend: vi.fn(),
+}));
 
 vi.mock("./objetos", async () => {
   const actual = await vi.importActual<typeof import("./objetos")>("./objetos");
@@ -20,7 +26,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
   getSignedUrl: mockGetSignedUrl,
 }));
 
-import { validarArquivoPdf, uploadPlano } from "./planos";
+import { validarArquivoPdf, uploadPlano, deletarPlano } from "./planos";
 
 function buildArquivo(overrides: Partial<{ type: string; size: number }> = {}) {
   const type = overrides.type ?? "application/pdf";
@@ -72,5 +78,21 @@ describe("uploadPlano", () => {
     ).rejects.toThrow("Formato inválido");
 
     expect(mockUploadObjeto).not.toHaveBeenCalled();
+  });
+});
+
+describe("deletarPlano", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    mockObterR2Client.mockReset().mockReturnValue({ send: mockSend });
+    mockObterNomeBucket.mockReset().mockReturnValue("bucket-teste");
+  });
+
+  it("envia o comando de delete pro bucket com a chave certa", async () => {
+    mockSend.mockResolvedValue({});
+
+    await deletarPlano("planos/cliente-1/plano.pdf");
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,6 +5,13 @@ import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
+import { deletarFoto } from "@/lib/storage/fotos";
+import { deletarFotoPerfil } from "@/lib/storage/perfil";
+import { deletarFotoParceria } from "@/lib/storage/parcerias";
+import { deletarFotoJornada } from "@/lib/storage/jornada-desafio";
+import { deletarComprovante } from "@/lib/storage/comprovantes-surpresa";
+import { deletarImagemPost } from "@/lib/storage/posts";
+import { deletarPlano } from "@/lib/storage/planos";
 
 const PAPEIS_COM_ACESSO_AO_PAINEL: readonly Papel[] = ["ADMIN", "GESTORA"];
 
@@ -62,6 +69,56 @@ export async function reativarMembro(userId: string) {
   revalidatePath("/painel/membros");
 }
 
+async function excluirArquivosDoUsuario(userId: string) {
+  const [perfil, perfilParceria, fotos, jornadas, participacoes, posts, planos] =
+    await Promise.all([
+      prisma.perfil.findUnique({ where: { userId } }),
+      prisma.perfilParceria.findUnique({ where: { usuarioId: userId } }),
+      prisma.fotoEvolucao.findMany({ where: { clienteId: userId } }),
+      prisma.jornadaDesafio.findMany({ where: { clienteId: userId } }),
+      prisma.participacaoSurpresa.findMany({ where: { clienteId: userId } }),
+      prisma.post.findMany({ where: { autorId: userId } }),
+      prisma.planoRecebido.findMany({
+        where: { OR: [{ clienteId: userId }, { parceriaId: userId }] },
+      }),
+    ]);
+
+  const exclusoes: Promise<void>[] = [];
+
+  if (perfil?.fotoChave) {
+    exclusoes.push(deletarFotoPerfil(perfil.fotoChave));
+  }
+  if (perfilParceria?.fotoChave) {
+    exclusoes.push(deletarFotoParceria(perfilParceria.fotoChave));
+  }
+  for (const foto of fotos) {
+    exclusoes.push(deletarFoto(foto.chave));
+  }
+  for (const jornada of jornadas) {
+    if (jornada.fotoAntesChave) {
+      exclusoes.push(deletarFotoJornada(jornada.fotoAntesChave));
+    }
+    if (jornada.fotoDepoisChave) {
+      exclusoes.push(deletarFotoJornada(jornada.fotoDepoisChave));
+    }
+  }
+  for (const participacao of participacoes) {
+    if (participacao.fotoChave) {
+      exclusoes.push(deletarComprovante(participacao.fotoChave));
+    }
+  }
+  for (const post of posts) {
+    if (post.imagemChave) {
+      exclusoes.push(deletarImagemPost(post.imagemChave));
+    }
+  }
+  for (const plano of planos) {
+    exclusoes.push(deletarPlano(plano.arquivoChave));
+  }
+
+  await Promise.all(exclusoes);
+}
+
 export async function deletarMembro(userId: string) {
   const session = await requererAcessoPainel();
 
@@ -74,6 +131,7 @@ export async function deletarMembro(userId: string) {
     "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
   );
 
+  await excluirArquivosDoUsuario(userId);
   await prisma.user.delete({ where: { id: userId } });
 
   revalidatePath("/painel/membros");

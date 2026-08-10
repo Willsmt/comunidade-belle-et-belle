@@ -32,8 +32,8 @@ describe("aceitarTermo", () => {
 
     expect(mockUpsert).toHaveBeenCalledWith({
       where: { userId: "user-1" },
-      create: { userId: "user-1", versaoTermo: "v1-rascunho" },
-      update: { versaoTermo: "v1-rascunho", aceitoEm: expect.any(Date) },
+      create: { userId: "user-1", versaoTermo: "v2-rascunho" },
+      update: { versaoTermo: "v2-rascunho", aceitoEm: expect.any(Date) },
     });
     expect(resultado).toEqual({ ok: true });
   });
