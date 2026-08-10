@@ -48,7 +48,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <AuthSessionProvider>
-          {mostrarNav && <HeaderPrincipal papeis={papeis} />}
+          {mostrarNav && (
+            <HeaderPrincipal papeis={papeis} userId={session?.user?.id} />
+          )}
           <div className={cn("flex-1", mostrarNav && "pt-14 pb-16 md:pb-0")}>
             {children}
           </div>

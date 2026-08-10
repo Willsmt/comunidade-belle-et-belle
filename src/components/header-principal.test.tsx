@@ -68,19 +68,28 @@ describe("HeaderPrincipal", () => {
     );
   });
 
-  it("mostra o ícone de perfil pra quem tem papel CLIENTE, linkando pra /cliente/perfil", () => {
+  it("mostra o ícone de perfil pra quem tem papel CLIENTE, linkando pro perfil público próprio", () => {
     vi.mocked(usePathname).mockReturnValue("/feed");
-    render(<HeaderPrincipal papeis={["CLIENTE"]} />);
+    render(<HeaderPrincipal papeis={["CLIENTE"]} userId="cliente-1" />);
 
     expect(screen.getByRole("link", { name: /meu perfil/i })).toHaveAttribute(
       "href",
-      "/cliente/perfil",
+      "/perfil/cliente-1",
     );
   });
 
   it("não mostra o ícone de perfil pra quem não tem papel CLIENTE", () => {
     vi.mocked(usePathname).mockReturnValue("/feed");
-    render(<HeaderPrincipal papeis={["GESTORA"]} />);
+    render(<HeaderPrincipal papeis={["GESTORA"]} userId="gestora-1" />);
+
+    expect(
+      screen.queryByRole("link", { name: /meu perfil/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("não mostra o ícone de perfil se o userId não estiver disponível, mesmo com papel CLIENTE", () => {
+    vi.mocked(usePathname).mockReturnValue("/feed");
+    render(<HeaderPrincipal papeis={["CLIENTE"]} />);
 
     expect(
       screen.queryByRole("link", { name: /meu perfil/i }),

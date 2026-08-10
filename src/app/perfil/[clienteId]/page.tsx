@@ -1,5 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
+import { auth } from "@/auth";
 import { obterPerfilPublico } from "./queries";
+import { obterIniciais } from "@/lib/iniciais";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,15 +14,49 @@ export default async function PerfilPublicoPage({
   params: Promise<{ clienteId: string }>;
 }) {
   const { clienteId } = await params;
-  const perfil = await obterPerfilPublico(clienteId);
+  const [perfil, session] = await Promise.all([
+    obterPerfilPublico(clienteId),
+    auth(),
+  ]);
 
   if (!perfil) {
     notFound();
   }
 
+  const souEuMesma = session?.user?.id === clienteId;
+
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
-      <h1 className="font-heading text-2xl text-foreground">{perfil.nome}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          {perfil.fotoUrl ? (
+            <img
+              src={perfil.fotoUrl}
+              alt={`Foto de perfil de ${perfil.nome}`}
+              width={64}
+              height={64}
+              className="size-16 rounded-full object-cover"
+            />
+          ) : (
+            <div
+              className="flex size-16 items-center justify-center rounded-full bg-secondary text-lg font-medium text-secondary-foreground"
+              aria-hidden="true"
+            >
+              {obterIniciais(perfil.nome)}
+            </div>
+          )}
+          <h1 className="font-heading text-2xl text-foreground">{perfil.nome}</h1>
+        </div>
+        {souEuMesma && (
+          <Link
+            href="/cliente/perfil"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            <Pencil className="size-3.5" />
+            Editar perfil
+          </Link>
+        )}
+      </div>
       {perfil.bio && <p className="mt-1 text-sm text-muted-foreground">{perfil.bio}</p>}
 
       <Card className="mt-4" aria-label="Emblemas">

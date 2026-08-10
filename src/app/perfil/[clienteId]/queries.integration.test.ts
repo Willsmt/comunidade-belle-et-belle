@@ -2,19 +2,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 
-const { mockAuth, mockGerarUrlAssinada } = vi.hoisted(() => ({
+const { mockAuth, mockGerarUrlAssinada, mockGerarUrlAssinadaPerfil } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
+  mockGerarUrlAssinadaPerfil: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("@/lib/storage/fotos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
+}));
+vi.mock("@/lib/storage/perfil", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
 }));
 
 import { obterPerfilPublico } from "./queries";
 
 afterEach(async () => {
   await limparBanco();
+  mockGerarUrlAssinada.mockReset();
+  mockGerarUrlAssinadaPerfil.mockReset();
 });
 
 describe("obterPerfilPublico (Postgres real)", () => {
@@ -85,6 +91,56 @@ describe("obterPerfilPublico (Postgres real)", () => {
 
     expect(resultado?.fotos).toHaveLength(1);
     expect(resultado?.fotos[0]?.id).toBe(fotoPublica.id);
+  });
+});
+
+describe("obterPerfilPublico — foto de perfil (Postgres real)", () => {
+  it("usa a foto própria quando o Perfil tem fotoChave", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer7@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: {
+        email: "cliente7@example.com",
+        status: "ATIVO",
+        name: "Cliente 7",
+        image: "https://google.exemplo/foto.jpg",
+      },
+    });
+    await prisma.perfil.create({
+      data: { userId: cliente.id, fotoChave: "perfis-cliente/cliente7/foto.webp" },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+    mockGerarUrlAssinadaPerfil.mockResolvedValue("https://url-assinada-propria.exemplo");
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(mockGerarUrlAssinadaPerfil).toHaveBeenCalledWith(
+      "perfis-cliente/cliente7/foto.webp",
+    );
+    expect(resultado?.fotoUrl).toBe("https://url-assinada-propria.exemplo");
+  });
+
+  it("cai pro image do Google quando não há foto própria", async () => {
+    const viewer = await prisma.user.create({
+      data: { email: "viewer8@example.com", status: "ATIVO", name: "Viewer" },
+    });
+    const cliente = await prisma.user.create({
+      data: {
+        email: "cliente8@example.com",
+        status: "ATIVO",
+        name: "Cliente 8",
+        image: "https://google.exemplo/foto.jpg",
+      },
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: viewer.id } });
+
+    const resultado = await obterPerfilPublico(cliente.id);
+
+    expect(mockGerarUrlAssinadaPerfil).not.toHaveBeenCalled();
+    expect(resultado?.fotoUrl).toBe("https://google.exemplo/foto.jpg");
   });
 });
 

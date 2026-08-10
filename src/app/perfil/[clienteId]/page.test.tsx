@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import PerfilPublicoPage from "./page";
 import { obterPerfilPublico } from "./queries";
 
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
+
 vi.mock("./queries", () => ({
   obterPerfilPublico: vi.fn(),
 }));
+
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(() => {
@@ -19,6 +23,11 @@ function buildParams(clienteId: string) {
 }
 
 describe("PerfilPublicoPage", () => {
+  beforeEach(() => {
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { id: "outra-pessoa-vendo" } });
+  });
+
   it("chama notFound quando o perfil não existe", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue(null);
 
@@ -30,6 +39,7 @@ describe("PerfilPublicoPage", () => {
   it("renderiza nome, bio e medida quando presentes", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 1",
+      fotoUrl: null,
       bio: "Oi, sou eu",
       emblemasPublicos: true,
       conquistas: [],
@@ -49,6 +59,7 @@ describe("PerfilPublicoPage", () => {
   it("mostra 'Emblemas privados' quando emblemasPublicos é false", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 2",
+      fotoUrl: null,
       bio: null,
       emblemasPublicos: false,
       conquistas: [],
@@ -65,6 +76,7 @@ describe("PerfilPublicoPage", () => {
   it("renderiza a lista de emblemas quando emblemasPublicos é true e há conquistas", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 4",
+      fotoUrl: null,
       bio: null,
       emblemasPublicos: true,
       conquistas: [
@@ -86,6 +98,7 @@ describe("PerfilPublicoPage", () => {
   it("renderiza as fotos públicas quando existem", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 3",
+      fotoUrl: null,
       bio: null,
       emblemasPublicos: true,
       conquistas: [],
@@ -104,6 +117,7 @@ describe("PerfilPublicoPage", () => {
   it("renderiza os posts do autor quando existem", async () => {
     vi.mocked(obterPerfilPublico).mockResolvedValue({
       nome: "Cliente 5",
+      fotoUrl: null,
       bio: null,
       emblemasPublicos: true,
       conquistas: [],
@@ -123,5 +137,85 @@ describe("PerfilPublicoPage", () => {
 
     expect(screen.getByText("reflexão do dia")).toBeInTheDocument();
     expect(screen.getByAltText("Imagem do post")).toBeInTheDocument();
+  });
+
+  it("mostra o botão de editar perfil quando é a própria pessoa vendo o próprio perfil", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 1",
+      fotoUrl: null,
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
+
+    expect(
+      screen.getByRole("link", { name: /editar perfil/i }),
+    ).toHaveAttribute("href", "/cliente/perfil");
+  });
+
+  it("não mostra o botão de editar perfil quando é outra pessoa vendo", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "outra-pessoa-vendo" } });
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 1",
+      fotoUrl: null,
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
+
+    expect(
+      screen.queryByRole("link", { name: /editar perfil/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mostra a foto de perfil quando fotoUrl está presente", async () => {
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 1",
+      fotoUrl: "https://exemplo/foto-perfil.jpg",
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
+
+    expect(screen.getByAltText("Foto de perfil de Cliente 1")).toHaveAttribute(
+      "src",
+      "https://exemplo/foto-perfil.jpg",
+    );
+  });
+
+  it("mostra as iniciais do nome quando não há fotoUrl", async () => {
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente Um",
+      fotoUrl: null,
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-1") }));
+
+    expect(
+      screen.queryByAltText("Foto de perfil de Cliente Um"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("CU")).toBeInTheDocument();
   });
 });

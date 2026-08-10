@@ -8,6 +8,7 @@ const {
   mockFindManyFoto,
   mockFindManyPost,
   mockGerarUrlAssinada,
+  mockGerarUrlAssinadaPerfil,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindUniqueUser: vi.fn(),
@@ -16,6 +17,7 @@ const {
   mockFindManyFoto: vi.fn(),
   mockFindManyPost: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
+  mockGerarUrlAssinadaPerfil: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
@@ -31,6 +33,9 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/storage/fotos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
+vi.mock("@/lib/storage/perfil", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+}));
 
 import { obterPerfilPublico } from "./queries";
 
@@ -43,6 +48,7 @@ describe("obterPerfilPublico", () => {
     mockFindManyFoto.mockReset().mockResolvedValue([]);
     mockFindManyPost.mockReset().mockResolvedValue([]);
     mockGerarUrlAssinada.mockReset();
+    mockGerarUrlAssinadaPerfil.mockReset();
   });
 
   it("lança erro se não houver sessão", async () => {
@@ -159,6 +165,7 @@ describe("obterPerfilPublico", () => {
 
     expect(resultado).toEqual({
       nome: "Cliente novo",
+      fotoUrl: null,
       bio: null,
       emblemasPublicos: false,
       conquistas: [],
@@ -166,6 +173,50 @@ describe("obterPerfilPublico", () => {
       fotos: [],
       posts: [],
     });
+  });
+
+  it("usa a foto de perfil própria quando o Perfil tem fotoChave, sem cair pro image do Google", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({
+      name: "Cliente 1",
+      image: "https://google.exemplo/foto.jpg",
+      perfil: { fotoChave: "perfis-cliente/cliente-1/foto.webp" },
+    });
+    mockGerarUrlAssinadaPerfil.mockResolvedValue("https://url-assinada-propria.exemplo");
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockGerarUrlAssinadaPerfil).toHaveBeenCalledWith(
+      "perfis-cliente/cliente-1/foto.webp",
+    );
+    expect(resultado?.fotoUrl).toBe("https://url-assinada-propria.exemplo");
+  });
+
+  it("cai pro image do Google quando não há fotoChave própria", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({
+      name: "Cliente 1",
+      image: "https://google.exemplo/foto.jpg",
+      perfil: { fotoChave: null },
+    });
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(mockGerarUrlAssinadaPerfil).not.toHaveBeenCalled();
+    expect(resultado?.fotoUrl).toBe("https://google.exemplo/foto.jpg");
+  });
+
+  it("fotoUrl é null quando não há foto própria nem image do Google", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({
+      name: "Cliente 1",
+      image: null,
+      perfil: null,
+    });
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(resultado?.fotoUrl).toBeNull();
   });
 
   it("busca só as fotos marcadas como públicas, com signed URL cada uma", async () => {

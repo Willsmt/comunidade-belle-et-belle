@@ -10,7 +10,13 @@ import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function HeaderPrincipal({ papeis }: { papeis: Papel[] }) {
+export function HeaderPrincipal({
+  papeis,
+  userId,
+}: {
+  papeis: Papel[];
+  userId?: string;
+}) {
   const pathname = usePathname();
   const itens = itensNavegacaoPrincipal(papeis);
 
@@ -43,9 +49,9 @@ export function HeaderPrincipal({ papeis }: { papeis: Papel[] }) {
         </nav>
 
         <div className="flex items-center gap-1 md:justify-self-end">
-          {podeAcessarAreaCliente(papeis) && (
+          {podeAcessarAreaCliente(papeis) && userId && (
             <Link
-              href="/cliente/perfil"
+              href={`/perfil/${userId}`}
               aria-label="Meu perfil"
               className={buttonVariants({ variant: "ghost", size: "icon" })}
             >

@@ -31,7 +31,7 @@ export default async function ClienteLayout({
           ariaLabel="Área da cliente"
           links={[
             { href: "/cliente/medidas", label: "Minhas medidas" },
-            { href: "/cliente/perfil", label: "Meu perfil" },
+            { href: `/perfil/${session.user.id}`, label: "Meu perfil" },
             { href: "/cliente/fotos", label: "Minhas fotos" },
             { href: "/cliente/planos", label: "Meus planos" },
             { href: "/cliente/parcerias", label: "Minhas parcerias" },

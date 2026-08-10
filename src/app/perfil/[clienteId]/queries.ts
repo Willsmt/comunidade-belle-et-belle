@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/fotos";
+import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
 
 export async function obterPerfilPublico(clienteId: string) {
   const session = await auth();
@@ -13,6 +14,7 @@ export async function obterPerfilPublico(clienteId: string) {
     where: { id: clienteId },
     select: {
       name: true,
+      image: true,
       perfil: true,
     },
   });
@@ -20,6 +22,10 @@ export async function obterPerfilPublico(clienteId: string) {
   if (!usuario) {
     return null;
   }
+
+  const fotoUrl = usuario.perfil?.fotoChave
+    ? await gerarUrlAssinadaPerfil(usuario.perfil.fotoChave)
+    : (usuario.image ?? null);
 
   const ultimaMedida = usuario.perfil?.medidasPublicas
     ? await prisma.registroMedida.findFirst({
@@ -67,6 +73,7 @@ export async function obterPerfilPublico(clienteId: string) {
 
   return {
     nome: usuario.name,
+    fotoUrl,
     bio: usuario.perfil?.bioPublica ? usuario.perfil.bio : null,
     emblemasPublicos: usuario.perfil?.emblemasPublicos ?? false,
     conquistas: conquistas.map((conquista) => ({

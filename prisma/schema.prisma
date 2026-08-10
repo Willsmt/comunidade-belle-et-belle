@@ -128,6 +128,7 @@ model Perfil {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           String   @unique
   bio              String?
+  fotoChave        String?
   bioPublica       Boolean  @default(false)
   emblemasPublicos Boolean  @default(true)
   medidasPublicas  Boolean  @default(false)
