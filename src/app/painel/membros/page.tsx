@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { contarAdminsGestorasAtivos, listarMembros } from "./queries";
@@ -55,7 +56,9 @@ export default async function MembrosPage() {
                 <CardContent className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium text-foreground">
-                      {membro.name ?? membro.email}
+                      <Link href={`/perfil/${membro.id}`} className="hover:underline">
+                        {membro.name ?? membro.email}
+                      </Link>
                     </span>
                     <Badge variant={membro.status === "ATIVO" ? "secondary" : "destructive"}>
                       {membro.status}

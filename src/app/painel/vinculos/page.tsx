@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { listarVinculos, listarClientesEParcerias } from "./queries";
 import { desativarVinculo } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
@@ -38,7 +39,9 @@ export default async function VinculosPage() {
                 <CardContent className="flex items-center justify-between gap-3">
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-medium text-foreground">
-                      {vinculo.cliente.name ?? vinculo.cliente.email}
+                      <Link href={`/perfil/${vinculo.cliente.id}`} className="hover:underline">
+                        {vinculo.cliente.name ?? vinculo.cliente.email}
+                      </Link>
                       {" ↔ "}
                       {vinculo.parceria.name ?? vinculo.parceria.email}
                     </span>

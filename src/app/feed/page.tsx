@@ -79,7 +79,9 @@ export default async function FeedPage({
                   <CardHeader className="flex-row items-center justify-between space-y-0">
                     <div>
                       <p className="text-sm font-semibold text-foreground">
-                        {post.autor.name}
+                        <Link href={`/perfil/${post.autorId}`} className="hover:underline">
+                          {post.autor.name}
+                        </Link>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {post.criadoEm.toLocaleDateString("pt-BR")}
@@ -144,9 +146,12 @@ export default async function FeedPage({
                               className="flex items-start justify-between gap-2 rounded-lg bg-muted px-3 py-2"
                             >
                               <p className="text-xs text-foreground">
-                                <span className="font-semibold">
+                                <Link
+                                  href={`/perfil/${comentario.autorId}`}
+                                  className="font-semibold hover:underline"
+                                >
                                   {comentario.autor.name}
-                                </span>{" "}
+                                </Link>{" "}
                                 {comentario.texto}
                               </p>
                               {podeApagarComentario && (

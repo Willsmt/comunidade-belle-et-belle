@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,15 @@ export function RankingToggle({
                   <span className="w-5 font-heading text-xs text-muted-foreground">
                     {indice + 1}º
                   </span>
-                  <span className="flex-1 font-medium">{voce ? "Você" : linha.nome}</span>
+                  <span className="flex-1 font-medium">
+                    {voce ? (
+                      "Você"
+                    ) : (
+                      <Link href={`/perfil/${linha.clienteId}`} className="hover:underline">
+                        {linha.nome}
+                      </Link>
+                    )}
+                  </span>
                   <span className="text-xs text-muted-foreground">{linha.pontos} pts</span>
                 </li>
               );

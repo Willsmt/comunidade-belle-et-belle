@@ -1,4 +1,5 @@
 import { Gift, PartyPopper, Sparkles, Download } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
@@ -219,7 +220,15 @@ export default async function DesafiosClientePage() {
                     <span className="w-5 font-heading text-xs text-muted-foreground">
                       {indice + 1}º
                     </span>
-                    <span className="flex-1 font-medium">{voce ? "Você" : linha.nome}</span>
+                    <span className="flex-1 font-medium">
+                      {voce ? (
+                        "Você"
+                      ) : (
+                        <Link href={`/perfil/${linha.clienteId}`} className="hover:underline">
+                          {linha.nome}
+                        </Link>
+                      )}
+                    </span>
                     <span className="text-xs text-muted-foreground">{linha.pontos} pts</span>
                   </li>
                 );
