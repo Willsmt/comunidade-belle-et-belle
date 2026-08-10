@@ -2,14 +2,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FotosPage from "./page";
+import { redirect } from "next/navigation";
 import { listarFotos } from "./queries";
 import { enviarFoto, alternarVisibilidadeFoto, excluirFoto } from "./actions";
 
-const mockRefresh = vi.fn();
+const { mockRefresh, mockAuth } = vi.hoisted(() => ({
+  mockRefresh: vi.fn(),
+  mockAuth: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
 }));
+
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("./queries", () => ({
   listarFotos: vi.fn(),
@@ -26,6 +35,8 @@ describe("FotosPage", () => {
     mockRefresh.mockClear();
     vi.mocked(listarFotos).mockReset();
     vi.mocked(enviarFoto).mockReset();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"] } });
   });
 
   it("renderiza o formulário de upload e o estado vazio da galeria", async () => {
@@ -124,5 +135,14 @@ describe("FotosPage", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("Foto não encontrada"),
     );
+  });
+
+  it("redireciona quem não tem papel CLIENTE, sem buscar as fotos", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["GESTORA"] } });
+
+    await expect(FotosPage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(listarFotos).not.toHaveBeenCalled();
   });
 });

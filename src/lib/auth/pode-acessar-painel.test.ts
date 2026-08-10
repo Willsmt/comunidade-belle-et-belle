@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { podeAcessarPainel } from "./pode-acessar-painel";
+import { podeAcessarDesafiosCliente, podeAcessarPainel } from "./pode-acessar-painel";
 
 describe("podeAcessarPainel", () => {
   it("permite GESTORA", () => {
@@ -24,5 +24,27 @@ describe("podeAcessarPainel", () => {
 
   it("nega lista vazia de papéis", () => {
     expect(podeAcessarPainel([])).toBe(false);
+  });
+});
+
+describe("podeAcessarDesafiosCliente", () => {
+  it("permite CLIENTE", () => {
+    expect(podeAcessarDesafiosCliente(["CLIENTE"])).toBe(true);
+  });
+
+  it("permite GESTORA", () => {
+    expect(podeAcessarDesafiosCliente(["GESTORA"])).toBe(true);
+  });
+
+  it("permite ADMIN", () => {
+    expect(podeAcessarDesafiosCliente(["ADMIN"])).toBe(true);
+  });
+
+  it("nega PARCERIA isolada", () => {
+    expect(podeAcessarDesafiosCliente(["PARCERIA"])).toBe(false);
+  });
+
+  it("nega lista vazia de papéis", () => {
+    expect(podeAcessarDesafiosCliente([])).toBe(false);
   });
 });

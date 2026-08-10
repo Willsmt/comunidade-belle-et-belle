@@ -1,8 +1,16 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarMedidas } from "./queries";
 import { FormularioRegistro } from "./formulario-registro";
 import { GraficoEvolucao, type PontoEvolucao } from "./grafico-evolucao";
 
 export default async function MedidasPage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarAreaCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
   const medidas = await listarMedidas();
 
   const pontosGrafico: PontoEvolucao[] = medidas

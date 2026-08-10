@@ -19,3 +19,7 @@ export function podeAcessarAreaCliente(papeis: Papel[]): boolean {
 export function podeAcessarAreaParceria(papeis: Papel[]): boolean {
   return temAlgumPapel(papeis, [...PAPEIS_COM_ACESSO_A_AREA_PARCERIA]);
 }
+
+export function podeAcessarDesafiosCliente(papeis: Papel[]): boolean {
+  return podeAcessarAreaCliente(papeis) || podeAcessarPainel(papeis);
+}

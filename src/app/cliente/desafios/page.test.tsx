@@ -1,8 +1,19 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import DesafiosClientePage from "./page";
+import { redirect } from "next/navigation";
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
+
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+}));
+
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("./queries", () => ({
   obterDesafioAtivoParaCliente: vi.fn(),
@@ -19,6 +30,22 @@ vi.mock("./actions", () => ({
 }));
 
 describe("DesafiosClientePage", () => {
+  beforeEach(() => {
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"] } });
+    vi.mocked(obterDesafioAtivoParaCliente).mockReset();
+    vi.mocked(obterFluxoEncerramento).mockReset();
+  });
+
+  it("redireciona quem não tem CLIENTE nem GESTORA/ADMIN, sem buscar dados do desafio", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["PARCERIA"] } });
+
+    await expect(DesafiosClientePage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(obterDesafioAtivoParaCliente).not.toHaveBeenCalled();
+  });
+
   it("mostra mensagem quando não há desafio ativo nem encerrado", async () => {
     vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue(null);
     vi.mocked(obterFluxoEncerramento).mockResolvedValue(null);
@@ -104,5 +131,83 @@ describe("DesafiosClientePage", () => {
       screen.getByRole("form", { name: /salvar reflexão final/i }),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Minha disciplina")).toBeInTheDocument();
+  });
+
+  it("GESTORA/ADMIN veem o desafio ativo em modo leitura, sem botão de marcar item nem participar", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["GESTORA"] } });
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
+      desafio: {
+        id: "d1",
+        titulo: "Glow Up",
+        fraseMotivacional: "Você é capaz",
+        categorias: [
+          {
+            id: "c1",
+            nome: "Pele",
+            cor: "#f5c",
+            itens: [{ id: "i1", descricao: "Hidratar", pontos: 5 }],
+          },
+        ],
+        desafiosSurpresa: [
+          {
+            id: "s1",
+            titulo: "Desafio bônus",
+            descricao: "Poste uma foto",
+            pontos: 10,
+            exigeComprovacao: false,
+            participacoes: [],
+          },
+        ],
+      },
+      itensMarcadosHoje: new Set(),
+      rankingSemanal: [{ clienteId: "cliente-1", nome: "Marina", pontos: 8 }],
+      rankingGeral: [{ clienteId: "cliente-1", nome: "Marina", pontos: 20 }],
+      clienteId: "gestora-1",
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(screen.getByText("Glow Up")).toBeInTheDocument();
+    expect(screen.getByText("Hidratar")).toBeInTheDocument();
+    expect(screen.getByText("Marina")).toBeInTheDocument();
+    expect(screen.getByText("Desafio bônus")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^marcar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("form", { name: /participar de desafio bônus/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: /minhas fotos do desafio/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("GESTORA/ADMIN veem só o ranking final no encerramento, sem aviso, reflexão ou download", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["ADMIN"] } });
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue(null);
+    vi.mocked(obterFluxoEncerramento).mockResolvedValue({
+      desafio: { id: "d1", titulo: "Glow Up" },
+      clienteId: "admin-1",
+      avisoVisto: false,
+      reflexaoMudou: null,
+      reflexaoOrgulho: null,
+      reflexaoContinuar: null,
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+      rankingGeral: [{ clienteId: "cliente-2", nome: "Marina", pontos: 100 }],
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(screen.getByText("Marina")).toBeInTheDocument();
+    expect(screen.queryByText(/o desafio terminou/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("form", { name: /salvar reflexão final/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /baixar minha imagem/i }),
+    ).not.toBeInTheDocument();
   });
 });

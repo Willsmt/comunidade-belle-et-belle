@@ -2,14 +2,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MedidasPage from "./page";
+import { redirect } from "next/navigation";
 import { listarMedidas } from "./queries";
 import { criarRegistroMedida } from "./actions";
 
-const mockRefresh = vi.fn();
+const { mockRefresh, mockAuth } = vi.hoisted(() => ({
+  mockRefresh: vi.fn(),
+  mockAuth: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
 }));
+
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("./queries", () => ({
   listarMedidas: vi.fn(),
@@ -28,6 +37,8 @@ describe("MedidasPage", () => {
     mockRefresh.mockClear();
     vi.mocked(listarMedidas).mockReset();
     vi.mocked(criarRegistroMedida).mockReset();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"] } });
   });
 
   it("renderiza o formulário de novo registro", async () => {
@@ -73,5 +84,14 @@ describe("MedidasPage", () => {
       ),
     );
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("redireciona quem não tem papel CLIENTE, sem buscar as medidas", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["GESTORA"] } });
+
+    await expect(MedidasPage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(listarMedidas).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarPlanosRecebidos } from "./queries";
 
 export default async function PlanosRecebidosPage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarAreaCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
   const planos = await listarPlanosRecebidos();
 
   return (

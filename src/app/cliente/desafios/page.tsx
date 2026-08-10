@@ -1,4 +1,10 @@
 import { Gift, PartyPopper, Sparkles, Download } from "lucide-react";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import {
+  podeAcessarAreaCliente,
+  podeAcessarDesafiosCliente,
+} from "@/lib/auth/pode-acessar-painel";
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
 import { RankingToggle } from "./ranking-toggle";
 import { FotosJornada } from "./fotos-jornada";
@@ -11,6 +17,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function DesafiosClientePage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarDesafiosCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
+  // GESTORA/ADMIN veem esta página em modo leitura: ranking e estado do
+  // desafio, sem nenhum botão/form de ação (marcar item, participar,
+  // reflexão, fotos da própria jornada etc.), que só fazem sentido pra
+  // quem tem papel CLIENTE.
+  const ehCliente = podeAcessarAreaCliente(session.user.papeis);
+
   const resultado = await obterDesafioAtivoParaCliente();
 
   if (resultado) {
@@ -37,7 +54,9 @@ export default async function DesafiosClientePage() {
           clienteId={clienteId}
         />
 
-        <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
+        {ehCliente && (
+          <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
+        )}
 
         {desafio.categorias.length === 0 ? (
           <p className="mt-6 text-sm text-muted-foreground">
@@ -68,7 +87,9 @@ export default async function DesafiosClientePage() {
                                 {item.pontos} pts
                               </span>
                             </div>
-                            <BotaoMarcarItem itemId={item.id} marcado={marcado} />
+                            {ehCliente && (
+                              <BotaoMarcarItem itemId={item.id} marcado={marcado} />
+                            )}
                           </li>
                         );
                       })}
@@ -107,19 +128,20 @@ export default async function DesafiosClientePage() {
                       <p className="text-sm text-muted-foreground">{surpresa.descricao}</p>
                     )}
 
-                    {participacao ? (
-                      <p className="text-sm font-medium text-accent-foreground">
-                        {participacao.validado
-                          ? "Participação aprovada ✓"
-                          : "Aguardando validação da Patty"}
-                      </p>
-                    ) : (
-                      <FormularioParticiparSurpresa
-                        surpresaId={surpresa.id}
-                        titulo={surpresa.titulo}
-                        exigeComprovacao={surpresa.exigeComprovacao}
-                      />
-                    )}
+                    {ehCliente &&
+                      (participacao ? (
+                        <p className="text-sm font-medium text-accent-foreground">
+                          {participacao.validado
+                            ? "Participação aprovada ✓"
+                            : "Aguardando validação da Patty"}
+                        </p>
+                      ) : (
+                        <FormularioParticiparSurpresa
+                          surpresaId={surpresa.id}
+                          titulo={surpresa.titulo}
+                          exigeComprovacao={surpresa.exigeComprovacao}
+                        />
+                      ))}
                   </CardContent>
                 </Card>
               );
@@ -157,7 +179,7 @@ export default async function DesafiosClientePage() {
     <main className="mx-auto w-full max-w-lg px-4 py-6">
       <h1 className="font-heading text-2xl text-foreground">{desafio.titulo}</h1>
 
-      {!avisoVisto && (
+      {ehCliente && !avisoVisto && (
         <Card
           className="mt-4 border-primary/30 bg-secondary/60"
           aria-label="Aviso de encerramento"
@@ -207,39 +229,43 @@ export default async function DesafiosClientePage() {
         </CardContent>
       </Card>
 
-      <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
+      {ehCliente && (
+        <>
+          <FotosJornada fotoAntesUrl={fotoAntesUrl} fotoDepoisUrl={fotoDepoisUrl} />
 
-      <Card className="mt-4" aria-label="Reflexão final">
-        <CardHeader>
-          <CardTitle>Reflexão final</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FormularioReflexao
-            reflexaoMudou={reflexaoMudou}
-            reflexaoOrgulho={reflexaoOrgulho}
-            reflexaoContinuar={reflexaoContinuar}
-          />
-        </CardContent>
-      </Card>
+          <Card className="mt-4" aria-label="Reflexão final">
+            <CardHeader>
+              <CardTitle>Reflexão final</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormularioReflexao
+                reflexaoMudou={reflexaoMudou}
+                reflexaoOrgulho={reflexaoOrgulho}
+                reflexaoContinuar={reflexaoContinuar}
+              />
+            </CardContent>
+          </Card>
 
-      <Card className="mt-4 border-primary/30 bg-secondary/60" aria-label="Baixar imagem">
-        <CardContent className="flex flex-col items-center gap-2 text-center">
-          <h2 className="font-heading text-lg text-foreground">
-            Baixe sua imagem de comemoração
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Uma imagem prontinha pra postar, com suas fotos, conquistas e reflexão.
-          </p>
-          <a
-            href="/cliente/desafios/poster"
-            download="meu-glow-up.png"
-            className={buttonVariants({ size: "sm" })}
-          >
-            <Download className="size-3.5" />
-            Baixar minha imagem
-          </a>
-        </CardContent>
-      </Card>
+          <Card className="mt-4 border-primary/30 bg-secondary/60" aria-label="Baixar imagem">
+            <CardContent className="flex flex-col items-center gap-2 text-center">
+              <h2 className="font-heading text-lg text-foreground">
+                Baixe sua imagem de comemoração
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Uma imagem prontinha pra postar, com suas fotos, conquistas e reflexão.
+              </p>
+              <a
+                href="/cliente/desafios/poster"
+                download="meu-glow-up.png"
+                className={buttonVariants({ size: "sm" })}
+              >
+                <Download className="size-3.5" />
+                Baixar minha imagem
+              </a>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </main>
   );
 }

@@ -1,12 +1,29 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import PlanosRecebidosPage from "./page";
+import { redirect } from "next/navigation";
 import { listarPlanosRecebidos } from "./queries";
+
+const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+}));
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("./queries", () => ({
   listarPlanosRecebidos: vi.fn(),
 }));
+
 describe("PlanosRecebidosPage", () => {
+  beforeEach(() => {
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"] } });
+    vi.mocked(listarPlanosRecebidos).mockReset();
+  });
+
   it("mostra estado vazio quando não há planos recebidos", async () => {
     vi.mocked(listarPlanosRecebidos).mockResolvedValue([]);
     render(await PlanosRecebidosPage());
@@ -38,5 +55,14 @@ describe("PlanosRecebidosPage", () => {
       "href",
       "https://exemplo/plano.pdf",
     );
+  });
+
+  it("redireciona quem não tem papel CLIENTE, sem buscar os planos", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["GESTORA"] } });
+
+    await expect(PlanosRecebidosPage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(listarPlanosRecebidos).not.toHaveBeenCalled();
   });
 });

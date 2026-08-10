@@ -1,8 +1,16 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarParceriasVinculadas } from "./queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function ParceriasPage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarAreaCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
   const parcerias = await listarParceriasVinculadas();
 
   return (

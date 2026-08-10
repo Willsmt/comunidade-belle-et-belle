@@ -1,4 +1,4 @@
-import { Home, User, Handshake, Shield, type LucideIcon } from "lucide-react";
+import { Home, User, Handshake, Shield, Trophy, type LucideIcon } from "lucide-react";
 import type { Papel } from "@/generated/prisma/client";
 import {
   podeAcessarAreaCliente,
@@ -33,6 +33,15 @@ export function itensNavegacaoPrincipal(papeis: Papel[]): ItemNavegacaoPrincipal
       label: "Área da parceria",
       Icone: Handshake,
       prefixoAtivo: "/parceria",
+    });
+  }
+
+  if (podeAcessarPainel(papeis) && !podeAcessarAreaCliente(papeis)) {
+    itens.push({
+      href: "/cliente/desafios",
+      label: "Desafios",
+      Icone: Trophy,
+      prefixoAtivo: "/cliente/desafios",
     });
   }
 

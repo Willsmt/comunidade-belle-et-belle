@@ -1,8 +1,16 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { obterPerfilProprio } from "./queries";
 import { FormularioPerfil } from "./formulario-perfil";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PerfilPage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarAreaCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
   const perfil = await obterPerfilProprio();
 
   return (

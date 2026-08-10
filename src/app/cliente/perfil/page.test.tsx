@@ -2,14 +2,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PerfilPage from "./page";
+import { redirect } from "next/navigation";
 import { obterPerfilProprio } from "./queries";
 import { atualizarPerfil } from "./actions";
 
-const mockRefresh = vi.fn();
+const { mockRefresh, mockAuth } = vi.hoisted(() => ({
+  mockRefresh: vi.fn(),
+  mockAuth: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
 }));
+
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("./queries", () => ({
   obterPerfilProprio: vi.fn(),
@@ -24,6 +33,8 @@ describe("PerfilPage", () => {
     mockRefresh.mockClear();
     vi.mocked(obterPerfilProprio).mockReset();
     vi.mocked(atualizarPerfil).mockReset();
+    mockAuth.mockReset();
+    mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"] } });
   });
 
   it("renderiza o formulário de edição de perfil", async () => {
@@ -63,5 +74,14 @@ describe("PerfilPage", () => {
       ),
     );
     expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("redireciona quem não tem papel CLIENTE, sem buscar o perfil", async () => {
+    mockAuth.mockResolvedValue({ user: { papeis: ["GESTORA"] } });
+
+    await expect(PerfilPage()).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirect).toHaveBeenCalledWith("/");
+    expect(obterPerfilProprio).not.toHaveBeenCalled();
   });
 });

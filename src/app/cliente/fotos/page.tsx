@@ -1,8 +1,16 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarFotos } from "./queries";
 import { FormularioUpload } from "./formulario-upload";
 import { ItemFoto } from "./item-foto";
 
 export default async function FotosPage() {
+  const session = await auth();
+  if (!session?.user || !podeAcessarAreaCliente(session.user.papeis)) {
+    redirect("/");
+  }
+
   const fotos = await listarFotos();
 
   return (

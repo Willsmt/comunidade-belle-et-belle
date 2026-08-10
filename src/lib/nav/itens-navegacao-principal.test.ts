@@ -20,13 +20,25 @@ describe("itensNavegacaoPrincipal", () => {
     expect(itens.map((item) => item.label)).toEqual(["Feed", "Área da parceria"]);
   });
 
-  it("inclui Painel pros papéis GESTORA/ADMIN", () => {
+  it("inclui Desafios e Painel pros papéis GESTORA/ADMIN", () => {
     expect(itensNavegacaoPrincipal(["GESTORA"]).map((item) => item.label)).toEqual([
       "Feed",
+      "Desafios",
       "Painel",
     ]);
     expect(itensNavegacaoPrincipal(["ADMIN"]).map((item) => item.label)).toEqual([
       "Feed",
+      "Desafios",
+      "Painel",
+    ]);
+  });
+
+  it("não duplica Desafios pra quem já tem CLIENTE (já vê dentro de Área da cliente)", () => {
+    const itens = itensNavegacaoPrincipal(["CLIENTE", "GESTORA"]);
+
+    expect(itens.map((item) => item.label)).toEqual([
+      "Feed",
+      "Área da cliente",
       "Painel",
     ]);
   });
@@ -37,6 +49,7 @@ describe("itensNavegacaoPrincipal", () => {
     expect(itens.map((item) => item.label)).toEqual([
       "Feed",
       "Área da parceria",
+      "Desafios",
       "Painel",
     ]);
   });
