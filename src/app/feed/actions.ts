@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requererSessao } from "@/lib/auth/requerer-acesso-painel";
@@ -49,6 +50,7 @@ export async function criarPost(formData: FormData) {
   });
 
   revalidatePath("/feed");
+  redirect("/feed");
 }
 
 async function obterPostAutorizado(

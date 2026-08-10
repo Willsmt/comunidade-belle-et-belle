@@ -16,6 +16,7 @@ const {
   mockRevalidatePath,
   mockUploadImagemPost,
   mockDeletarImagemPost,
+  mockRedirect,
 } = vi.hoisted(() => ({
   mockRequererSessao: vi.fn(),
   mockPostCreate: vi.fn(),
@@ -32,6 +33,9 @@ const {
   mockRevalidatePath: vi.fn(),
   mockUploadImagemPost: vi.fn(),
   mockDeletarImagemPost: vi.fn(),
+  mockRedirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -61,6 +65,9 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
+vi.mock("next/navigation", () => ({
+  redirect: mockRedirect,
+}));
 vi.mock("@/lib/storage/posts", () => ({
   uploadImagemPost: mockUploadImagemPost,
   deletarImagemPost: mockDeletarImagemPost,
@@ -143,6 +150,7 @@ beforeEach(() => {
   mockRevalidatePath.mockReset();
   mockUploadImagemPost.mockReset();
   mockDeletarImagemPost.mockReset();
+  mockRedirect.mockClear();
 });
 
 describe("criarPost", () => {
@@ -164,11 +172,13 @@ describe("criarPost", () => {
     expect(mockPostCreate).not.toHaveBeenCalled();
   });
 
-  it("cria post só com texto", async () => {
+  it("cria post só com texto e redireciona pro feed", async () => {
     mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
     mockPostCreate.mockResolvedValue({});
 
-    await criarPost(buildFormDataCriar({ texto: "  progresso da semana  " }));
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "  progresso da semana  " })),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mockUploadImagemPost).not.toHaveBeenCalled();
     expect(mockPostCreate).toHaveBeenCalledWith({
@@ -180,14 +190,17 @@ describe("criarPost", () => {
       },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+    expect(mockRedirect).toHaveBeenCalledWith("/feed");
   });
 
-  it("cria post com upload de imagem nova", async () => {
+  it("cria post com upload de imagem nova e redireciona pro feed", async () => {
     mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
     mockUploadImagemPost.mockResolvedValue("posts/cliente-1/abc.webp");
     mockPostCreate.mockResolvedValue({});
 
-    await criarPost(buildFormDataCriar({ arquivo: buildArquivo() }));
+    await expect(
+      criarPost(buildFormDataCriar({ arquivo: buildArquivo() })),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mockUploadImagemPost).toHaveBeenCalledWith(
       expect.anything(),
@@ -201,6 +214,7 @@ describe("criarPost", () => {
         fotoEvolucaoId: null,
       },
     });
+    expect(mockRedirect).toHaveBeenCalledWith("/feed");
   });
 
   it("rejeita fotoEvolucaoId que não pertence ao usuário", async () => {
@@ -226,7 +240,9 @@ describe("criarPost", () => {
     });
     mockPostCreate.mockResolvedValue({});
 
-    await criarPost(buildFormDataCriar({ fotoEvolucaoId: "foto-x" }));
+    await expect(
+      criarPost(buildFormDataCriar({ fotoEvolucaoId: "foto-x" })),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mockUploadImagemPost).not.toHaveBeenCalled();
     expect(mockPostCreate).toHaveBeenCalledWith({
@@ -237,6 +253,7 @@ describe("criarPost", () => {
         fotoEvolucaoId: "foto-x",
       },
     });
+    expect(mockRedirect).toHaveBeenCalledWith("/feed");
   });
 });
 

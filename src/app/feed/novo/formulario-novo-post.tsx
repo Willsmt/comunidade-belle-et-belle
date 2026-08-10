@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { criarPost } from "../actions";
 import type { listarFotosEvolucaoDoUsuario } from "../queries";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function FormularioNovoPost({
       try {
         await criarPost(formData);
       } catch (error) {
+        unstable_rethrow(error);
         setErro(
           error instanceof Error
             ? error.message
