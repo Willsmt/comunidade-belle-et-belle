@@ -7,8 +7,9 @@ const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { criarRegraLimiar } from "./actions";
-import { alternarMarcacao } from "@/app/cliente/desafios/actions";
+import { criarRegraLimiar, aprovarParticipacao } from "./actions";
+import { alternarMarcacao, participarDesafioSurpresa } from "@/app/cliente/desafios/actions";
+import { obterDesafioAtivoParaCliente } from "@/app/cliente/desafios/queries";
 
 afterEach(async () => {
   await limparBanco();
@@ -99,5 +100,60 @@ describe("regra de bônus conectada a um emblema até a Conquista (Postgres real
 
     const conquistas = await prisma.conquista.findMany({ where: { clienteId: cliente.id } });
     expect(conquistas).toHaveLength(0);
+  });
+});
+
+describe("aprovação de desafio surpresa até o ranking (Postgres real)", () => {
+  it("os pontos entram no ranking geral da cliente assim que a gestora aprova a participação", async () => {
+    const gestora = await prisma.user.create({
+      data: { email: "gestora@x.com", status: "ATIVO", name: "Gestora" },
+    });
+    const cliente = await prisma.user.create({
+      data: { email: "cliente@x.com", status: "ATIVO", name: "Cliente" },
+    });
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        ativo: true,
+      },
+    });
+    const surpresa = await prisma.desafioSurpresa.create({
+      data: {
+        desafioId: desafio.id,
+        titulo: "Corrida 5km",
+        pontos: 50,
+        exigeComprovacao: false,
+      },
+    });
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(cliente.id, ["CLIENTE"]));
+    await participarDesafioSurpresa(surpresa.id, new FormData());
+
+    const participacaoPendente = await prisma.participacaoSurpresa.findFirstOrThrow({
+      where: { desafioSurpresaId: surpresa.id, clienteId: cliente.id },
+    });
+    expect(participacaoPendente.validado).toBe(false);
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(cliente.id, ["CLIENTE"]));
+    const antesDeAprovar = await obterDesafioAtivoParaCliente();
+    expect(antesDeAprovar?.rankingGeral).toEqual([]);
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(gestora.id, ["GESTORA", "ADMIN"]));
+    await aprovarParticipacao(participacaoPendente.id);
+
+    const participacaoAprovada = await prisma.participacaoSurpresa.findUniqueOrThrow({
+      where: { id: participacaoPendente.id },
+    });
+    expect(participacaoAprovada.validado).toBe(true);
+    expect(participacaoAprovada.validadoPor).toBe(gestora.id);
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(cliente.id, ["CLIENTE"]));
+    const depoisDeAprovar = await obterDesafioAtivoParaCliente();
+
+    expect(depoisDeAprovar?.rankingGeral).toEqual([
+      { clienteId: cliente.id, nome: "Cliente", pontos: 50, fotoUrl: null },
+    ]);
   });
 });

@@ -203,11 +203,13 @@ describe("DesafioDetalhePage", () => {
               id: "p1",
               cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
               validado: false,
+              fotoUrl: "https://url-assinada.exemplo/comprovante-1.webp",
             },
             {
               id: "p2",
               cliente: { id: "c2", name: "Cliente 2", email: "c2@x.com" },
               validado: true,
+              fotoUrl: null,
             },
           ],
         },
@@ -222,6 +224,9 @@ describe("DesafioDetalhePage", () => {
     expect(screen.getByRole("button", { name: /aprovar/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rejeitar/i })).toBeInTheDocument();
     expect(screen.getByText("Aprovada")).toBeInTheDocument();
+    expect(
+      screen.getByAltText("Comprovação enviada pela cliente"),
+    ).toBeInTheDocument();
   });
 
   it("mostra a mensagem de erro original quando criar categoria falha", async () => {

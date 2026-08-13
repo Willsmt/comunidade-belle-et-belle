@@ -154,6 +154,41 @@ describe("obterDesafioAtivoParaCliente — desafios surpresa (Postgres real)", (
       clienteA.id,
     );
   });
+
+  it("soma os pontos de uma participação surpresa aprovada no ranking geral, mas não conta a rejeitada nem a pendente", async () => {
+    const clienteA = await prisma.user.create({
+      data: { email: "a@x.com", status: "ATIVO", name: "Cliente A" },
+    });
+    const clienteB = await prisma.user.create({
+      data: { email: "b@x.com", status: "ATIVO", name: "Cliente B" },
+    });
+    mockAuth.mockResolvedValue({ user: { id: clienteA.id } });
+
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        ativo: true,
+      },
+    });
+    const surpresa = await prisma.desafioSurpresa.create({
+      data: { desafioId: desafio.id, titulo: "Corrida 5km", pontos: 50 },
+    });
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId: surpresa.id, clienteId: clienteA.id, validado: true },
+    });
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId: surpresa.id, clienteId: clienteB.id, validado: false },
+    });
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.rankingGeral).toEqual([
+      { clienteId: clienteA.id, nome: "Cliente A", pontos: 50, fotoUrl: null },
+    ]);
+    expect(resultado?.rankingSemanal).toEqual([]);
+  });
 });
 
 describe("obterFluxoEncerramento (Postgres real)", () => {

@@ -4,6 +4,7 @@ const {
   mockAuth,
   mockFindFirst,
   mockFindMany,
+  mockParticipacaoFindMany,
   mockJornadaFindUnique,
   mockGerarUrlAssinada,
   mockGerarUrlAssinadaPerfil,
@@ -11,6 +12,7 @@ const {
   mockAuth: vi.fn(),
   mockFindFirst: vi.fn(),
   mockFindMany: vi.fn(),
+  mockParticipacaoFindMany: vi.fn(),
   mockJornadaFindUnique: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
   mockGerarUrlAssinadaPerfil: vi.fn(),
@@ -23,6 +25,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     desafio: { findFirst: mockFindFirst },
     marcacaoItem: { findMany: mockFindMany },
+    participacaoSurpresa: { findMany: mockParticipacaoFindMany },
     jornadaDesafio: { findUnique: mockJornadaFindUnique },
   },
 }));
@@ -40,6 +43,8 @@ describe("obterDesafioAtivoParaCliente", () => {
     mockAuth.mockReset();
     mockFindFirst.mockReset();
     mockFindMany.mockReset();
+    mockParticipacaoFindMany.mockReset();
+    mockParticipacaoFindMany.mockResolvedValue([]);
     mockJornadaFindUnique.mockReset();
     mockGerarUrlAssinada.mockReset();
     mockGerarUrlAssinadaPerfil.mockReset();
@@ -216,6 +221,42 @@ describe("obterDesafioAtivoParaCliente", () => {
       "https://google.exemplo/foto.jpg",
     );
   });
+
+  it("soma os pontos de participações surpresa aprovadas no ranking geral, mas não no semanal", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockParticipacaoFindMany.mockResolvedValue([
+      {
+        clienteId: "cliente-2",
+        desafioSurpresa: { pontos: 50 },
+        cliente: { id: "cliente-2", name: "Marina", email: "marina@x.com" },
+      },
+    ]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(mockParticipacaoFindMany).toHaveBeenCalledTimes(1);
+    expect(mockParticipacaoFindMany).toHaveBeenCalledWith({
+      where: { validado: true, desafioSurpresa: { desafioId: "d1" } },
+      include: {
+        desafioSurpresa: { select: { pontos: true } },
+        cliente: { select: expect.any(Object) },
+      },
+    });
+    expect(resultado?.rankingSemanal).toEqual([]);
+    expect(resultado?.rankingGeral).toEqual([
+      { clienteId: "cliente-2", nome: "Marina", pontos: 50, fotoUrl: null },
+    ]);
+  });
 });
 
 describe("obterFluxoEncerramento", () => {
@@ -223,6 +264,8 @@ describe("obterFluxoEncerramento", () => {
     mockAuth.mockReset();
     mockFindFirst.mockReset();
     mockFindMany.mockReset();
+    mockParticipacaoFindMany.mockReset();
+    mockParticipacaoFindMany.mockResolvedValue([]);
     mockJornadaFindUnique.mockReset();
     mockGerarUrlAssinada.mockReset();
     mockGerarUrlAssinadaPerfil.mockReset();
@@ -285,5 +328,25 @@ describe("obterFluxoEncerramento", () => {
     expect(resultado?.reflexaoMudou).toBe("Tudo");
     expect(resultado?.fotoAntesUrl).toBe("https://url-antes.exemplo");
     expect(resultado?.fotoDepoisUrl).toBe("https://url-depois.exemplo");
+  });
+
+  it("soma os pontos de participações surpresa aprovadas no ranking geral final", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({ id: "d1", titulo: "Glow Up" });
+    mockFindMany.mockResolvedValue([]);
+    mockParticipacaoFindMany.mockResolvedValue([
+      {
+        clienteId: "cliente-1",
+        desafioSurpresa: { pontos: 50 },
+        cliente: { id: "cliente-1", name: "Você", email: "voce@x.com" },
+      },
+    ]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterFluxoEncerramento();
+
+    expect(resultado?.rankingGeral).toEqual([
+      { clienteId: "cliente-1", nome: "Você", pontos: 50, fotoUrl: null },
+    ]);
   });
 });

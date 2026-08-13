@@ -17,38 +17,74 @@ function calcularSemanaAtual(dataInicio: Date, hoje: Date) {
 }
 
 async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: Date) {
-  const marcacoes = await prisma.marcacaoItem.findMany({
-    where: {
-      item: { categoria: { desafioId } },
-      ...(dataInicio && dataFim ? { data: { gte: dataInicio, lte: dataFim } } : {}),
-    },
-    include: {
-      item: { select: { pontos: true } },
-      cliente: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          perfil: { select: { fotoChave: true } },
-        },
+  const ehCalculoSemanal = Boolean(dataInicio && dataFim);
+
+  const selecaoCliente = {
+    id: true,
+    name: true,
+    email: true,
+    image: true,
+    perfil: { select: { fotoChave: true } },
+  } as const;
+
+  const [marcacoes, participacoesSurpresa] = await Promise.all([
+    prisma.marcacaoItem.findMany({
+      where: {
+        item: { categoria: { desafioId } },
+        ...(dataInicio && dataFim ? { data: { gte: dataInicio, lte: dataFim } } : {}),
       },
-    },
-  });
+      include: {
+        item: { select: { pontos: true } },
+        cliente: { select: selecaoCliente },
+      },
+    }),
+    // Desafios surpresa não têm data/semana própria no schema — contam só
+    // pro ranking geral até essa associação ficar definida.
+    ehCalculoSemanal
+      ? Promise.resolve([])
+      : prisma.participacaoSurpresa.findMany({
+          where: { validado: true, desafioSurpresa: { desafioId } },
+          include: {
+            desafioSurpresa: { select: { pontos: true } },
+            cliente: { select: selecaoCliente },
+          },
+        }),
+  ]);
 
   const pontosPorCliente = new Map<
     string,
     { nome: string; pontos: number; image: string | null; fotoChave: string | null }
   >();
+
+  function garantirCliente(
+    clienteId: string,
+    cliente: {
+      name: string | null;
+      email: string;
+      image: string | null;
+      perfil: { fotoChave: string | null } | null;
+    },
+  ) {
+    return (
+      pontosPorCliente.get(clienteId) ?? {
+        nome: cliente.name ?? cliente.email,
+        pontos: 0,
+        image: cliente.image,
+        fotoChave: cliente.perfil?.fotoChave ?? null,
+      }
+    );
+  }
+
   for (const marcacao of marcacoes) {
-    const atual = pontosPorCliente.get(marcacao.clienteId) ?? {
-      nome: marcacao.cliente.name ?? marcacao.cliente.email,
-      pontos: 0,
-      image: marcacao.cliente.image,
-      fotoChave: marcacao.cliente.perfil?.fotoChave ?? null,
-    };
+    const atual = garantirCliente(marcacao.clienteId, marcacao.cliente);
     atual.pontos += marcacao.item.pontos;
     pontosPorCliente.set(marcacao.clienteId, atual);
+  }
+
+  for (const participacao of participacoesSurpresa) {
+    const atual = garantirCliente(participacao.clienteId, participacao.cliente);
+    atual.pontos += participacao.desafioSurpresa.pontos;
+    pontosPorCliente.set(participacao.clienteId, atual);
   }
 
   const linhas = await Promise.all(
