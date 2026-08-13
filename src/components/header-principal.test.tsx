@@ -17,7 +17,9 @@ describe("HeaderPrincipal", () => {
     vi.mocked(usePathname).mockReturnValue("/feed");
     render(<HeaderPrincipal papeis={[]} />);
 
-    expect(screen.getByText("Belle et Belle")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Belle et Belle" }),
+    ).toBeInTheDocument();
   });
 
   it("mostra o botão de Sair", () => {

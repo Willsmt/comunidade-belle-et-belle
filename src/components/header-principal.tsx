@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, User } from "lucide-react";
@@ -12,6 +13,7 @@ import {
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import logoBelleEtBelle from "../../public/logo/logo-horizontal.svg";
 
 export function HeaderPrincipal({
   papeis,
@@ -27,9 +29,14 @@ export function HeaderPrincipal({
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between px-4 md:grid md:max-w-3xl md:grid-cols-[1fr_auto_1fr] md:px-6">
-        <span className="font-heading text-lg text-foreground md:justify-self-start">
-          Belle et Belle
-        </span>
+        <Image
+          src={logoBelleEtBelle}
+          alt="Belle et Belle"
+          width={620}
+          height={230}
+          className="h-12 w-auto md:justify-self-start"
+          priority
+        />
 
         <nav
           aria-label="Navegação principal"
