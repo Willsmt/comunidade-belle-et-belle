@@ -89,7 +89,9 @@ describe("criarPost (Postgres real)", () => {
     const cliente = await criarUsuario("cliente@x.com", "Cliente X");
     mockAuth.mockResolvedValue(sessaoDe(cliente.id));
 
-    await criarPost(formDataTexto("minha reflexão de hoje"));
+    await expect(
+      criarPost(formDataTexto("minha reflexão de hoje")),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     const posts = await prisma.post.findMany({ where: { autorId: cliente.id } });
     expect(posts).toHaveLength(1);
@@ -104,7 +106,9 @@ describe("criarPost (Postgres real)", () => {
     });
     mockAuth.mockResolvedValue(sessaoDe(cliente.id));
 
-    await criarPost(formDataFotoEvolucao(foto.id));
+    await expect(
+      criarPost(formDataFotoEvolucao(foto.id)),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     const post = await prisma.post.findFirstOrThrow({
       where: { autorId: cliente.id },
