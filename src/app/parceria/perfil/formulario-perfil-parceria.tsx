@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { atualizarPerfilParceria } from "./actions";
 import type { PerfilParceria } from "@/generated/prisma/client";
@@ -38,7 +39,7 @@ export function FormularioPerfilParceria({
       className="flex flex-col gap-4"
     >
       {fotoUrl && (
-        <img
+        <Image
           src={fotoUrl}
           alt="Foto de perfil atual"
           width={96}

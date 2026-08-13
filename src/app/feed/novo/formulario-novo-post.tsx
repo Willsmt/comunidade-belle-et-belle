@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { unstable_rethrow } from "next/navigation";
+import Image from "next/image";
 import { criarPost } from "../actions";
 import type { listarFotosEvolucaoDoUsuario } from "../queries";
 import { Button } from "@/components/ui/button";
@@ -76,9 +77,11 @@ export function FormularioNovoPost({
                   value={foto.id}
                   className="sr-only"
                 />
-                <img
+                <Image
                   src={foto.urlAssinada}
                   alt="Foto de evolução"
+                  width={80}
+                  height={80}
                   className="size-20 rounded-lg object-cover"
                 />
               </label>

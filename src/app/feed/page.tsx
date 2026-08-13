@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Pencil, Plus, MessageCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
@@ -109,10 +110,14 @@ export default async function FeedPage({
 
                   <CardContent className="flex flex-col gap-3">
                     {post.urlImagem && (
-                      <img
+                      <Image
                         src={post.urlImagem}
                         alt="Imagem do post"
-                        className="w-full rounded-lg object-cover"
+                        width={1600}
+                        height={1600}
+                        sizes="(min-width: 512px) 512px, 100vw"
+                        style={{ width: "100%", height: "auto" }}
+                        className="rounded-lg object-cover"
                       />
                     )}
                     {post.texto && (

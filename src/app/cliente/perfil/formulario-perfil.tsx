@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { atualizarPerfil } from "./actions";
 import type { Perfil } from "@/generated/prisma/client";
@@ -40,7 +41,7 @@ export function FormularioPerfil({
   return (
     <form onSubmit={handleSubmit} aria-label="Editar perfil" className="flex flex-col gap-4">
       {fotoUrl && (
-        <img
+        <Image
           src={fotoUrl}
           alt="Foto de perfil atual"
           width={96}

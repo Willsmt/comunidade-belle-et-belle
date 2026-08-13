@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { alternarVisibilidadeFoto, excluirFoto } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
@@ -30,11 +31,15 @@ export function ItemFoto({
     <li>
       <Card>
         <CardContent className="flex flex-col gap-2">
-          <img
-            src={urlAssinada}
-            alt="Foto de evolução"
-            className="aspect-square w-full rounded-lg object-cover"
-          />
+          <div className="relative aspect-square w-full">
+            <Image
+              src={urlAssinada}
+              alt="Foto de evolução"
+              fill
+              sizes="(min-width: 512px) 234px, 50vw"
+              className="rounded-lg object-cover"
+            />
+          </div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">{data}</span>
             <Badge variant={publica ? "secondary" : "outline"}>

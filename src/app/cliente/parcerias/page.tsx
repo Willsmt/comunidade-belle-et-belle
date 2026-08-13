@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { auth } from "@/auth";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarParceriasVinculadas } from "./queries";
@@ -28,7 +29,7 @@ export default async function ParceriasPage() {
               <Card>
                 <CardContent className="flex items-center gap-3">
                   {parceria.fotoUrl && (
-                    <img
+                    <Image
                       src={parceria.fotoUrl}
                       alt={`Foto de ${parceria.nome}`}
                       width={64}

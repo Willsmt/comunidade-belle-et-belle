@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Camera } from "lucide-react";
 import { enviarFotoAntes, enviarFotoDepois } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,12 +41,15 @@ export function FotosJornada({
         <div className="flex flex-col items-center gap-2">
           <h3 className="text-xs font-medium text-muted-foreground">Antes</h3>
           {fotoAntesUrl ? (
-            <img
-              src={fotoAntesUrl}
-              alt="Foto de antes"
-              width={150}
-              className="aspect-square w-full rounded-lg object-cover"
-            />
+            <div className="relative aspect-square w-full">
+              <Image
+                src={fotoAntesUrl}
+                alt="Foto de antes"
+                fill
+                sizes="(min-width: 512px) 220px, 50vw"
+                className="rounded-lg object-cover"
+              />
+            </div>
           ) : (
             <p className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted p-2 text-center text-xs text-muted-foreground">
               Nenhuma foto enviada ainda
@@ -72,12 +76,15 @@ export function FotosJornada({
         <div className="flex flex-col items-center gap-2">
           <h3 className="text-xs font-medium text-muted-foreground">Depois</h3>
           {fotoDepoisUrl ? (
-            <img
-              src={fotoDepoisUrl}
-              alt="Foto de depois"
-              width={150}
-              className="aspect-square w-full rounded-lg object-cover"
-            />
+            <div className="relative aspect-square w-full">
+              <Image
+                src={fotoDepoisUrl}
+                alt="Foto de depois"
+                fill
+                sizes="(min-width: 512px) 220px, 50vw"
+                className="rounded-lg object-cover"
+              />
+            </div>
           ) : (
             <p className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted p-2 text-center text-xs text-muted-foreground">
               Nenhuma foto enviada ainda

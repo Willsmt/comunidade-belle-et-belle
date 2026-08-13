@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { Pencil } from "lucide-react";
 import { auth } from "@/auth";
 import { obterPerfilPublico } from "./queries";
@@ -108,11 +109,13 @@ export default async function PerfilPublicoPage({
           <CardContent>
             <ul className="grid grid-cols-3 gap-2">
               {perfil.fotos.map((foto) => (
-                <li key={foto.id}>
-                  <img
+                <li key={foto.id} className="relative aspect-square w-full">
+                  <Image
                     src={foto.urlAssinada}
                     alt="Foto de evolução"
-                    className="aspect-square w-full rounded-lg object-cover"
+                    fill
+                    sizes="(min-width: 512px) 155px, 33vw"
+                    className="rounded-lg object-cover"
                   />
                 </li>
               ))}
@@ -133,10 +136,14 @@ export default async function PerfilPublicoPage({
               {perfil.posts.map((post) => (
                 <li key={post.id} className="flex flex-col gap-2">
                   {post.urlImagem && (
-                    <img
+                    <Image
                       src={post.urlImagem}
                       alt="Imagem do post"
-                      className="w-full rounded-lg object-cover"
+                      width={1600}
+                      height={1600}
+                      sizes="(min-width: 512px) 512px, 100vw"
+                      style={{ width: "100%", height: "auto" }}
+                      className="rounded-lg object-cover"
                     />
                   )}
                   {post.texto && <p className="text-sm text-foreground">{post.texto}</p>}
