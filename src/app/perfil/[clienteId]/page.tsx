@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { auth } from "@/auth";
 import { obterPerfilPublico } from "./queries";
-import { obterIniciais } from "@/lib/iniciais";
+import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,22 +29,7 @@ export default async function PerfilPublicoPage({
     <main className="mx-auto w-full max-w-lg px-4 py-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          {perfil.fotoUrl ? (
-            <img
-              src={perfil.fotoUrl}
-              alt={`Foto de perfil de ${perfil.nome}`}
-              width={64}
-              height={64}
-              className="size-16 rounded-full object-cover"
-            />
-          ) : (
-            <div
-              className="flex size-16 items-center justify-center rounded-full bg-secondary text-lg font-medium text-secondary-foreground"
-              aria-hidden="true"
-            >
-              {obterIniciais(perfil.nome)}
-            </div>
-          )}
+          <AvatarPessoa nome={perfil.nome} fotoUrl={perfil.fotoUrl} tamanho="lg" />
           <h1 className="font-heading text-2xl text-foreground">{perfil.nome}</h1>
         </div>
         {souEuMesma && (

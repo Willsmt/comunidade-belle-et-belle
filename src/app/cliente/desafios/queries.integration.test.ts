@@ -105,14 +105,14 @@ describe("obterDesafioAtivoParaCliente (Postgres real)", () => {
     const resultado = await obterDesafioAtivoParaCliente();
 
     expect(resultado?.rankingGeral).toEqual([
-      { clienteId: clienteA.id, nome: "Cliente A", pontos: 10 },
-      { clienteId: clienteB.id, nome: "Cliente B", pontos: 5 },
+      { clienteId: clienteA.id, nome: "Cliente A", pontos: 10, fotoUrl: null },
+      { clienteId: clienteB.id, nome: "Cliente B", pontos: 5, fotoUrl: null },
     ]);
     expect(resultado?.rankingSemanal).toHaveLength(2);
     expect(resultado?.rankingSemanal).toEqual(
       expect.arrayContaining([
-        { clienteId: clienteA.id, nome: "Cliente A", pontos: 5 },
-        { clienteId: clienteB.id, nome: "Cliente B", pontos: 5 },
+        { clienteId: clienteA.id, nome: "Cliente A", pontos: 5, fotoUrl: null },
+        { clienteId: clienteB.id, nome: "Cliente B", pontos: 5, fotoUrl: null },
       ]),
     );
   });
@@ -212,7 +212,7 @@ describe("obterFluxoEncerramento (Postgres real)", () => {
     expect(resultado?.desafio.id).toBe(desafioRecente.id);
     expect(resultado?.avisoVisto).toBe(true);
     expect(resultado?.rankingGeral).toEqual([
-      { clienteId: clienteA.id, nome: "Cliente A", pontos: 10 },
+      { clienteId: clienteA.id, nome: "Cliente A", pontos: 10, fotoUrl: null },
     ]);
   });
 });

@@ -13,6 +13,7 @@ import { BotaoMarcarItem } from "./botao-marcar-item";
 import { FormularioParticiparSurpresa } from "./formulario-participar-surpresa";
 import { BotaoContinuarEncerramento } from "./botao-continuar-encerramento";
 import { FormularioReflexao } from "./formulario-reflexao";
+import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -220,6 +221,7 @@ export default async function DesafiosClientePage() {
                     <span className="w-5 font-heading text-xs text-muted-foreground">
                       {indice + 1}º
                     </span>
+                    <AvatarPessoa nome={linha.nome} fotoUrl={linha.fotoUrl} />
                     <span className="flex-1 font-medium">
                       {voce ? (
                         "Você"

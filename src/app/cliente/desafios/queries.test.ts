@@ -6,12 +6,14 @@ const {
   mockFindMany,
   mockJornadaFindUnique,
   mockGerarUrlAssinada,
+  mockGerarUrlAssinadaPerfil,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindFirst: vi.fn(),
   mockFindMany: vi.fn(),
   mockJornadaFindUnique: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
+  mockGerarUrlAssinadaPerfil: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
@@ -27,6 +29,9 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/storage/jornada-desafio", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
+vi.mock("@/lib/storage/perfil", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+}));
 
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
 
@@ -37,6 +42,7 @@ describe("obterDesafioAtivoParaCliente", () => {
     mockFindMany.mockReset();
     mockJornadaFindUnique.mockReset();
     mockGerarUrlAssinada.mockReset();
+    mockGerarUrlAssinadaPerfil.mockReset();
   });
 
   it("exige sessão válida", async () => {
@@ -137,9 +143,78 @@ describe("obterDesafioAtivoParaCliente", () => {
     const resultado = await obterDesafioAtivoParaCliente();
 
     expect(resultado?.rankingSemanal).toEqual([
-      { clienteId: "cliente-2", nome: "Marina", pontos: 10 },
-      { clienteId: "cliente-1", nome: "Você", pontos: 8 },
+      { clienteId: "cliente-2", nome: "Marina", pontos: 10, fotoUrl: null },
+      { clienteId: "cliente-1", nome: "Você", pontos: 8, fotoUrl: null },
     ]);
+  });
+
+  it("no ranking, usa a foto de perfil própria quando o cliente tem fotoChave", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          clienteId: "cliente-2",
+          item: { pontos: 10 },
+          cliente: {
+            id: "cliente-2",
+            name: "Marina",
+            email: "marina@x.com",
+            image: "https://google.exemplo/foto.jpg",
+            perfil: { fotoChave: "perfis-cliente/cliente-2/foto.webp" },
+          },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+    mockGerarUrlAssinadaPerfil.mockResolvedValue("https://url-assinada-propria.exemplo");
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(mockGerarUrlAssinadaPerfil).toHaveBeenCalledWith(
+      "perfis-cliente/cliente-2/foto.webp",
+    );
+    expect(resultado?.rankingSemanal[0]?.fotoUrl).toBe(
+      "https://url-assinada-propria.exemplo",
+    );
+  });
+
+  it("no ranking, cai pro image do Google quando o cliente não tem fotoChave", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          clienteId: "cliente-2",
+          item: { pontos: 10 },
+          cliente: {
+            id: "cliente-2",
+            name: "Marina",
+            email: "marina@x.com",
+            image: "https://google.exemplo/foto.jpg",
+            perfil: null,
+          },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(mockGerarUrlAssinadaPerfil).not.toHaveBeenCalled();
+    expect(resultado?.rankingSemanal[0]?.fotoUrl).toBe(
+      "https://google.exemplo/foto.jpg",
+    );
   });
 });
 
@@ -150,6 +225,7 @@ describe("obterFluxoEncerramento", () => {
     mockFindMany.mockReset();
     mockJornadaFindUnique.mockReset();
     mockGerarUrlAssinada.mockReset();
+    mockGerarUrlAssinadaPerfil.mockReset();
   });
 
   it("exige sessão válida", async () => {

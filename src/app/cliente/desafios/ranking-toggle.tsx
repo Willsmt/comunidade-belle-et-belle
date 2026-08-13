@@ -5,9 +5,15 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { cn } from "@/lib/utils";
 
-type LinhaRanking = { clienteId: string; nome: string; pontos: number };
+type LinhaRanking = {
+  clienteId: string;
+  nome: string;
+  pontos: number;
+  fotoUrl: string | null;
+};
 
 export function RankingToggle({
   rankingSemanal,
@@ -67,6 +73,7 @@ export function RankingToggle({
                   <span className="w-5 font-heading text-xs text-muted-foreground">
                     {indice + 1}º
                   </span>
+                  <AvatarPessoa nome={linha.nome} fotoUrl={linha.fotoUrl} />
                   <span className="flex-1 font-medium">
                     {voce ? (
                       "Você"

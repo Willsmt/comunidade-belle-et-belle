@@ -227,6 +227,43 @@ describe("FeedPage", () => {
     expect(screen.getByRole("button", { name: /^apagar$/i })).toBeInTheDocument();
   });
 
+  it("mostra a foto do autor do comentário quando tem fotoUrl, e as iniciais quando não tem", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [
+        buildPostView({
+          comentarios: [
+            {
+              id: "comentario-1",
+              texto: "com foto",
+              autorId: "cliente-1",
+              autor: {
+                id: "cliente-1",
+                name: "Cliente Um",
+                fotoUrl: "https://exemplo/foto-comentario.jpg",
+              },
+            },
+            {
+              id: "comentario-2",
+              texto: "sem foto",
+              autorId: "cliente-2",
+              autor: { id: "cliente-2", name: "Cliente Dois", fotoUrl: null },
+            },
+          ],
+        }),
+      ],
+      proximoCursor: null,
+    } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(
+      screen.getByAltText("Foto de perfil de Cliente Um"),
+    ).toHaveAttribute("src", "https://exemplo/foto-comentario.jpg");
+    expect(screen.getByText("CD")).toBeInTheDocument();
+  });
+
   it("mostra 'Carregar mais' quando há proximoCursor, linkando com o cursor certo", async () => {
     mockAuth.mockResolvedValue(buildSessao("cliente-1"));
     vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);

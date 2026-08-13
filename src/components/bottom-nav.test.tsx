@@ -76,6 +76,18 @@ describe("BottomNav", () => {
     );
   });
 
+  it("marca só Desafios como ativo em /cliente/desafios, não Área da cliente também", () => {
+    vi.mocked(usePathname).mockReturnValue("/cliente/desafios");
+    render(<BottomNav papeis={["CLIENTE"]} />);
+
+    expect(screen.getByRole("link", { name: /^desafios$/i })).toHaveClass(
+      "text-primary",
+    );
+    expect(
+      screen.getByRole("link", { name: /área da cliente/i }),
+    ).not.toHaveClass("text-primary");
+  });
+
   it("não marca nenhum item como ativo fora das rotas conhecidas", () => {
     vi.mocked(usePathname).mockReturnValue("/bem-vinda");
     render(<BottomNav papeis={["CLIENTE"]} />);

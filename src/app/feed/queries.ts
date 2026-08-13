@@ -1,7 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/objetos";
+import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
 
 const TAMANHO_PAGINA = 10;
+
+async function obterFotoUrlAutor(autor: {
+  image: string | null;
+  perfil: { fotoChave: string | null } | null;
+}) {
+  return autor.perfil?.fotoChave
+    ? gerarUrlAssinadaPerfil(autor.perfil.fotoChave)
+    : (autor.image ?? null);
+}
 
 export async function listarPosts(usuarioId: string, cursor?: string) {
   const posts = await prisma.post.findMany({
@@ -13,7 +23,16 @@ export async function listarPosts(usuarioId: string, cursor?: string) {
       likes: { where: { usuarioId }, select: { id: true } },
       comentarios: {
         orderBy: { criadoEm: "asc" },
-        include: { autor: { select: { id: true, name: true } } },
+        include: {
+          autor: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              perfil: { select: { fotoChave: true } },
+            },
+          },
+        },
       },
       _count: { select: { likes: true } },
     },
@@ -30,6 +49,16 @@ export async function listarPosts(usuarioId: string, cursor?: string) {
         : null,
       curtidoPeloUsuario: post.likes.length > 0,
       totalCurtidas: post._count.likes,
+      comentarios: await Promise.all(
+        post.comentarios.map(async (comentario) => ({
+          ...comentario,
+          autor: {
+            id: comentario.autor.id,
+            name: comentario.autor.name,
+            fotoUrl: await obterFotoUrlAutor(comentario.autor),
+          },
+        })),
+      ),
     })),
   );
 

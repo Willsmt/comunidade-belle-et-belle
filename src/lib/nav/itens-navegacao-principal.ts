@@ -36,7 +36,7 @@ export function itensNavegacaoPrincipal(papeis: Papel[]): ItemNavegacaoPrincipal
     });
   }
 
-  if (podeAcessarPainel(papeis) && !podeAcessarAreaCliente(papeis)) {
+  if (podeAcessarAreaCliente(papeis) || podeAcessarPainel(papeis)) {
     itens.push({
       href: "/cliente/desafios",
       label: "Desafios",
@@ -55,4 +55,24 @@ export function itensNavegacaoPrincipal(papeis: Papel[]): ItemNavegacaoPrincipal
   }
 
   return itens;
+}
+
+// Alguns prefixos aninham (ex: "/cliente" e "/cliente/desafios"), então mais
+// de um item pode bater com pathname.startsWith. Só o prefixo mais específico
+// (mais longo) deve ficar marcado como ativo.
+export function obterPrefixoAtivo(
+  itens: ItemNavegacaoPrincipal[],
+  pathname: string,
+): string | null {
+  const correspondentes = itens
+    .map((item) => item.prefixoAtivo)
+    .filter((prefixo) => pathname.startsWith(prefixo));
+
+  if (correspondentes.length === 0) {
+    return null;
+  }
+
+  return correspondentes.reduce((maisEspecifico, atual) =>
+    atual.length > maisEspecifico.length ? atual : maisEspecifico,
+  );
 }

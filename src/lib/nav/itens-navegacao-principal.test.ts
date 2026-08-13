@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itensNavegacaoPrincipal } from "./itens-navegacao-principal";
+import { itensNavegacaoPrincipal, obterPrefixoAtivo } from "./itens-navegacao-principal";
 
 describe("itensNavegacaoPrincipal", () => {
   it("mostra só o Feed quando a pessoa não acumula nenhum papel de área", () => {
@@ -8,10 +8,14 @@ describe("itensNavegacaoPrincipal", () => {
     expect(itens.map((item) => item.label)).toEqual(["Feed"]);
   });
 
-  it("inclui Área da cliente pro papel CLIENTE", () => {
+  it("inclui Área da cliente e Desafios pro papel CLIENTE", () => {
     const itens = itensNavegacaoPrincipal(["CLIENTE"]);
 
-    expect(itens.map((item) => item.label)).toEqual(["Feed", "Área da cliente"]);
+    expect(itens.map((item) => item.label)).toEqual([
+      "Feed",
+      "Área da cliente",
+      "Desafios",
+    ]);
   });
 
   it("inclui Área da parceria pro papel PARCERIA", () => {
@@ -33,14 +37,21 @@ describe("itensNavegacaoPrincipal", () => {
     ]);
   });
 
-  it("não duplica Desafios pra quem já tem CLIENTE (já vê dentro de Área da cliente)", () => {
+  it("mostra Desafios pra quem tem CLIENTE e também GESTORA/ADMIN", () => {
     const itens = itensNavegacaoPrincipal(["CLIENTE", "GESTORA"]);
 
     expect(itens.map((item) => item.label)).toEqual([
       "Feed",
       "Área da cliente",
+      "Desafios",
       "Painel",
     ]);
+  });
+
+  it("não mostra Desafios pra PARCERIA sem CLIENTE nem GESTORA/ADMIN", () => {
+    const itens = itensNavegacaoPrincipal(["PARCERIA"]);
+
+    expect(itens.map((item) => item.label)).not.toContain("Desafios");
   });
 
   it("acumula vários itens quando a pessoa tem vários papéis (ex: Patty GESTORA + PARCERIA)", () => {
@@ -52,5 +63,25 @@ describe("itensNavegacaoPrincipal", () => {
       "Desafios",
       "Painel",
     ]);
+  });
+});
+
+describe("obterPrefixoAtivo", () => {
+  it("escolhe o prefixo mais específico quando mais de um bate (ex: /cliente e /cliente/desafios)", () => {
+    const itens = itensNavegacaoPrincipal(["CLIENTE"]);
+
+    expect(obterPrefixoAtivo(itens, "/cliente/desafios")).toBe("/cliente/desafios");
+  });
+
+  it("mantém Área da cliente ativa em outras sub-rotas de /cliente", () => {
+    const itens = itensNavegacaoPrincipal(["CLIENTE"]);
+
+    expect(obterPrefixoAtivo(itens, "/cliente/medidas")).toBe("/cliente");
+  });
+
+  it("retorna null quando nenhum prefixo bate", () => {
+    const itens = itensNavegacaoPrincipal(["CLIENTE"]);
+
+    expect(obterPrefixoAtivo(itens, "/bem-vinda")).toBeNull();
   });
 });

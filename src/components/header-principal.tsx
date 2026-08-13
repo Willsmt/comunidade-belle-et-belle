@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation";
 import { LogOut, User } from "lucide-react";
 import type { Papel } from "@/generated/prisma/client";
 import { sair } from "@/lib/auth/actions";
-import { itensNavegacaoPrincipal } from "@/lib/nav/itens-navegacao-principal";
+import {
+  itensNavegacaoPrincipal,
+  obterPrefixoAtivo,
+} from "@/lib/nav/itens-navegacao-principal";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +22,7 @@ export function HeaderPrincipal({
 }) {
   const pathname = usePathname();
   const itens = itensNavegacaoPrincipal(papeis);
+  const prefixoAtivo = obterPrefixoAtivo(itens, pathname);
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-border bg-background">
@@ -31,8 +35,8 @@ export function HeaderPrincipal({
           aria-label="Navegação principal"
           className="hidden md:flex md:items-center md:justify-self-center md:gap-6"
         >
-          {itens.map(({ href, label, prefixoAtivo }) => {
-            const ativo = pathname.startsWith(prefixoAtivo);
+          {itens.map(({ href, label, prefixoAtivo: prefixo }) => {
+            const ativo = prefixo === prefixoAtivo;
             return (
               <Link
                 key={href}

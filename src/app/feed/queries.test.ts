@@ -6,12 +6,14 @@ const {
   mockFindManyFoto,
   mockFindFirstDesafio,
   mockGerarUrlAssinada,
+  mockGerarUrlAssinadaPerfil,
 } = vi.hoisted(() => ({
   mockFindManyPost: vi.fn(),
   mockFindUniquePost: vi.fn(),
   mockFindManyFoto: vi.fn(),
   mockFindFirstDesafio: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
+  mockGerarUrlAssinadaPerfil: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -23,6 +25,9 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/storage/objetos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
+}));
+vi.mock("@/lib/storage/perfil", () => ({
+  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
 }));
 
 import {
@@ -54,6 +59,7 @@ beforeEach(() => {
   mockFindManyFoto.mockReset();
   mockFindFirstDesafio.mockReset();
   mockGerarUrlAssinada.mockReset();
+  mockGerarUrlAssinadaPerfil.mockReset();
 });
 
 describe("listarPosts", () => {
@@ -139,6 +145,90 @@ describe("listarPosts", () => {
     expect(resultado.posts[0].urlImagem).toBe("https://url-assinada.exemplo");
     expect(resultado.posts[1].urlImagem).toBeNull();
     expect(mockGerarUrlAssinada).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolve a foto do autor do comentário: usa a foto própria quando o Perfil tem fotoChave", async () => {
+    mockFindManyPost.mockResolvedValue([
+      {
+        ...buildPost("post-1"),
+        comentarios: [
+          {
+            id: "comentario-1",
+            autorId: "autor-2",
+            texto: "oi",
+            criadoEm: new Date(),
+            autor: {
+              id: "autor-2",
+              name: "Autor 2",
+              image: "https://google.exemplo/foto.jpg",
+              perfil: { fotoChave: "perfis-cliente/autor-2/foto.webp" },
+            },
+          },
+        ],
+      },
+    ]);
+    mockGerarUrlAssinadaPerfil.mockResolvedValue("https://url-assinada-propria.exemplo");
+
+    const resultado = await listarPosts("usuario-1");
+
+    expect(mockGerarUrlAssinadaPerfil).toHaveBeenCalledWith(
+      "perfis-cliente/autor-2/foto.webp",
+    );
+    expect(resultado.posts[0].comentarios[0].autor).toEqual({
+      id: "autor-2",
+      name: "Autor 2",
+      fotoUrl: "https://url-assinada-propria.exemplo",
+    });
+  });
+
+  it("resolve a foto do autor do comentário: cai pro image do Google quando não há foto própria", async () => {
+    mockFindManyPost.mockResolvedValue([
+      {
+        ...buildPost("post-1"),
+        comentarios: [
+          {
+            id: "comentario-1",
+            autorId: "autor-2",
+            texto: "oi",
+            criadoEm: new Date(),
+            autor: {
+              id: "autor-2",
+              name: "Autor 2",
+              image: "https://google.exemplo/foto.jpg",
+              perfil: null,
+            },
+          },
+        ],
+      },
+    ]);
+
+    const resultado = await listarPosts("usuario-1");
+
+    expect(mockGerarUrlAssinadaPerfil).not.toHaveBeenCalled();
+    expect(resultado.posts[0].comentarios[0].autor.fotoUrl).toBe(
+      "https://google.exemplo/foto.jpg",
+    );
+  });
+
+  it("resolve a foto do autor do comentário: null quando não há foto própria nem do Google", async () => {
+    mockFindManyPost.mockResolvedValue([
+      {
+        ...buildPost("post-1"),
+        comentarios: [
+          {
+            id: "comentario-1",
+            autorId: "autor-2",
+            texto: "oi",
+            criadoEm: new Date(),
+            autor: { id: "autor-2", name: "Autor 2", image: null, perfil: null },
+          },
+        ],
+      },
+    ]);
+
+    const resultado = await listarPosts("usuario-1");
+
+    expect(resultado.posts[0].comentarios[0].autor.fotoUrl).toBeNull();
   });
 });
 

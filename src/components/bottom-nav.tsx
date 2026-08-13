@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Papel } from "@/generated/prisma/client";
-import { itensNavegacaoPrincipal } from "@/lib/nav/itens-navegacao-principal";
+import {
+  itensNavegacaoPrincipal,
+  obterPrefixoAtivo,
+} from "@/lib/nav/itens-navegacao-principal";
 import { cn } from "@/lib/utils";
 
 export function BottomNav({ papeis }: { papeis: Papel[] }) {
   const pathname = usePathname();
   const itens = itensNavegacaoPrincipal(papeis);
+  const prefixoAtivo = obterPrefixoAtivo(itens, pathname);
 
   return (
     <nav
@@ -16,8 +20,8 @@ export function BottomNav({ papeis }: { papeis: Papel[] }) {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background md:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch">
-        {itens.map(({ href, label, Icone, prefixoAtivo }) => {
-          const ativo = pathname.startsWith(prefixoAtivo);
+        {itens.map(({ href, label, Icone, prefixoAtivo: prefixo }) => {
+          const ativo = prefixo === prefixoAtivo;
           return (
             <Link
               key={href}

@@ -7,6 +7,7 @@ import { BotaoApagarPost } from "./botao-apagar-post";
 import { BotaoCurtir } from "./botao-curtir";
 import { FormularioComentario } from "./formulario-comentario";
 import { BotaoApagarComentario } from "./botao-apagar-comentario";
+import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -145,15 +146,21 @@ export default async function FeedPage({
                               key={comentario.id}
                               className="flex items-start justify-between gap-2 rounded-lg bg-muted px-3 py-2"
                             >
-                              <p className="text-xs text-foreground">
-                                <Link
-                                  href={`/perfil/${comentario.autorId}`}
-                                  className="font-semibold hover:underline"
-                                >
-                                  {comentario.autor.name}
-                                </Link>{" "}
-                                {comentario.texto}
-                              </p>
+                              <div className="flex items-start gap-2">
+                                <AvatarPessoa
+                                  nome={comentario.autor.name}
+                                  fotoUrl={comentario.autor.fotoUrl}
+                                />
+                                <p className="text-xs text-foreground">
+                                  <Link
+                                    href={`/perfil/${comentario.autorId}`}
+                                    className="font-semibold hover:underline"
+                                  >
+                                    {comentario.autor.name}
+                                  </Link>{" "}
+                                  {comentario.texto}
+                                </p>
+                              </div>
                               {podeApagarComentario && (
                                 <BotaoApagarComentario comentarioId={comentario.id} />
                               )}

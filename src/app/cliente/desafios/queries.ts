@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
+import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
 
 function calcularSemanaAtual(dataInicio: Date, hoje: Date) {
   const diffDias = Math.floor(
@@ -23,23 +24,45 @@ async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: D
     },
     include: {
       item: { select: { pontos: true } },
-      cliente: { select: { id: true, name: true, email: true } },
+      cliente: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          perfil: { select: { fotoChave: true } },
+        },
+      },
     },
   });
 
-  const pontosPorCliente = new Map<string, { nome: string; pontos: number }>();
+  const pontosPorCliente = new Map<
+    string,
+    { nome: string; pontos: number; image: string | null; fotoChave: string | null }
+  >();
   for (const marcacao of marcacoes) {
     const atual = pontosPorCliente.get(marcacao.clienteId) ?? {
       nome: marcacao.cliente.name ?? marcacao.cliente.email,
       pontos: 0,
+      image: marcacao.cliente.image,
+      fotoChave: marcacao.cliente.perfil?.fotoChave ?? null,
     };
     atual.pontos += marcacao.item.pontos;
     pontosPorCliente.set(marcacao.clienteId, atual);
   }
 
-  return [...pontosPorCliente.entries()]
-    .map(([clienteId, dados]) => ({ clienteId, ...dados }))
-    .sort((a, b) => b.pontos - a.pontos);
+  const linhas = await Promise.all(
+    [...pontosPorCliente.entries()].map(async ([clienteId, dados]) => ({
+      clienteId,
+      nome: dados.nome,
+      pontos: dados.pontos,
+      fotoUrl: dados.fotoChave
+        ? await gerarUrlAssinadaPerfil(dados.fotoChave)
+        : (dados.image ?? null),
+    })),
+  );
+
+  return linhas.sort((a, b) => b.pontos - a.pontos);
 }
 
 export async function obterDesafioAtivoParaCliente() {

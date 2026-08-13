@@ -110,6 +110,37 @@ describe("DesafiosClientePage", () => {
     expect(screen.getByRole("button", { name: /continuar/i })).toBeInTheDocument();
   });
 
+  it("mostra a foto ou as iniciais de cada linha do ranking final", async () => {
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue(null);
+    vi.mocked(obterFluxoEncerramento).mockResolvedValue({
+      desafio: { id: "d1", titulo: "Glow Up" },
+      clienteId: "cliente-1",
+      avisoVisto: true,
+      reflexaoMudou: null,
+      reflexaoOrgulho: null,
+      reflexaoContinuar: null,
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+      rankingGeral: [
+        {
+          clienteId: "cliente-2",
+          nome: "Marina",
+          pontos: 100,
+          fotoUrl: "https://exemplo/marina.jpg",
+        },
+        { clienteId: "cliente-3", nome: "Bia", pontos: 90, fotoUrl: null },
+      ],
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(screen.getByAltText("Foto de perfil de Marina")).toHaveAttribute(
+      "src",
+      "https://exemplo/marina.jpg",
+    );
+    expect(screen.getByText("B")).toBeInTheDocument();
+  });
+
   it("não mostra o aviso quando já foi visto, mas mostra fotos e reflexão salvas", async () => {
     vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue(null);
     vi.mocked(obterFluxoEncerramento).mockResolvedValue({

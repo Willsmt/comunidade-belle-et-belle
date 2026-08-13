@@ -68,6 +68,18 @@ describe("HeaderPrincipal", () => {
     );
   });
 
+  it("marca só Desafios como ativo em /cliente/desafios, não Área da cliente também", () => {
+    vi.mocked(usePathname).mockReturnValue("/cliente/desafios");
+    render(<HeaderPrincipal papeis={["CLIENTE"]} />);
+
+    expect(screen.getByRole("link", { name: "Desafios" })).toHaveClass(
+      "text-primary",
+    );
+    expect(
+      screen.getByRole("link", { name: "Área da cliente" }),
+    ).not.toHaveClass("text-primary");
+  });
+
   it("mostra o ícone de perfil pra quem tem papel CLIENTE, linkando pro perfil público próprio", () => {
     vi.mocked(usePathname).mockReturnValue("/feed");
     render(<HeaderPrincipal papeis={["CLIENTE"]} userId="cliente-1" />);

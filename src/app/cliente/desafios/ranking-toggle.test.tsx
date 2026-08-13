@@ -4,12 +4,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { RankingToggle } from "./ranking-toggle";
 
 const rankingSemanal = [
-  { clienteId: "c1", nome: "Você", pontos: 8 },
-  { clienteId: "c2", nome: "Marina", pontos: 10 },
+  { clienteId: "c1", nome: "Você", pontos: 8, fotoUrl: null },
+  { clienteId: "c2", nome: "Marina", pontos: 10, fotoUrl: "https://exemplo/marina.jpg" },
 ];
 const rankingGeral = [
-  { clienteId: "c2", nome: "Marina", pontos: 100 },
-  { clienteId: "c1", nome: "Você", pontos: 90 },
+  { clienteId: "c2", nome: "Marina", pontos: 100, fotoUrl: null },
+  { clienteId: "c1", nome: "Você", pontos: 90, fotoUrl: null },
 ];
 
 describe("RankingToggle", () => {
@@ -38,5 +38,17 @@ describe("RankingToggle", () => {
     render(<RankingToggle rankingSemanal={[]} rankingGeral={[]} clienteId="c1" />);
 
     expect(screen.getByText(/ninguém pontuou ainda/i)).toBeInTheDocument();
+  });
+
+  it("mostra a foto de quem tem fotoUrl e as iniciais de quem não tem", () => {
+    render(
+      <RankingToggle rankingSemanal={rankingSemanal} rankingGeral={rankingGeral} clienteId="c1" />,
+    );
+
+    expect(screen.getByAltText("Foto de perfil de Marina")).toHaveAttribute(
+      "src",
+      "https://exemplo/marina.jpg",
+    );
+    expect(screen.getByText("V")).toBeInTheDocument();
   });
 });
