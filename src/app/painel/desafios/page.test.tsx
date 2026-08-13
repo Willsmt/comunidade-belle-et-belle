@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import DesafiosPage from "./page";
 import { listarDesafios } from "./queries";
+import { listarEmblemas } from "./emblemas/queries";
 import { criarDesafio, reabrirDesafio } from "./actions";
 
 vi.mock("./queries", () => ({
   listarDesafios: vi.fn(),
+}));
+
+vi.mock("./emblemas/queries", () => ({
+  listarEmblemas: vi.fn(),
 }));
 
 vi.mock("./actions", () => ({
@@ -16,6 +21,10 @@ vi.mock("./actions", () => ({
 }));
 
 describe("DesafiosPage", () => {
+  beforeEach(() => {
+    vi.mocked(listarEmblemas).mockResolvedValue([]);
+  });
+
   it("renderiza o formulário de criação e a mensagem de lista vazia", async () => {
     vi.mocked(listarDesafios).mockResolvedValue([]);
 
@@ -25,6 +34,17 @@ describe("DesafiosPage", () => {
       screen.getByRole("form", { name: /criar desafio/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/nenhum desafio criado ainda/i)).toBeInTheDocument();
+  });
+
+  it("lista o catálogo de emblemas nos seletores de ranking do formulário", async () => {
+    vi.mocked(listarDesafios).mockResolvedValue([]);
+    vi.mocked(listarEmblemas).mockResolvedValue([
+      { id: "e1", nome: "Disciplina" },
+    ] as never);
+
+    render(await DesafiosPage());
+
+    expect(screen.getAllByRole("option", { name: "Disciplina" })).toHaveLength(2);
   });
 
   it("mostra desafio ativo com botão de encerrar", async () => {

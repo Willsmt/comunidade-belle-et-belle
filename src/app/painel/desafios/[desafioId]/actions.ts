@@ -87,10 +87,16 @@ function parsePontosExtras(formData: FormData) {
   return pontos;
 }
 
+function parseEmblemaIdOpcional(formData: FormData) {
+  const valor = formData.get("emblemaId");
+  return typeof valor === "string" && valor.trim() !== "" ? valor : null;
+}
+
 export async function criarRegraLimiar(desafioId: string, formData: FormData) {
   await requererAcessoPainel();
 
   const pontosExtras = parsePontosExtras(formData);
+  const emblemaId = parseEmblemaIdOpcional(formData);
 
   const limiarRaw = formData.get("limiarItens");
   const limiarItens = typeof limiarRaw === "string" ? Number(limiarRaw) : NaN;
@@ -99,7 +105,7 @@ export async function criarRegraLimiar(desafioId: string, formData: FormData) {
   }
 
   await prisma.regraBonus.create({
-    data: { desafioId, tipo: "LIMIAR_DIARIO", pontosExtras, limiarItens },
+    data: { desafioId, tipo: "LIMIAR_DIARIO", pontosExtras, limiarItens, emblemaId },
   });
 
   revalidatePath(`/painel/desafios/${desafioId}`);
@@ -109,6 +115,7 @@ export async function criarRegraCombo(desafioId: string, formData: FormData) {
   await requererAcessoPainel();
 
   const pontosExtras = parsePontosExtras(formData);
+  const emblemaId = parseEmblemaIdOpcional(formData);
 
   const itensCombo = formData
     .getAll("itensCombo")
@@ -122,6 +129,7 @@ export async function criarRegraCombo(desafioId: string, formData: FormData) {
       desafioId,
       tipo: "COMBO",
       pontosExtras,
+      emblemaId,
       itensCombo: { connect: itensCombo.map((id) => ({ id })) },
     },
   });
@@ -133,6 +141,7 @@ export async function criarRegraCategoriaCompleta(desafioId: string, formData: F
   await requererAcessoPainel();
 
   const pontosExtras = parsePontosExtras(formData);
+  const emblemaId = parseEmblemaIdOpcional(formData);
 
   const categoriaId = formData.get("categoriaId");
   if (typeof categoriaId !== "string" || categoriaId === "") {
@@ -142,7 +151,7 @@ export async function criarRegraCategoriaCompleta(desafioId: string, formData: F
   await prisma.categoriaDesafio.findUniqueOrThrow({ where: { id: categoriaId } });
 
   await prisma.regraBonus.create({
-    data: { desafioId, tipo: "CATEGORIA_COMPLETA", pontosExtras, categoriaId },
+    data: { desafioId, tipo: "CATEGORIA_COMPLETA", pontosExtras, categoriaId, emblemaId },
   });
 
   revalidatePath(`/painel/desafios/${desafioId}`);

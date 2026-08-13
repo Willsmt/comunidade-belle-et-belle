@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { obterDesafioComCategorias } from "./queries";
+import { listarEmblemas } from "../emblemas/queries";
 import {
   removerCategoria,
   removerItem,
@@ -29,6 +31,8 @@ export default async function DesafioDetalhePage({
   if (!desafio) {
     notFound();
   }
+
+  const emblemas = await listarEmblemas();
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
@@ -157,7 +161,7 @@ export default async function DesafioDetalhePage({
       </h3>
       <Card className="mt-2">
         <CardContent>
-          <FormularioCriarRegraLimiar desafioId={desafioId} />
+          <FormularioCriarRegraLimiar desafioId={desafioId} emblemas={emblemas} />
         </CardContent>
       </Card>
 
@@ -167,6 +171,7 @@ export default async function DesafioDetalhePage({
           <FormularioCriarRegraCombo
             desafioId={desafioId}
             itens={desafio.categorias.flatMap((categoria) => categoria.itens)}
+            emblemas={emblemas}
           />
         </CardContent>
       </Card>
@@ -179,6 +184,7 @@ export default async function DesafioDetalhePage({
           <FormularioCriarRegraCategoriaCompleta
             desafioId={desafioId}
             categorias={desafio.categorias}
+            emblemas={emblemas}
           />
         </CardContent>
       </Card>
@@ -231,14 +237,26 @@ export default async function DesafioDetalhePage({
                       {surpresa.participacoes.map((participacao) => (
                         <li
                           key={participacao.id}
-                          className="flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2"
+                          className="flex flex-col gap-2 rounded-lg bg-muted px-3 py-2"
                         >
-                          <span className="text-sm text-foreground">
-                            {participacao.cliente.name ?? participacao.cliente.email}
-                          </span>
-                          {participacao.validado ? (
-                            <Badge variant="secondary">Aprovada</Badge>
-                          ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm text-foreground">
+                              {participacao.cliente.name ?? participacao.cliente.email}
+                            </span>
+                            {participacao.validado && <Badge variant="secondary">Aprovada</Badge>}
+                          </div>
+                          {participacao.fotoUrl && (
+                            <Image
+                              src={participacao.fotoUrl}
+                              alt="Comprovação enviada pela cliente"
+                              width={400}
+                              height={400}
+                              sizes="(min-width: 512px) 400px, 100vw"
+                              style={{ width: "100%", height: "auto" }}
+                              className="rounded-lg object-cover"
+                            />
+                          )}
+                          {!participacao.validado && (
                             <div className="flex items-center gap-2">
                               <BotaoAprovarParticipacao participacaoId={participacao.id} />
                               <BotaoComConfirmacao

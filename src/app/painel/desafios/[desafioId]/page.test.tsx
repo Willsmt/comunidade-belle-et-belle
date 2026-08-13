@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DesafioDetalhePage from "./page";
 import { obterDesafioComCategorias } from "./queries";
+import { listarEmblemas } from "../emblemas/queries";
 import { criarCategoria, aprovarParticipacao } from "./actions";
 
 vi.mock("./queries", () => ({
   obterDesafioComCategorias: vi.fn(),
+}));
+
+vi.mock("../emblemas/queries", () => ({
+  listarEmblemas: vi.fn(),
 }));
 
 vi.mock("./actions", () => ({
@@ -31,6 +36,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("DesafioDetalhePage", () => {
+  beforeEach(() => {
+    vi.mocked(listarEmblemas).mockResolvedValue([]);
+  });
+
   it("chama notFound quando o desafio não existe", async () => {
     vi.mocked(obterDesafioComCategorias).mockResolvedValue(null);
 
@@ -110,6 +119,24 @@ describe("DesafioDetalhePage", () => {
     expect(
       screen.getByRole("form", { name: /criar regra de categoria completa/i }),
     ).toBeInTheDocument();
+  });
+
+  it("lista o catálogo de emblemas no seletor de cada formulário de regra de bônus", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [],
+      regrasBonus: [],
+      desafiosSurpresa: [],
+    } as never);
+    vi.mocked(listarEmblemas).mockResolvedValue([
+      { id: "e1", nome: "Disciplina" },
+    ] as never);
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    expect(screen.getAllByRole("option", { name: "Disciplina" })).toHaveLength(3);
   });
 
   it("renderiza cada tipo de regra de bônus com a descrição certa", async () => {

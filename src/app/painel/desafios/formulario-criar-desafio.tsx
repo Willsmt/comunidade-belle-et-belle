@@ -5,7 +5,11 @@ import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function FormularioCriarDesafio() {
+export function FormularioCriarDesafio({
+  emblemas,
+}: {
+  emblemas: { id: string; nome: string }[];
+}) {
   const { isPending, erro, executar } = useAcaoComErro();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -46,6 +50,46 @@ export function FormularioCriarDesafio() {
       >
         Data de fim
         <Input id="dataFim" name="dataFim" type="date" required />
+      </label>
+
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="emblemaRankingSemanalId"
+      >
+        Emblema do ranking semanal (opcional)
+        <select
+          id="emblemaRankingSemanalId"
+          name="emblemaRankingSemanalId"
+          defaultValue=""
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <option value="">Nenhum</option>
+          {emblemas.map((emblema) => (
+            <option key={emblema.id} value={emblema.id}>
+              {emblema.nome}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label
+        className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+        htmlFor="emblemaRankingGeralId"
+      >
+        Emblema do ranking geral (opcional)
+        <select
+          id="emblemaRankingGeralId"
+          name="emblemaRankingGeralId"
+          defaultValue=""
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <option value="">Nenhum</option>
+          {emblemas.map((emblema) => (
+            <option key={emblema.id} value={emblema.id}>
+              {emblema.nome}
+            </option>
+          ))}
+        </select>
       </label>
 
       {erro && (

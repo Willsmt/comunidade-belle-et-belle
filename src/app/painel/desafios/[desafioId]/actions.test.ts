@@ -278,16 +278,42 @@ describe("criarRegraLimiar", () => {
     expect(mockRegraCreate).not.toHaveBeenCalled();
   });
 
-  it("cria a regra de limiar diário", async () => {
+  it("cria a regra de limiar diário sem emblema por padrão", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockRegraCreate.mockResolvedValue({});
 
     await criarRegraLimiar("d1", buildFormData({ pontosExtras: "10", limiarItens: "4" }));
 
     expect(mockRegraCreate).toHaveBeenCalledWith({
-      data: { desafioId: "d1", tipo: "LIMIAR_DIARIO", pontosExtras: 10, limiarItens: 4 },
+      data: {
+        desafioId: "d1",
+        tipo: "LIMIAR_DIARIO",
+        pontosExtras: 10,
+        limiarItens: 4,
+        emblemaId: null,
+      },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("cria a regra de limiar diário com o emblema selecionado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraLimiar(
+      "d1",
+      buildFormData({ pontosExtras: "10", limiarItens: "4", emblemaId: "e1" }),
+    );
+
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        tipo: "LIMIAR_DIARIO",
+        pontosExtras: 10,
+        limiarItens: 4,
+        emblemaId: "e1",
+      },
+    });
   });
 });
 
@@ -316,7 +342,7 @@ describe("criarRegraCombo", () => {
     expect(mockRegraCreate).not.toHaveBeenCalled();
   });
 
-  it("cria a regra de combo conectando os itens selecionados", async () => {
+  it("cria a regra de combo conectando os itens selecionados, sem emblema por padrão", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockRegraCreate.mockResolvedValue({});
 
@@ -327,10 +353,31 @@ describe("criarRegraCombo", () => {
         desafioId: "d1",
         tipo: "COMBO",
         pontosExtras: 10,
+        emblemaId: null,
         itensCombo: { connect: [{ id: "i1" }, { id: "i2" }] },
       },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("cria a regra de combo com o emblema selecionado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraCombo(
+      "d1",
+      buildFormData({ pontosExtras: "10", itensCombo: ["i1", "i2"], emblemaId: "e1" }),
+    );
+
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        tipo: "COMBO",
+        pontosExtras: 10,
+        emblemaId: "e1",
+        itensCombo: { connect: [{ id: "i1" }, { id: "i2" }] },
+      },
+    });
   });
 });
 
@@ -360,7 +407,7 @@ describe("criarRegraCategoriaCompleta", () => {
     expect(mockRegraCreate).not.toHaveBeenCalled();
   });
 
-  it("cria a regra de categoria completa", async () => {
+  it("cria a regra de categoria completa sem emblema por padrão", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockCategoriaFindUniqueOrThrow.mockResolvedValue({ id: "c1" });
     mockRegraCreate.mockResolvedValue({});
@@ -369,9 +416,36 @@ describe("criarRegraCategoriaCompleta", () => {
 
     expect(mockCategoriaFindUniqueOrThrow).toHaveBeenCalledWith({ where: { id: "c1" } });
     expect(mockRegraCreate).toHaveBeenCalledWith({
-      data: { desafioId: "d1", tipo: "CATEGORIA_COMPLETA", pontosExtras: 10, categoriaId: "c1" },
+      data: {
+        desafioId: "d1",
+        tipo: "CATEGORIA_COMPLETA",
+        pontosExtras: 10,
+        categoriaId: "c1",
+        emblemaId: null,
+      },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("cria a regra de categoria completa com o emblema selecionado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockCategoriaFindUniqueOrThrow.mockResolvedValue({ id: "c1" });
+    mockRegraCreate.mockResolvedValue({});
+
+    await criarRegraCategoriaCompleta(
+      "d1",
+      buildFormData({ pontosExtras: "10", categoriaId: "c1", emblemaId: "e1" }),
+    );
+
+    expect(mockRegraCreate).toHaveBeenCalledWith({
+      data: {
+        desafioId: "d1",
+        tipo: "CATEGORIA_COMPLETA",
+        pontosExtras: 10,
+        categoriaId: "c1",
+        emblemaId: "e1",
+      },
+    });
   });
 });
 

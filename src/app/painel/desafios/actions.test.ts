@@ -119,6 +119,8 @@ describe("criarDesafio", () => {
         dataInicio: new Date("2026-09-01"),
         dataFim: new Date("2026-09-30"),
         ativo: true,
+        emblemaRankingSemanalId: null,
+        emblemaRankingGeralId: null,
       },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios");
@@ -140,6 +142,36 @@ describe("criarDesafio", () => {
         dataInicio: new Date("2026-09-01"),
         dataFim: new Date("2026-09-30"),
         ativo: true,
+        emblemaRankingSemanalId: null,
+        emblemaRankingGeralId: null,
+      },
+    });
+  });
+
+  it("cria o desafio com os emblemas de ranking selecionados", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockFindFirst.mockResolvedValue(null);
+    mockCreate.mockResolvedValue({});
+
+    await criarDesafio(
+      buildFormData({
+        titulo: "Glow Up",
+        dataInicio: "2026-09-01",
+        dataFim: "2026-09-30",
+        emblemaRankingSemanalId: "e-semanal",
+        emblemaRankingGeralId: "e-geral",
+      }),
+    );
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: {
+        titulo: "Glow Up",
+        fraseMotivacional: null,
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        ativo: true,
+        emblemaRankingSemanalId: "e-semanal",
+        emblemaRankingGeralId: "e-geral",
       },
     });
   });

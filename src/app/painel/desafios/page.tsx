@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listarDesafios } from "./queries";
+import { listarEmblemas } from "./emblemas/queries";
 import { encerrarDesafio } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { FormularioCriarDesafio } from "./formulario-criar-desafio";
@@ -8,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function DesafiosPage() {
-  const desafios = await listarDesafios();
+  const [desafios, emblemas] = await Promise.all([listarDesafios(), listarEmblemas()]);
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
@@ -24,7 +25,7 @@ export default async function DesafiosPage() {
       <h2 className="mt-6 font-heading text-lg text-foreground">Nova edição</h2>
       <Card className="mt-2">
         <CardContent>
-          <FormularioCriarDesafio />
+          <FormularioCriarDesafio emblemas={emblemas} />
         </CardContent>
       </Card>
 

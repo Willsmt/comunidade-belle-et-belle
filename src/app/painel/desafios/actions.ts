@@ -8,6 +8,11 @@ import {
   verificarConquistasRankingSemanal,
 } from "@/lib/desafios/conquistas";
 
+function parseEmblemaIdOpcional(formData: FormData, campo: string) {
+  const valor = formData.get(campo);
+  return typeof valor === "string" && valor.trim() !== "" ? valor : null;
+}
+
 export async function criarDesafio(formData: FormData) {
   await requererAcessoPainel();
 
@@ -15,6 +20,8 @@ export async function criarDesafio(formData: FormData) {
   const fraseMotivacional = formData.get("fraseMotivacional");
   const dataInicio = formData.get("dataInicio");
   const dataFim = formData.get("dataFim");
+  const emblemaRankingSemanalId = parseEmblemaIdOpcional(formData, "emblemaRankingSemanalId");
+  const emblemaRankingGeralId = parseEmblemaIdOpcional(formData, "emblemaRankingGeralId");
 
   if (typeof titulo !== "string" || titulo.trim() === "") {
     throw new Error("Informe o título do desafio");
@@ -43,6 +50,8 @@ export async function criarDesafio(formData: FormData) {
       dataInicio: new Date(dataInicio),
       dataFim: new Date(dataFim),
       ativo: true,
+      emblemaRankingSemanalId,
+      emblemaRankingGeralId,
     },
   });
 

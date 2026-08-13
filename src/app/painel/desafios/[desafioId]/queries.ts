@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { gerarUrlAssinada } from "@/lib/storage/comprovantes-surpresa";
 
-export function obterDesafioComCategorias(desafioId: string) {
-  return prisma.desafio.findUnique({
+export async function obterDesafioComCategorias(desafioId: string) {
+  const desafio = await prisma.desafio.findUnique({
     where: { id: desafioId },
     include: {
       categorias: {
@@ -29,4 +30,24 @@ export function obterDesafioComCategorias(desafioId: string) {
       },
     },
   });
+
+  if (!desafio) {
+    return null;
+  }
+
+  const desafiosSurpresa = await Promise.all(
+    desafio.desafiosSurpresa.map(async (surpresa) => ({
+      ...surpresa,
+      participacoes: await Promise.all(
+        surpresa.participacoes.map(async (participacao) => ({
+          ...participacao,
+          fotoUrl: participacao.fotoChave
+            ? await gerarUrlAssinada(participacao.fotoChave)
+            : null,
+        })),
+      ),
+    })),
+  );
+
+  return { ...desafio, desafiosSurpresa };
 }
