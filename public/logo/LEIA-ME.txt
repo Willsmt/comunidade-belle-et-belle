@@ -1,0 +1,17 @@
+BELLE ET BELLE by Patrícia Almeida — LOGO OFICIAL (rosto line-art)
+
+ARQUIVOS (.svg vetor | /png imagem)
+  logo-horizontal ......... marca completa deitada (site, cabeçalhos)  <-- usada no site
+  logo-horizontal-escuro .. mesma, para fundos escuros
+  logo-vertical ........... marca empilhada (avatar grande, posts)
+  simbolo ................. só o rosto, lábios pink (perfil, selo)
+  simbolo-preto ........... rosto 100% preto
+  simbolo-escuro .......... rosto para fundo escuro
+  favicon ................. ícone do site (rosto em círculo pink)
+
+CORES: Pink #D81E78 · Preto #1A1518 · Off-white #FAF6F3 · Mauve #98707F
+FONTES: Marcellus (título) + Hanken Grotesk (apoio)
+
+JÁ APLICADO NO SITE:
+  <link rel="icon" href="assets/logo-final/favicon.svg">
+  nav: assets/logo-final/logo-horizontal.svg
