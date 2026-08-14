@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Em dev (WSL2), o otimizador embutido do next/image chama sharp() pra
+    // redimensionar essas fotos, e isso corrompe o estado nativo do libvips
+    // compartilhado com o sharp que /cliente/desafios/poster usa via next/og
+    // — ver src/instrumentation.ts. concurrency(1)/cache(false)/simd(false)
+    // não bastaram para eliminar a corrupção, então evitamos o gatilho
+    // desligando a otimização só em dev; produção continua otimizando.
+    unoptimized: process.env.NODE_ENV !== "production",
     remotePatterns: [
       {
         // getSignedUrl (src/lib/storage/objetos.ts) gera URL virtual-hosted-

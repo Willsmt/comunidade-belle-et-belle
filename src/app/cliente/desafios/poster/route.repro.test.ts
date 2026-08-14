@@ -140,4 +140,62 @@ describe("REPRO: GET real, sem mockar ImageResponse", () => {
       throw erro;
     }
   }, 30000);
+
+  it("degrada com 'Sem foto' (sem quebrar) quando a URL da foto não retorna uma imagem válida", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      dataInicio: new Date("2026-07-01"),
+      dataFim: new Date("2026-07-30"),
+      ativo: false,
+    });
+    mockJornadaFindUnique.mockResolvedValue({
+      fotoAntesChave: "jornada-desafio/cliente-1/antes.webp",
+      fotoDepoisChave: "jornada-desafio/cliente-1/depois.webp",
+      reflexaoMudou: "Tudo",
+      reflexaoOrgulho: "Disciplina",
+      reflexaoContinuar: "Água",
+    });
+    // Uma URL que resolve (200) mas não é uma imagem de verdade — o sharp
+    // deve falhar ao decodificar, e isso não pode derrubar a resposta.
+    mockGerarUrlAssinada.mockResolvedValue("https://example.com/nao-e-uma-imagem");
+    mockConquistaFindMany.mockResolvedValue([]);
+
+    const resposta = await GET();
+    console.log("status:", resposta.status);
+
+    const buffer = await resposta.arrayBuffer();
+    console.log("SUCESSO (fallback gracioso): bytes recebidos =", buffer.byteLength);
+    expect(resposta.status).toBe(200);
+  }, 30000);
+
+  it("degrada com 'Sem foto' (sem quebrar) quando a resposta é 200 mas não é uma imagem decodificável pelo sharp", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      dataInicio: new Date("2026-07-01"),
+      dataFim: new Date("2026-07-30"),
+      ativo: false,
+    });
+    mockJornadaFindUnique.mockResolvedValue({
+      fotoAntesChave: "jornada-desafio/cliente-1/antes.webp",
+      fotoDepoisChave: null,
+      reflexaoMudou: "Tudo",
+      reflexaoOrgulho: "Disciplina",
+      reflexaoContinuar: "Água",
+    });
+    // 200 de verdade, mas o corpo é uma página HTML, não uma imagem — o
+    // sharp deve rejeitar ao decodificar, e isso precisa ser capturado.
+    mockGerarUrlAssinada.mockResolvedValue("https://example.com/");
+    mockConquistaFindMany.mockResolvedValue([]);
+
+    const resposta = await GET();
+    console.log("status:", resposta.status);
+
+    const buffer = await resposta.arrayBuffer();
+    console.log("SUCESSO (falha do sharp tratada): bytes recebidos =", buffer.byteLength);
+    expect(resposta.status).toBe(200);
+  }, 30000);
 });

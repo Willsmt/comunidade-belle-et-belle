@@ -5,6 +5,38 @@ import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
 
 export const runtime = "nodejs";
 
+// O Satori (usado pelo next/og) não decodifica WebP, formato em que as
+// fotos da jornada sempre são gravadas no R2. Buscamos o arquivo e
+// convertemos para PNG só para esta renderização — nada é regravado no R2.
+//
+// O import de "sharp" é dinâmico de propósito: o próprio next/og importa
+// "sharp" assim (via um getSharp() interno) para não forçar o bundler a
+// empacotar esse addon nativo junto do route handler. Um `import` estático
+// aqui faz o Turbopack tratar esse mesmo pacote nativo de um jeito diferente
+// do next/og, e as duas instâncias divergentes de sharp corrompem o passo
+// final de rasterização do SVG (erro "Input buffer contains unsupported
+// image format" vindo de dentro do próprio next/og, não deste arquivo).
+async function carregarFotoComoPngDataUri(url: string | null): Promise<string | null> {
+  if (!url) return null;
+
+  try {
+    const resposta = await fetch(url);
+    if (!resposta.ok) {
+      console.error(
+        `Poster: falha ao buscar foto (status ${resposta.status}) em ${url}`,
+      );
+      return null;
+    }
+    const bufferOriginal = Buffer.from(await resposta.arrayBuffer());
+    const sharp = (await import("sharp")).default;
+    const bufferPng = await sharp(bufferOriginal).png().toBuffer();
+    return `data:image/png;base64,${bufferPng.toString("base64")}`;
+  } catch (erro) {
+    console.error("Poster: falha ao converter foto para PNG:", erro);
+    return null;
+  }
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -38,6 +70,11 @@ export async function GET() {
   const fotoDepoisUrl = jornada?.fotoDepoisChave
     ? await gerarUrlAssinada(jornada.fotoDepoisChave)
     : null;
+
+  const [fotoAntesPngUri, fotoDepoisPngUri] = await Promise.all([
+    carregarFotoComoPngDataUri(fotoAntesUrl),
+    carregarFotoComoPngDataUri(fotoDepoisUrl),
+  ]);
 
   return new ImageResponse(
     (
@@ -119,9 +156,9 @@ export async function GET() {
         >
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ fontSize: 18, color: "#B01561", marginBottom: 8 }}>Antes</div>
-            {fotoAntesUrl ? (
+            {fotoAntesPngUri ? (
               <img
-                src={fotoAntesUrl}
+                src={fotoAntesPngUri}
                 alt="Foto de antes"
                 width={220}
                 height={220}
@@ -147,9 +184,9 @@ export async function GET() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{ fontSize: 18, color: "#B01561", marginBottom: 8 }}>Depois</div>
-            {fotoDepoisUrl ? (
+            {fotoDepoisPngUri ? (
               <img
-                src={fotoDepoisUrl}
+                src={fotoDepoisPngUri}
                 alt="Foto de depois"
                 width={220}
                 height={220}
