@@ -80,7 +80,7 @@ describe("PerfilPublicoPage", () => {
       bio: null,
       emblemasPublicos: true,
       conquistas: [
-        { id: "c1", nome: "Campeã da Semana", icone: "🏆", descricao: "Venceu a semana" },
+        { id: "c1", nome: "Campeã da Semana", icone: "Trophy", descricao: "Venceu a semana" },
       ],
       ultimaMedida: null,
       fotos: [],
@@ -90,7 +90,7 @@ describe("PerfilPublicoPage", () => {
     render(await PerfilPublicoPage({ params: buildParams("cliente-4") }));
 
     expect(screen.getByText("Campeã da Semana")).toBeInTheDocument();
-    expect(screen.getByText("🏆")).toBeInTheDocument();
+    expect(screen.getByLabelText("Trophy")).toBeInTheDocument();
     expect(screen.getByText("Venceu a semana")).toBeInTheDocument();
     expect(screen.queryByText("Nenhum emblema ainda")).not.toBeInTheDocument();
   });

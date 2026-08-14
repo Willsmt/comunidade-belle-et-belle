@@ -61,7 +61,7 @@ describe("REPRO: GET real, sem mockar ImageResponse", () => {
     mockConquistaFindMany.mockResolvedValue([
       {
         id: "c1",
-        emblema: { id: "e1", nome: "Disciplina", icone: "🏆" },
+        emblema: { id: "e1", nome: "Disciplina", icone: "Trophy" },
       },
     ]);
 

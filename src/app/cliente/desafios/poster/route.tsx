@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
+import { renderToStaticMarkup } from "react-dom/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
+import { obterIconeEmblema } from "@/lib/emblemas/icones";
 
 export const runtime = "nodejs";
 
@@ -33,6 +35,31 @@ async function carregarFotoComoPngDataUri(url: string | null): Promise<string | 
     return `data:image/png;base64,${bufferPng.toString("base64")}`;
   } catch (erro) {
     console.error("Poster: falha ao converter foto para PNG:", erro);
+    return null;
+  }
+}
+
+// Mesma restrição do Satori que motiva a conversão de foto acima: ele não
+// executa um dispatcher de Hooks do React, então componentes de ícone do
+// lucide-react (que usam useContext internamente) quebram se renderizados
+// direto na árvore do ImageResponse. Renderizamos o ícone para SVG fora
+// dessa árvore (aqui, com o runtime real do React) e convertemos para PNG
+// com sharp, igual já fazemos com as fotos.
+async function carregarIconeEmblemaComoPngDataUri(
+  nomeIcone: string | null,
+): Promise<string | null> {
+  const IconeEmblema = obterIconeEmblema(nomeIcone);
+  if (!IconeEmblema) return null;
+
+  try {
+    const svgMarkup = renderToStaticMarkup(
+      <IconeEmblema size={48} color="#B01561" />,
+    );
+    const sharp = (await import("sharp")).default;
+    const bufferPng = await sharp(Buffer.from(svgMarkup)).png().toBuffer();
+    return `data:image/png;base64,${bufferPng.toString("base64")}`;
+  } catch (erro) {
+    console.error("Poster: falha ao converter ícone de emblema para PNG:", erro);
     return null;
   }
 }
@@ -71,9 +98,14 @@ export async function GET() {
     ? await gerarUrlAssinada(jornada.fotoDepoisChave)
     : null;
 
-  const [fotoAntesPngUri, fotoDepoisPngUri] = await Promise.all([
+  const [fotoAntesPngUri, fotoDepoisPngUri, iconesEmblemaPorConquista] = await Promise.all([
     carregarFotoComoPngDataUri(fotoAntesUrl),
     carregarFotoComoPngDataUri(fotoDepoisUrl),
+    Promise.all(
+      conquistas.map((conquista) =>
+        carregarIconeEmblemaComoPngDataUri(conquista.emblema.icone),
+      ),
+    ),
   ]);
 
   return new ImageResponse(
@@ -120,28 +152,36 @@ export async function GET() {
               marginTop: 24,
             }}
           >
-            {conquistas.map((conquista) => (
-              <div
-                key={conquista.id}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  backgroundColor: "#fff",
-                  padding: "10px 18px",
-                  borderRadius: 999,
-                  border: "2px solid #f8bbd0",
-                }}
-              >
-                {conquista.emblema.icone && (
-                  <span style={{ fontSize: 20 }}>{conquista.emblema.icone}</span>
-                )}
-                <span style={{ fontSize: 16, color: "#B01561", fontWeight: 700 }}>
-                  {conquista.emblema.nome}
-                </span>
-              </div>
-            ))}
+            {conquistas.map((conquista, indice) => {
+              const iconeUri = iconesEmblemaPorConquista[indice];
+              return (
+                <div
+                  key={conquista.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    backgroundColor: "#fff",
+                    padding: "10px 18px",
+                    borderRadius: 999,
+                    border: "2px solid #f8bbd0",
+                  }}
+                >
+                  {iconeUri && (
+                    <img
+                      src={iconeUri}
+                      width={20}
+                      height={20}
+                      style={{ objectFit: "contain" }}
+                    />
+                  )}
+                  <span style={{ fontSize: 16, color: "#B01561", fontWeight: 700 }}>
+                    {conquista.emblema.nome}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 

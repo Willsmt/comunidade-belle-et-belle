@@ -8,6 +8,7 @@ import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { obterIconeEmblema } from "@/lib/emblemas/icones";
 
 export default async function PerfilPublicoPage({
   params,
@@ -55,17 +56,22 @@ export default async function PerfilPublicoPage({
               <p className="text-sm text-muted-foreground">Nenhum emblema ainda</p>
             ) : (
               <ul className="flex flex-wrap gap-3">
-                {perfil.conquistas.map((conquista) => (
-                  <li key={conquista.id} className="flex flex-col items-start gap-1">
-                    <Badge variant="secondary" className="gap-1">
-                      {conquista.icone && <span>{conquista.icone}</span>}
-                      <span>{conquista.nome}</span>
-                    </Badge>
-                    {conquista.descricao && (
-                      <p className="text-xs text-muted-foreground">{conquista.descricao}</p>
-                    )}
-                  </li>
-                ))}
+                {perfil.conquistas.map((conquista) => {
+                  const IconeEmblema = obterIconeEmblema(conquista.icone);
+                  return (
+                    <li key={conquista.id} className="flex flex-col items-start gap-1">
+                      <Badge variant="secondary" className="gap-1">
+                        {IconeEmblema && (
+                          <IconeEmblema aria-label={conquista.icone ?? undefined} className="size-3.5" />
+                        )}
+                        <span>{conquista.nome}</span>
+                      </Badge>
+                      {conquista.descricao && (
+                        <p className="text-xs text-muted-foreground">{conquista.descricao}</p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )
           ) : (

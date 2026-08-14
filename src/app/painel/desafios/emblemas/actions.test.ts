@@ -15,6 +15,8 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
+import { DriverAdapterError } from "@prisma/driver-adapter-utils";
+import { Prisma } from "@/generated/prisma/client";
 import { criarEmblema, removerEmblema } from "./actions";
 
 function buildFormData(campos: Record<string, string>) {
@@ -67,16 +69,25 @@ describe("criarEmblema", () => {
     mockCreate.mockResolvedValue({});
 
     await criarEmblema(
-      buildFormData({ nome: "Campeã da Semana", icone: "🏆", descricao: "Venceu o ranking semanal" }),
+      buildFormData({ nome: "Campeã da Semana", icone: "Trophy", descricao: "Venceu o ranking semanal" }),
     );
 
     expect(mockCreate).toHaveBeenCalledWith({
       data: {
         nome: "Campeã da Semana",
         descricao: "Venceu o ranking semanal",
-        icone: "🏆",
+        icone: "Trophy",
       },
     });
+  });
+
+  it("rejeita ícone fora da allowlist", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarEmblema(buildFormData({ nome: "Campeã da Semana", icone: "🏆" })),
+    ).rejects.toThrow("Ícone inválido");
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -102,5 +113,58 @@ describe("removerEmblema", () => {
 
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: "e1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/emblemas");
+  });
+
+  it("traduz violação de FK (P2003, código mapeado) em mensagem amigável", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockDelete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Foreign key constraint violated", {
+        code: "P2003",
+        clientVersion: "test",
+      }),
+    );
+
+    await expect(removerEmblema("e1")).rejects.toThrow(
+      "Não é possível remover: esse emblema já foi concedido a alguém.",
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("traduz violação de RESTRICT via driver adapter (P2039 + SQLSTATE 23001) em mensagem amigável", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    const driverAdapterError = new DriverAdapterError({
+      kind: "postgres",
+      code: "23001",
+      severity: "ERROR",
+      message:
+        'update or delete on table "Emblema" violates RESTRICT setting of foreign key constraint "Conquista_emblemaId_fkey" on table "Conquista"',
+      detail: undefined,
+      column: undefined,
+      hint: undefined,
+    });
+    mockDelete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Database error. Code: `23001`. Message: `...`",
+        {
+          code: "P2039",
+          clientVersion: "test",
+          meta: { modelName: "Emblema", driverAdapterError },
+        },
+      ),
+    );
+
+    await expect(removerEmblema("e1")).rejects.toThrow(
+      "Não é possível remover: esse emblema já foi concedido a alguém.",
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("relança erro não relacionado a FK sem traduzir", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockDelete.mockRejectedValue(new Error("Falha de conexão com o banco"));
+
+    await expect(removerEmblema("e1")).rejects.toThrow(
+      "Falha de conexão com o banco",
+    );
   });
 });
