@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 import { ehNomeIconeEmblemaValido } from "@/lib/emblemas/icones";
 
+const NOME_MAXIMO_CARACTERES = 60;
+const DESCRICAO_MAXIMA_CARACTERES = 200;
+
 // Com driver adapters (@prisma/adapter-pg), nem todo SQLSTATE de violação de
 // FK vira o código conhecido P2003 — o adapter só mapeia 23503 (violação de
 // FK "solta") para esse código. RESTRICT (23001, o que a constraint
@@ -33,6 +36,14 @@ export async function criarEmblema(formData: FormData) {
   const icone = formData.get("icone");
   if (typeof nome !== "string" || nome.trim() === "") {
     throw new Error("Informe o nome do emblema");
+  }
+  if (nome.length > NOME_MAXIMO_CARACTERES) {
+    throw new Error(`Nome muito longo. Máximo: ${NOME_MAXIMO_CARACTERES} caracteres.`);
+  }
+  if (typeof descricao === "string" && descricao.length > DESCRICAO_MAXIMA_CARACTERES) {
+    throw new Error(
+      `Descrição muito longa. Máximo: ${DESCRICAO_MAXIMA_CARACTERES} caracteres.`,
+    );
   }
   if (typeof icone === "string" && icone.trim() !== "" && !ehNomeIconeEmblemaValido(icone)) {
     throw new Error("Ícone inválido");

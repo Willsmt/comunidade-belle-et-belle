@@ -52,6 +52,26 @@ describe("criarEmblema", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  it("rejeita nome acima de 60 caracteres", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarEmblema(buildFormData({ nome: "a".repeat(61) })),
+    ).rejects.toThrow("Nome muito longo");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita descrição acima de 200 caracteres", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+
+    await expect(
+      criarEmblema(
+        buildFormData({ nome: "Campeã da Semana", descricao: "a".repeat(201) }),
+      ),
+    ).rejects.toThrow("Descrição muito longa");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("cria o emblema com ícone e descrição nulos se não informados", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockCreate.mockResolvedValue({});

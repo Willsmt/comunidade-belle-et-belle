@@ -30,7 +30,7 @@ export function FormularioCriarEmblema() {
         htmlFor="nome"
       >
         Nome
-        <Input id="nome" name="nome" type="text" required />
+        <Input id="nome" name="nome" type="text" required maxLength={60} />
       </label>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-sm font-medium text-foreground">Ícone</legend>
@@ -69,7 +69,7 @@ export function FormularioCriarEmblema() {
         htmlFor="descricao"
       >
         Descrição
-        <Input id="descricao" name="descricao" type="text" />
+        <Input id="descricao" name="descricao" type="text" maxLength={200} />
       </label>
       {erro && (
         <p role="alert" className="text-sm text-destructive">
