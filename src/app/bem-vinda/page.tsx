@@ -56,10 +56,6 @@ export default function BemVindaPage() {
                   privacidade, entre em contato pelo e-mail
                   willmarthins@gmail.com.
                 </p>
-                <p className="mt-1">
-                  ⚠️ Pendente: CPF/CNPJ ou razão social — a preencher após
-                  revisão jurídica.
-                </p>
               </div>
 
               <div>
@@ -191,9 +187,7 @@ export default function BemVindaPage() {
                     Revogar este consentimento e solicitar a exclusão da
                     sua conta. Ao excluir a conta, seus dados pessoais e
                     arquivos são removidos permanentemente em até 30 dias
-                    após a solicitação. ⚠️ Pendente de revisão jurídica:
-                    se algum dado precisa ser retido por obrigação legal
-                    além desse prazo.
+                    após a solicitação.
                   </li>
                   <li>
                     Retirar sua participação dos desafios a qualquer
