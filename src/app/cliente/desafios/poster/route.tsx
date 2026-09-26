@@ -1,9 +1,10 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { ImageResponse } from "next/og";
-import { renderToStaticMarkup } from "react-dom/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
-import { obterIconeEmblema } from "@/lib/emblemas/icones";
+import { ehNomeIconeEmblemaValido } from "@/lib/emblemas/icones";
 
 export const runtime = "nodejs";
 
@@ -40,23 +41,33 @@ async function carregarFotoComoPngDataUri(url: string | null): Promise<string | 
 }
 
 // Mesma restrição do Satori que motiva a conversão de foto acima: ele não
-// executa um dispatcher de Hooks do React, então componentes de ícone do
-// lucide-react (que usam useContext internamente) quebram se renderizados
-// direto na árvore do ImageResponse. Renderizamos o ícone para SVG fora
-// dessa árvore (aqui, com o runtime real do React) e convertemos para PNG
-// com sharp, igual já fazemos com as fotos.
+// executa um dispatcher de Hooks do React, então o componente de ícone do
+// lucide-react (que é "use client" e usa useContext internamente) quebra se
+// renderizado direto na árvore do ImageResponse. Antes resolvíamos isso
+// pré-renderizando o componente para SVG com renderToStaticMarkup, mas
+// react-dom/server é bloqueado (sem exports) dentro de Route Handlers nesta
+// versão do Next — a condição "react-server" do bundler existe justamente
+// para impedir mistura de runtimes do React aqui. Em vez de renderizar o
+// componente, lemos o SVG estático do lucide-static (sem depender de React)
+// e só trocamos a cor do stroke.
+function paraKebabCase(nome: string): string {
+  return nome.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+}
+
 async function carregarIconeEmblemaComoPngDataUri(
   nomeIcone: string | null,
+  cor: string,
 ): Promise<string | null> {
-  const IconeEmblema = obterIconeEmblema(nomeIcone);
-  if (!IconeEmblema) return null;
+  if (!nomeIcone || !ehNomeIconeEmblemaValido(nomeIcone)) return null;
 
   try {
-    const svgMarkup = renderToStaticMarkup(
-      <IconeEmblema size={48} color="#B01561" />,
+    const caminhoSvg = fileURLToPath(
+      import.meta.resolve(`lucide-static/icons/${paraKebabCase(nomeIcone)}.svg`),
     );
+    const svgOriginal = readFileSync(caminhoSvg, "utf-8");
+    const svgColorido = svgOriginal.replaceAll("currentColor", cor);
     const sharp = (await import("sharp")).default;
-    const bufferPng = await sharp(Buffer.from(svgMarkup)).png().toBuffer();
+    const bufferPng = await sharp(Buffer.from(svgColorido)).png().toBuffer();
     return `data:image/png;base64,${bufferPng.toString("base64")}`;
   } catch (erro) {
     console.error("Poster: falha ao converter ícone de emblema para PNG:", erro);
@@ -103,7 +114,7 @@ export async function GET() {
     carregarFotoComoPngDataUri(fotoDepoisUrl),
     Promise.all(
       conquistas.map((conquista) =>
-        carregarIconeEmblemaComoPngDataUri(conquista.emblema.icone),
+        carregarIconeEmblemaComoPngDataUri(conquista.emblema.icone, "#B01561"),
       ),
     ),
   ]);
