@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererAcessoPainel,
@@ -85,7 +86,7 @@ describe("criarCategoria", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarCategoria("d1", buildFormData({ nome: "Pele", cor: "#f5c" })),
@@ -132,7 +133,7 @@ describe("removerCategoria", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(removerCategoria("c1")).rejects.toThrow("Acesso negado");
     expect(mockCategoriaDelete).not.toHaveBeenCalled();
@@ -158,7 +159,7 @@ describe("criarItem", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarItem("c1", buildFormData({ descricao: "Beber água", pontos: "5", frequencia: "DIARIO" })),
@@ -224,7 +225,7 @@ describe("removerItem", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(removerItem("i1")).rejects.toThrow("Acesso negado");
     expect(mockItemDelete).not.toHaveBeenCalled();
@@ -252,7 +253,7 @@ describe("criarRegraLimiar", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarRegraLimiar("d1", buildFormData({ pontosExtras: "10", limiarItens: "4" })),
@@ -325,7 +326,7 @@ describe("criarRegraCombo", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarRegraCombo("d1", buildFormData({ pontosExtras: "10", itensCombo: ["i1", "i2"] })),
@@ -390,7 +391,7 @@ describe("criarRegraCategoriaCompleta", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarRegraCategoriaCompleta("d1", buildFormData({ pontosExtras: "10", categoriaId: "c1" })),
@@ -457,7 +458,7 @@ describe("removerRegraBonus", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(removerRegraBonus("r1")).rejects.toThrow("Acesso negado");
     expect(mockRegraDelete).not.toHaveBeenCalled();
@@ -482,7 +483,7 @@ describe("criarDesafioSurpresa", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarDesafioSurpresa("d1", buildFormData({ titulo: "Corrida 5km", pontos: "50" })),
@@ -560,7 +561,7 @@ describe("removerDesafioSurpresa", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(removerDesafioSurpresa("s1")).rejects.toThrow("Acesso negado");
     expect(mockSurpresaDelete).not.toHaveBeenCalled();
@@ -585,7 +586,7 @@ describe("aprovarParticipacao", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(aprovarParticipacao("p1")).rejects.toThrow("Acesso negado");
     expect(mockParticipacaoUpdate).not.toHaveBeenCalled();
@@ -621,7 +622,7 @@ describe("rejeitarParticipacao", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(rejeitarParticipacao("p1")).rejects.toThrow("Acesso negado");
     expect(mockParticipacaoDelete).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 const {
   mockRequererAcesso,
   mockUpdate,
@@ -125,7 +126,7 @@ beforeEach(() => {
 });
 describe("suspenderMembro", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(suspenderMembro("u1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -163,7 +164,7 @@ describe("suspenderMembro", () => {
 });
 describe("reativarMembro", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(reativarMembro("u1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -178,7 +179,7 @@ describe("reativarMembro", () => {
 });
 describe("deletarMembro", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(deletarMembro("u1")).rejects.toThrow("Acesso negado");
     expect(mockDelete).not.toHaveBeenCalled();
   });
@@ -316,7 +317,7 @@ describe("deletarMembro", () => {
 });
 describe("promoverAParceria", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(promoverAParceria("u1")).rejects.toThrow("Acesso negado");
     expect(mockUpsert).not.toHaveBeenCalled();
   });
@@ -332,7 +333,7 @@ describe("promoverAParceria", () => {
 });
 describe("revogarParceria", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(revogarParceria("u1")).rejects.toThrow("Acesso negado");
     expect(mockTransaction).not.toHaveBeenCalled();
   });
@@ -352,7 +353,7 @@ describe("revogarParceria", () => {
 });
 describe("promoverAGestora", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(promoverAGestora("u1")).rejects.toThrow("Acesso negado");
     expect(mockUpsert).not.toHaveBeenCalled();
   });
@@ -380,7 +381,7 @@ describe("promoverAGestora", () => {
 });
 describe("revogarGestora", () => {
   it("nega sem acesso", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(revogarGestora("u1")).rejects.toThrow("Acesso negado");
     expect(mockDeleteMany).not.toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererSessao,
@@ -67,6 +68,13 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("next/navigation", () => ({
   redirect: mockRedirect,
+  // executarAction chama isso antes de qualquer outro tratamento; como o
+  // mock de redirect() acima simula o sinal lançando um Error comum (sem
+  // o "digest" real do Next), replicamos aqui o mesmo critério: só
+  // relança o que "parece" ser esse sinal, o resto segue o fluxo normal.
+  unstable_rethrow: (erro: unknown) => {
+    if (erro instanceof Error && erro.message === "NEXT_REDIRECT") throw erro;
+  },
 }));
 vi.mock("@/lib/storage/posts", () => ({
   uploadImagemPost: mockUploadImagemPost,
@@ -155,7 +163,7 @@ beforeEach(() => {
 
 describe("criarPost", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarPost(buildFormDataCriar({ texto: "oi" })),
@@ -259,7 +267,7 @@ describe("criarPost", () => {
 
 describe("editarPost", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       editarPost(buildFormDataEditar({ postId: "post-1", texto: "novo" })),
@@ -422,7 +430,7 @@ describe("editarPost", () => {
 
 describe("apagarPost", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(apagarPost(buildFormDataPostId("post-1"))).rejects.toThrow(
       "Acesso negado",
@@ -510,7 +518,7 @@ describe("apagarPost", () => {
 
 describe("alternarCurtida", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       alternarCurtida(buildFormDataPostId("post-1")),
@@ -546,7 +554,7 @@ describe("alternarCurtida", () => {
 
 describe("comentar", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       comentar(buildFormDataComentar("post-1", "oi")),
@@ -589,7 +597,7 @@ describe("comentar", () => {
 
 describe("apagarComentario", () => {
   it("exige sessão", async () => {
-    mockRequererSessao.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererSessao.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       apagarComentario(buildFormDataComentarioId("comentario-1")),

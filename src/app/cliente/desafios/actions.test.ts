@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererPapel,
@@ -93,7 +94,7 @@ describe("alternarMarcacao", () => {
   });
 
   it("exige papel CLIENTE", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(alternarMarcacao("i1")).rejects.toThrow("Acesso negado");
     expect(mockItemFindUniqueOrThrow).not.toHaveBeenCalled();
@@ -169,7 +170,7 @@ describe("participarDesafioSurpresa", () => {
   });
 
   it("exige papel CLIENTE", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao")),
@@ -261,7 +262,7 @@ describe("enviarFotoAntes", () => {
   });
 
   it("exige papel CLIENTE", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(enviarFotoAntes(buildFormDataComArquivo("foto"))).rejects.toThrow(
       "Acesso negado",
@@ -418,7 +419,7 @@ describe("marcarAvisoEncerramentoVisto", () => {
   });
 
   it("exige papel CLIENTE", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(marcarAvisoEncerramentoVisto()).rejects.toThrow("Acesso negado");
     expect(mockDesafioFindFirst).not.toHaveBeenCalled();
@@ -471,7 +472,7 @@ describe("salvarReflexao", () => {
   }
 
   it("exige papel CLIENTE", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(salvarReflexao(buildFormDataReflexao({}))).rejects.toThrow(
       "Acesso negado",

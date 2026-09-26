@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererPapel,
@@ -57,7 +58,7 @@ describe("atualizarPerfilParceria", () => {
   });
 
   it("exige o papel PARCERIA e não salva nada se o acesso for negado", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       atualizarPerfilParceria(buildFormData({ bio: "oi" })),

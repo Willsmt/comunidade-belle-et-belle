@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererAcessoPainel,
@@ -49,7 +50,7 @@ describe("criarDesafio", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarDesafio(
@@ -187,7 +188,7 @@ describe("encerrarDesafio", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(encerrarDesafio("d1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -218,7 +219,7 @@ describe("reabrirDesafio", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(reabrirDesafio("d1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();

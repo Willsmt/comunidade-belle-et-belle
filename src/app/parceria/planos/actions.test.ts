@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererPapel,
@@ -53,7 +54,7 @@ describe("enviarPlano", () => {
   });
 
   it("exige o papel PARCERIA", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       enviarPlano(
