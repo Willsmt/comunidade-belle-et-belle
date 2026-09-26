@@ -14,7 +14,7 @@ describe("FormularioNovoPost", () => {
   });
 
   it("chama criarPost com os dados do formulário ao publicar", async () => {
-    vi.mocked(criarPost).mockResolvedValue(undefined);
+    vi.mocked(criarPost).mockResolvedValue(undefined as never);
     render(<FormularioNovoPost fotosEvolucao={[]} />);
 
     fireEvent.change(screen.getByLabelText(/texto/i), {
