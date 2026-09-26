@@ -12,12 +12,13 @@ import { deletarFotoJornada } from "@/lib/storage/jornada-desafio";
 import { deletarComprovante } from "@/lib/storage/comprovantes-surpresa";
 import { deletarImagemPost } from "@/lib/storage/posts";
 import { deletarPlano } from "@/lib/storage/planos";
+import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 const PAPEIS_COM_ACESSO_AO_PAINEL: readonly Papel[] = ["ADMIN", "GESTORA"];
 
 function garantirEhAdmin(papeis: Papel[]) {
   if (!temAlgumPapel(papeis, ["ADMIN"])) {
-    throw new Error("Só uma conta ADMIN pode gerenciar o papel de Gestora.");
+    throw new AppError("Só uma conta ADMIN pode gerenciar o papel de Gestora.");
   }
 }
 
@@ -34,39 +35,43 @@ async function garantirNaoUltimoAdminOuGestoraAtivo(
   });
 
   if (outrosAtivos === 0) {
-    throw new Error(mensagemErro);
+    throw new AppError(mensagemErro);
   }
 }
 
 export async function suspenderMembro(userId: string) {
-  const session = await requererAcessoPainel();
+  return executarAction(async () => {
+    const session = await requererAcessoPainel();
 
-  if (session.user.id === userId) {
-    throw new Error("Você não pode suspender a própria conta.");
-  }
+    if (session.user.id === userId) {
+      throw new AppError("Você não pode suspender a própria conta.");
+    }
 
-  await garantirNaoUltimoAdminOuGestoraAtivo(
-    userId,
-    "Não é possível suspender: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
-  );
+    await garantirNaoUltimoAdminOuGestoraAtivo(
+      userId,
+      "Não é possível suspender: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { status: "SUSPENSO" },
+    await prisma.user.update({
+      where: { id: userId },
+      data: { status: "SUSPENSO" },
+    });
+
+    revalidatePath("/painel/membros");
   });
-
-  revalidatePath("/painel/membros");
 }
 
 export async function reativarMembro(userId: string) {
-  await requererAcessoPainel();
+  return executarAction(async () => {
+    await requererAcessoPainel();
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { status: "ATIVO" },
+    await prisma.user.update({
+      where: { id: userId },
+      data: { status: "ATIVO" },
+    });
+
+    revalidatePath("/painel/membros");
   });
-
-  revalidatePath("/painel/membros");
 }
 
 async function excluirArquivosDoUsuario(userId: string) {
@@ -120,78 +125,88 @@ async function excluirArquivosDoUsuario(userId: string) {
 }
 
 export async function deletarMembro(userId: string) {
-  const session = await requererAcessoPainel();
+  return executarAction(async () => {
+    const session = await requererAcessoPainel();
 
-  if (session.user.id === userId) {
-    throw new Error("Você não pode deletar a própria conta.");
-  }
+    if (session.user.id === userId) {
+      throw new AppError("Você não pode deletar a própria conta.");
+    }
 
-  await garantirNaoUltimoAdminOuGestoraAtivo(
-    userId,
-    "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
-  );
+    await garantirNaoUltimoAdminOuGestoraAtivo(
+      userId,
+      "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
 
-  await excluirArquivosDoUsuario(userId);
-  await prisma.user.delete({ where: { id: userId } });
+    await excluirArquivosDoUsuario(userId);
+    await prisma.user.delete({ where: { id: userId } });
 
-  revalidatePath("/painel/membros");
+    revalidatePath("/painel/membros");
+  });
 }
 
 export async function promoverAParceria(userId: string) {
-  await requererAcessoPainel();
+  return executarAction(async () => {
+    await requererAcessoPainel();
 
-  await prisma.usuarioPapel.upsert({
-    where: { userId_papel: { userId, papel: "PARCERIA" } },
-    create: { userId, papel: "PARCERIA" },
-    update: {},
+    await prisma.usuarioPapel.upsert({
+      where: { userId_papel: { userId, papel: "PARCERIA" } },
+      create: { userId, papel: "PARCERIA" },
+      update: {},
+    });
+
+    revalidatePath("/painel/membros");
   });
-
-  revalidatePath("/painel/membros");
 }
 
 export async function revogarParceria(userId: string) {
-  await requererAcessoPainel();
+  return executarAction(async () => {
+    await requererAcessoPainel();
 
-  await prisma.$transaction([
-    prisma.usuarioPapel.deleteMany({
-      where: { userId, papel: "PARCERIA" },
-    }),
-    prisma.vinculoParceria.updateMany({
-      where: { parceriaId: userId, ativo: true },
-      data: { ativo: false },
-    }),
-  ]);
+    await prisma.$transaction([
+      prisma.usuarioPapel.deleteMany({
+        where: { userId, papel: "PARCERIA" },
+      }),
+      prisma.vinculoParceria.updateMany({
+        where: { parceriaId: userId, ativo: true },
+        data: { ativo: false },
+      }),
+    ]);
 
-  revalidatePath("/painel/membros");
-  revalidatePath("/painel/vinculos");
-  revalidatePath("/cliente/parcerias");
+    revalidatePath("/painel/membros");
+    revalidatePath("/painel/vinculos");
+    revalidatePath("/cliente/parcerias");
+  });
 }
 
 export async function promoverAGestora(userId: string) {
-  const session = await requererAcessoPainel();
-  garantirEhAdmin(session.user.papeis);
+  return executarAction(async () => {
+    const session = await requererAcessoPainel();
+    garantirEhAdmin(session.user.papeis);
 
-  await prisma.usuarioPapel.upsert({
-    where: { userId_papel: { userId, papel: "GESTORA" } },
-    create: { userId, papel: "GESTORA" },
-    update: {},
+    await prisma.usuarioPapel.upsert({
+      where: { userId_papel: { userId, papel: "GESTORA" } },
+      create: { userId, papel: "GESTORA" },
+      update: {},
+    });
+
+    revalidatePath("/painel/membros");
   });
-
-  revalidatePath("/painel/membros");
 }
 
 export async function revogarGestora(userId: string) {
-  const session = await requererAcessoPainel();
-  garantirEhAdmin(session.user.papeis);
+  return executarAction(async () => {
+    const session = await requererAcessoPainel();
+    garantirEhAdmin(session.user.papeis);
 
-  await garantirNaoUltimoAdminOuGestoraAtivo(
-    userId,
-    "Não é possível revogar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
-  );
+    await garantirNaoUltimoAdminOuGestoraAtivo(
+      userId,
+      "Não é possível revogar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
+    );
 
-  await prisma.usuarioPapel.deleteMany({
-    where: { userId, papel: "GESTORA" },
+    await prisma.usuarioPapel.deleteMany({
+      where: { userId, papel: "GESTORA" },
+    });
+
+    revalidatePath("/painel/membros");
   });
-
-  revalidatePath("/painel/membros");
 }

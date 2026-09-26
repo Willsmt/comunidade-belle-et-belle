@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererAcesso,
@@ -43,7 +44,7 @@ describe("aprovarConta", () => {
   });
 
   it("nega e não atualiza nada se o acesso for negado", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(aprovarConta("user-1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockUpsert).not.toHaveBeenCalled();
@@ -94,7 +95,7 @@ describe("rejeitarConta", () => {
   });
 
   it("nega e não deleta nada se o acesso for negado", async () => {
-    mockRequererAcesso.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcesso.mockRejectedValue(new AppError("Acesso negado"));
     await expect(rejeitarConta("user-1")).rejects.toThrow("Acesso negado");
     expect(mockDelete).not.toHaveBeenCalled();
   });

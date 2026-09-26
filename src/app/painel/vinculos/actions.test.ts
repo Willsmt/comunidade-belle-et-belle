@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const { mockRequererAcessoPainel, mockUpsert, mockUpdate, mockRevalidatePath } =
   vi.hoisted(() => ({
@@ -34,7 +35,7 @@ describe("criarVinculo", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarVinculo(buildFormData({ clienteId: "c1", parceriaId: "p1" })),
@@ -88,7 +89,7 @@ describe("desativarVinculo", () => {
   });
 
   it("exige acesso ao painel", async () => {
-    mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(desativarVinculo("v1")).rejects.toThrow("Acesso negado");
     expect(mockUpdate).not.toHaveBeenCalled();

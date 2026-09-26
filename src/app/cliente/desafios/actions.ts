@@ -10,70 +10,75 @@ import {
   verificarConquistasBonus,
   verificarConquistasRankingSemanal,
 } from "@/lib/desafios/conquistas";
+import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 export async function alternarMarcacao(itemId: string) {
-  const session = await requererPapel(["CLIENTE"]);
-  const clienteId = session.user.id;
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    const clienteId = session.user.id;
 
-  const item = await prisma.itemDesafio.findUniqueOrThrow({
-    where: { id: itemId },
-    include: { categoria: true },
-  });
-
-  const hoje = obterDataDeHoje();
-
-  const existente = await prisma.marcacaoItem.findUnique({
-    where: { itemId_clienteId_data: { itemId, clienteId, data: hoje } },
-  });
-
-  if (existente) {
-    await prisma.marcacaoItem.delete({ where: { id: existente.id } });
-  } else {
-    await prisma.marcacaoItem.create({
-      data: { itemId, clienteId, data: hoje },
+    const item = await prisma.itemDesafio.findUniqueOrThrow({
+      where: { id: itemId },
+      include: { categoria: true },
     });
-    await verificarConquistasBonus(clienteId, item.categoria.desafioId, hoje);
-  }
 
-  await verificarConquistasRankingSemanal(item.categoria.desafioId, hoje);
+    const hoje = obterDataDeHoje();
 
-  revalidatePath("/cliente/desafios");
+    const existente = await prisma.marcacaoItem.findUnique({
+      where: { itemId_clienteId_data: { itemId, clienteId, data: hoje } },
+    });
+
+    if (existente) {
+      await prisma.marcacaoItem.delete({ where: { id: existente.id } });
+    } else {
+      await prisma.marcacaoItem.create({
+        data: { itemId, clienteId, data: hoje },
+      });
+      await verificarConquistasBonus(clienteId, item.categoria.desafioId, hoje);
+    }
+
+    await verificarConquistasRankingSemanal(item.categoria.desafioId, hoje);
+
+    revalidatePath("/cliente/desafios");
+  });
 }
 
 export async function participarDesafioSurpresa(
   desafioSurpresaId: string,
   formData: FormData,
 ) {
-  const session = await requererPapel(["CLIENTE"]);
-  const clienteId = session.user.id;
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    const clienteId = session.user.id;
 
-  const surpresa = await prisma.desafioSurpresa.findUniqueOrThrow({
-    where: { id: desafioSurpresaId },
-  });
+    const surpresa = await prisma.desafioSurpresa.findUniqueOrThrow({
+      where: { id: desafioSurpresaId },
+    });
 
-  const jaParticipou = await prisma.participacaoSurpresa.findUnique({
-    where: {
-      desafioSurpresaId_clienteId: { desafioSurpresaId, clienteId },
-    },
-  });
-  if (jaParticipou) {
-    throw new Error("Você já participou desse desafio surpresa");
-  }
-
-  let fotoChave: string | null = null;
-  if (surpresa.exigeComprovacao) {
-    const arquivo = formData.get("comprovacao");
-    if (!(arquivo instanceof File) || arquivo.size === 0) {
-      throw new Error("Envie a foto de comprovação");
+    const jaParticipou = await prisma.participacaoSurpresa.findUnique({
+      where: {
+        desafioSurpresaId_clienteId: { desafioSurpresaId, clienteId },
+      },
+    });
+    if (jaParticipou) {
+      throw new AppError("Você já participou desse desafio surpresa");
     }
-    fotoChave = await uploadComprovante(arquivo, clienteId);
-  }
 
-  await prisma.participacaoSurpresa.create({
-    data: { desafioSurpresaId, clienteId, fotoChave },
+    let fotoChave: string | null = null;
+    if (surpresa.exigeComprovacao) {
+      const arquivo = formData.get("comprovacao");
+      if (!(arquivo instanceof File) || arquivo.size === 0) {
+        throw new AppError("Envie a foto de comprovação");
+      }
+      fotoChave = await uploadComprovante(arquivo, clienteId);
+    }
+
+    await prisma.participacaoSurpresa.create({
+      data: { desafioSurpresaId, clienteId, fotoChave },
+    });
+
+    revalidatePath("/cliente/desafios");
   });
-
-  revalidatePath("/cliente/desafios");
 }
 
 async function obterDesafioRelevante() {
@@ -94,11 +99,11 @@ async function enviarFotoJornada(
 ) {
   const desafio = await obterDesafioRelevante();
   if (!desafio) {
-    throw new Error("Nenhum desafio disponível no momento");
+    throw new AppError("Nenhum desafio disponível no momento");
   }
 
   if (!(arquivo instanceof File) || arquivo.size === 0) {
-    throw new Error("Envie uma foto");
+    throw new AppError("Envie uma foto");
   }
 
   const existente = await prisma.jornadaDesafio.findUnique({
@@ -122,68 +127,76 @@ async function enviarFotoJornada(
 }
 
 export async function enviarFotoAntes(formData: FormData) {
-  const session = await requererPapel(["CLIENTE"]);
-  await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoAntesChave");
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoAntesChave");
+  });
 }
 
 export async function enviarFotoDepois(formData: FormData) {
-  const session = await requererPapel(["CLIENTE"]);
-  await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoDepoisChave");
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    await enviarFotoJornada(session.user.id, formData.get("foto"), "fotoDepoisChave");
+  });
 }
 
 export async function marcarAvisoEncerramentoVisto() {
-  const session = await requererPapel(["CLIENTE"]);
-  const clienteId = session.user.id;
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    const clienteId = session.user.id;
 
-  const desafio = await prisma.desafio.findFirst({
-    where: { ativo: false },
-    orderBy: { criadoEm: "desc" },
+    const desafio = await prisma.desafio.findFirst({
+      where: { ativo: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    if (!desafio) {
+      throw new AppError("Nenhum desafio encerrado encontrado");
+    }
+
+    await prisma.jornadaDesafio.upsert({
+      where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+      create: { desafioId: desafio.id, clienteId, avisoEncerramentoVisto: true },
+      update: { avisoEncerramentoVisto: true },
+    });
+
+    revalidatePath("/cliente/desafios");
   });
-  if (!desafio) {
-    throw new Error("Nenhum desafio encerrado encontrado");
-  }
-
-  await prisma.jornadaDesafio.upsert({
-    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
-    create: { desafioId: desafio.id, clienteId, avisoEncerramentoVisto: true },
-    update: { avisoEncerramentoVisto: true },
-  });
-
-  revalidatePath("/cliente/desafios");
 }
 
 export async function salvarReflexao(formData: FormData) {
-  const session = await requererPapel(["CLIENTE"]);
-  const clienteId = session.user.id;
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    const clienteId = session.user.id;
 
-  const desafio = await prisma.desafio.findFirst({
-    where: { ativo: false },
-    orderBy: { criadoEm: "desc" },
+    const desafio = await prisma.desafio.findFirst({
+      where: { ativo: false },
+      orderBy: { criadoEm: "desc" },
+    });
+    if (!desafio) {
+      throw new AppError("Nenhum desafio encerrado encontrado");
+    }
+
+    const parseTexto = (campo: string) => {
+      const valor = formData.get(campo);
+      return typeof valor === "string" && valor.trim() !== "" ? valor : null;
+    };
+
+    await prisma.jornadaDesafio.upsert({
+      where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+      create: {
+        desafioId: desafio.id,
+        clienteId,
+        reflexaoMudou: parseTexto("reflexaoMudou"),
+        reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
+        reflexaoContinuar: parseTexto("reflexaoContinuar"),
+      },
+      update: {
+        reflexaoMudou: parseTexto("reflexaoMudou"),
+        reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
+        reflexaoContinuar: parseTexto("reflexaoContinuar"),
+      },
+    });
+
+    revalidatePath("/cliente/desafios");
   });
-  if (!desafio) {
-    throw new Error("Nenhum desafio encerrado encontrado");
-  }
-
-  const parseTexto = (campo: string) => {
-    const valor = formData.get(campo);
-    return typeof valor === "string" && valor.trim() !== "" ? valor : null;
-  };
-
-  await prisma.jornadaDesafio.upsert({
-    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
-    create: {
-      desafioId: desafio.id,
-      clienteId,
-      reflexaoMudou: parseTexto("reflexaoMudou"),
-      reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
-      reflexaoContinuar: parseTexto("reflexaoContinuar"),
-    },
-    update: {
-      reflexaoMudou: parseTexto("reflexaoMudou"),
-      reflexaoOrgulho: parseTexto("reflexaoOrgulho"),
-      reflexaoContinuar: parseTexto("reflexaoContinuar"),
-    },
-  });
-
-  revalidatePath("/cliente/desafios");
 }

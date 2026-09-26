@@ -3,19 +3,22 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { VERSAO_TERMO_ATUAL } from "@/lib/consentimento/versao-termo";
+import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 export async function aceitarTermo() {
-  const session = await auth();
+  return executarAction(async () => {
+    const session = await auth();
 
-  if (!session?.user?.id) {
-    throw new Error("Sessão inválida");
-  }
+    if (!session?.user?.id) {
+      throw new AppError("Sessão inválida");
+    }
 
-  await prisma.consentimento.upsert({
-    where: { userId: session.user.id },
-    create: { userId: session.user.id, versaoTermo: VERSAO_TERMO_ATUAL },
-    update: { versaoTermo: VERSAO_TERMO_ATUAL, aceitoEm: new Date() },
+    await prisma.consentimento.upsert({
+      where: { userId: session.user.id },
+      create: { userId: session.user.id, versaoTermo: VERSAO_TERMO_ATUAL },
+      update: { versaoTermo: VERSAO_TERMO_ATUAL, aceitoEm: new Date() },
+    });
+
+    return { ok: true as const };
   });
-
-  return { ok: true as const };
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const { mockRequererPapel, mockCreate, mockRevalidatePath } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
@@ -32,7 +33,7 @@ describe("criarRegistroMedida", () => {
   });
 
   it("exige o papel CLIENTE e não cria nada se o acesso for negado", async () => {
-    mockRequererPapel.mockRejectedValue(new Error("Acesso negado"));
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
 
     await expect(
       criarRegistroMedida(buildFormData({ peso: "60" })),

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
+import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 const CAMPOS_MEDIDA = ["peso", "cintura", "quadril", "braco", "coxa"] as const;
 
@@ -23,23 +24,25 @@ function parseData(formData: FormData): Date | undefined {
 }
 
 export async function criarRegistroMedida(formData: FormData) {
-  const session = await requererPapel(["CLIENTE"]);
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
 
-  const medidas = Object.fromEntries(
-    CAMPOS_MEDIDA.map((campo) => [campo, parseNumero(formData, campo)]),
-  ) as Record<(typeof CAMPOS_MEDIDA)[number], number | undefined>;
+    const medidas = Object.fromEntries(
+      CAMPOS_MEDIDA.map((campo) => [campo, parseNumero(formData, campo)]),
+    ) as Record<(typeof CAMPOS_MEDIDA)[number], number | undefined>;
 
-  if (CAMPOS_MEDIDA.every((campo) => medidas[campo] === undefined)) {
-    throw new Error("Preencha ao menos uma medida");
-  }
+    if (CAMPOS_MEDIDA.every((campo) => medidas[campo] === undefined)) {
+      throw new AppError("Preencha ao menos uma medida");
+    }
 
-  await prisma.registroMedida.create({
-    data: {
-      clienteId: session.user.id,
-      data: parseData(formData),
-      ...medidas,
-    },
+    await prisma.registroMedida.create({
+      data: {
+        clienteId: session.user.id,
+        data: parseData(formData),
+        ...medidas,
+      },
+    });
+
+    revalidatePath("/cliente/medidas");
   });
-
-  revalidatePath("/cliente/medidas");
 }
