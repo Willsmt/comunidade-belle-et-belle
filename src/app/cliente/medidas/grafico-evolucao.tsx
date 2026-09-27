@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -28,7 +29,7 @@ export type PontoEvolucao = {
   tornozelo: number | null;
 };
 
-const LINHAS: Array<{
+export const LINHAS: Array<{
   dataKey: keyof Omit<PontoEvolucao, "data">;
   name: string;
   stroke: string;
@@ -49,7 +50,23 @@ const LINHAS: Array<{
   { dataKey: "tornozelo", name: "Tornozelo (cm)", stroke: "var(--chart-3)", strokeDasharray: "2 2" },
 ];
 
+export const OCULTAS_POR_PADRAO = new Set<string>([
+  "ombro",
+  "peitoBusto",
+  "cintura",
+  "braco",
+  "antebraco",
+  "punho",
+  "joelho",
+  "panturrilha",
+  "tornozelo",
+]);
+
 export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
+  const [ocultas, setOcultas] = useState<Set<string>>(
+    () => new Set(OCULTAS_POR_PADRAO),
+  );
+
   if (pontos.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -58,8 +75,23 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
     );
   }
 
+  function alternarLinha(dataKey: string) {
+    setOcultas((atual) => {
+      const proxima = new Set(atual);
+      if (proxima.has(dataKey)) {
+        proxima.delete(dataKey);
+      } else {
+        proxima.add(dataKey);
+      }
+      return proxima;
+    });
+  }
+
   return (
-    <div style={{ width: "100%", height: 320 }}>
+    <div
+      style={{ width: "100%", height: 320 }}
+      className="[&_.recharts-legend-item]:cursor-pointer"
+    >
       <ResponsiveContainer>
         <LineChart data={pontos}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -78,7 +110,14 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
               fontSize: 12,
             }}
           />
-          <Legend wrapperStyle={{ color: "var(--muted-foreground)", fontSize: 12 }} />
+          <Legend
+            wrapperStyle={{ color: "var(--muted-foreground)", fontSize: 12 }}
+            onClick={(entry) => {
+              if (typeof entry.dataKey === "string") {
+                alternarLinha(entry.dataKey);
+              }
+            }}
+          />
           {LINHAS.map((linha) => (
             <Line
               key={linha.dataKey}
@@ -87,6 +126,7 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
               name={linha.name}
               stroke={linha.stroke}
               strokeDasharray={linha.strokeDasharray}
+              hide={ocultas.has(linha.dataKey)}
               connectNulls
             />
           ))}
