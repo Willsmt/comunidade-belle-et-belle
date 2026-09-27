@@ -118,9 +118,9 @@ Aplicação Next.js (App Router) já existente — sem `backend/`/`frontend/` se
 
 **Purpose**: validação final cobrindo as três user stories juntas.
 
-- [ ] T023 [P] Rodar `npm run lint` e `npm run typecheck` no repositório e corrigir qualquer problema introduzido pela feature.
-- [ ] T024 Executar o roteiro de validação manual de `specs/003-medidas-parcerias/quickstart.md` do início ao fim e confirmar cada passo (inclui o gate de papel `CLIENTE`/`PARCERIA` e a checagem de vínculo ativo/inativo).
-- [ ] T025 [P] Revisar a mensagem de `AppError` de `obterMedidasDaCliente` ("Cliente não vinculada a você") quanto à clareza para uma usuária não-técnica, ajustando se necessário.
+- [X] T023 [P] Rodar `npm run lint` e `npm run typecheck` no repositório e corrigir qualquer problema introduzido pela feature.
+- [X] T024 Executar o roteiro de validação manual de `specs/003-medidas-parcerias/quickstart.md` do início ao fim e confirmar cada passo (inclui o gate de papel `CLIENTE`/`PARCERIA` e a checagem de vínculo ativo/inativo).
+- [X] T025 [P] Revisar a mensagem de `AppError` de `obterMedidasDaCliente` ("Cliente não vinculada a você") quanto à clareza para uma usuária não-técnica, ajustando se necessário.
 
 ---
 
