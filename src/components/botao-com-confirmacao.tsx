@@ -7,10 +7,12 @@ export function BotaoComConfirmacao({
   label,
   mensagemConfirmacao,
   action,
+  disabled,
 }: {
   label: string;
   mensagemConfirmacao: string;
   action: () => Promise<void>;
+  disabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function BotaoComConfirmacao({
         variant="outline"
         size="sm"
         onClick={handleClick}
-        disabled={isPending}
+        disabled={isPending || disabled}
       >
         {isPending ? "..." : label}
       </Button>

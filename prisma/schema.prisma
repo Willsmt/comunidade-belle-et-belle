@@ -4,9 +4,11 @@ generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
+
 datasource db {
   provider = "postgresql"
 }
+
 // ---------- enums ----------
 enum Papel {
   ADMIN
@@ -14,75 +16,88 @@ enum Papel {
   PARCERIA
   CLIENTE
 }
+
 enum StatusConta {
   PENDENTE
   ATIVO
   SUSPENSO
 }
+
 enum TipoPlano {
   TREINO
   DIETA
 }
+
 enum FrequenciaItem {
   DIARIO
   SEMANAL
 }
+
 enum TipoBonus {
   LIMIAR_DIARIO
   COMBO
   CATEGORIA_COMPLETA
 }
+
 enum TipoConquista {
   RANKING_SEMANAL
   RANKING_GERAL
   BONUS
 }
+
 // ---------- domínio (nosso) + base do Auth.js ----------
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String       @unique
-  emailVerified DateTime?
-  image         String?
-  status        StatusConta  @default(PENDENTE)
-  papeis        UsuarioPapel[]
-  consentimento Consentimento?
-  aprovadoPor   String?
-  aprovadoEm    DateTime?
-  accounts      Account[]
-  sessions      Session[]
-  criadoEm      DateTime     @default(now())
-  atualizadoEm  DateTime     @updatedAt
+  id                    String                 @id @default(cuid())
+  name                  String?
+  email                 String                 @unique
+  emailVerified         DateTime?
+  image                 String?
+  status                StatusConta            @default(PENDENTE)
+  papeis                UsuarioPapel[]
+  consentimento         Consentimento?
+  aprovadoPor           String?
+  aprovadoEm            DateTime?
+  accounts              Account[]
+  sessions              Session[]
+  criadoEm              DateTime               @default(now())
+  atualizadoEm          DateTime               @updatedAt
   // contexto Perfil
-  perfil               Perfil?
-  medidas              RegistroMedida[]
-  fotosEvolucao        FotoEvolucao[]
-  vinculosComoCliente  VinculoParceria[] @relation("VinculoCliente")
-  vinculosComoParceria VinculoParceria[] @relation("VinculoParceria")
-  planosRecebidos      PlanoRecebido[]   @relation("PlanosCliente")
-  planosEnviados       PlanoRecebido[]   @relation("PlanosParceria")
+  perfil                Perfil?
+  medidas               RegistroMedida[]
+  fotosEvolucao         FotoEvolucao[]
+  vinculosComoCliente   VinculoParceria[]      @relation("VinculoCliente")
+  vinculosComoParceria  VinculoParceria[]      @relation("VinculoParceria")
+  planosRecebidos       PlanoRecebido[]        @relation("PlanosCliente")
+  planosEnviados        PlanoRecebido[]        @relation("PlanosParceria")
   // contexto Parcerias
-  perfilParceria       PerfilParceria?
+  perfilParceria        PerfilParceria?
   // contexto Desafios
   marcacoes             MarcacaoItem[]
   participacoesSurpresa ParticipacaoSurpresa[]
   conquistas            Conquista[]
   jornadasDesafio       JornadaDesafio[]
   // contexto Feed
-  posts       Post[]
-  likes       Like[]
-  comentarios Comentario[]
+  posts                 Post[]
+  likes                 Like[]
+  comentarios           Comentario[]
+  // contexto Pacotes de Sessões
+  ciclosPacote          CicloPacote[]
+  sessoesPacoteMarcadas SessaoRealizada[]
+
   @@index([status])
 }
+
 model UsuarioPapel {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  papel     Papel
-  criadoEm  DateTime @default(now())
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  papel    Papel
+  criadoEm DateTime @default(now())
+
   @@unique([userId, papel])
   @@index([papel])
 }
+
 model Consentimento {
   id          String   @id @default(cuid())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -90,6 +105,7 @@ model Consentimento {
   versaoTermo String
   aceitoEm    DateTime @default(now())
 }
+
 // ---------- tabelas exigidas pelo Auth.js v5 (adapter Prisma) ----------
 model Account {
   id                String  @id @default(cuid())
@@ -104,24 +120,30 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
+
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
+
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
+
   @@unique([identifier, token])
 }
+
 // ---------- contexto: Perfil ----------
 model Perfil {
   id               String   @id @default(cuid())
@@ -135,6 +157,7 @@ model Perfil {
   criadoEm         DateTime @default(now())
   atualizadoEm     DateTime @updatedAt
 }
+
 model RegistroMedida {
   id        String   @id @default(cuid())
   cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -146,8 +169,10 @@ model RegistroMedida {
   braco     Decimal? @db.Decimal(5, 2)
   coxa      Decimal? @db.Decimal(5, 2)
   criadoEm  DateTime @default(now())
+
   @@index([clienteId, data])
 }
+
 model FotoEvolucao {
   id        String   @id @default(cuid())
   cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -157,8 +182,10 @@ model FotoEvolucao {
   publica   Boolean  @default(false)
   criadoEm  DateTime @default(now())
   posts     Post[]
+
   @@index([clienteId, data])
 }
+
 model VinculoParceria {
   id          String   @id @default(cuid())
   cliente     User     @relation("VinculoCliente", fields: [clienteId], references: [id], onDelete: Cascade)
@@ -168,10 +195,12 @@ model VinculoParceria {
   ativo       Boolean  @default(true)
   criadoPorId String
   criadoEm    DateTime @default(now())
+
   @@unique([clienteId, parceriaId])
   @@index([parceriaId, ativo])
   @@index([clienteId, ativo])
 }
+
 model PlanoRecebido {
   id           String    @id @default(cuid())
   cliente      User      @relation("PlanosCliente", fields: [clienteId], references: [id], onDelete: Cascade)
@@ -182,48 +211,56 @@ model PlanoRecebido {
   titulo       String?
   arquivoChave String
   enviadoEm    DateTime  @default(now())
+
   @@index([clienteId, enviadoEm])
 }
+
 // ---------- contexto: Desafios ----------
 model Desafio {
-  id                      String   @id @default(cuid())
+  id                      String             @id @default(cuid())
   titulo                  String
   fraseMotivacional       String?
-  dataInicio              DateTime @db.Date
-  dataFim                 DateTime @db.Date
-  ativo                   Boolean  @default(true)
+  dataInicio              DateTime           @db.Date
+  dataFim                 DateTime           @db.Date
+  ativo                   Boolean            @default(true)
   categorias              CategoriaDesafio[]
   regrasBonus             RegraBonus[]
   desafiosSurpresa        DesafioSurpresa[]
   conquistas              Conquista[]
   jornadas                JornadaDesafio[]
-  emblemaRankingSemanal   Emblema? @relation("EmblemaRankingSemanal", fields: [emblemaRankingSemanalId], references: [id])
+  emblemaRankingSemanal   Emblema?           @relation("EmblemaRankingSemanal", fields: [emblemaRankingSemanalId], references: [id])
   emblemaRankingSemanalId String?
-  emblemaRankingGeral     Emblema? @relation("EmblemaRankingGeral", fields: [emblemaRankingGeralId], references: [id])
+  emblemaRankingGeral     Emblema?           @relation("EmblemaRankingGeral", fields: [emblemaRankingGeralId], references: [id])
   emblemaRankingGeralId   String?
-  criadoEm                DateTime @default(now())
+  criadoEm                DateTime           @default(now())
+
   @@index([ativo])
 }
+
 model CategoriaDesafio {
-  id         String   @id @default(cuid())
-  desafio    Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
-  desafioId  String
-  nome       String
-  cor        String
-  itens      ItemDesafio[]
+  id        String        @id @default(cuid())
+  desafio   Desafio       @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  desafioId String
+  nome      String
+  cor       String
+  itens     ItemDesafio[]
+
   @@index([desafioId])
 }
+
 model ItemDesafio {
-  id           String           @id @default(cuid())
-  categoria    CategoriaDesafio @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
-  categoriaId  String
-  descricao    String
-  pontos       Int
-  frequencia   FrequenciaItem   @default(DIARIO)
-  marcacoes    MarcacaoItem[]
-  combos       RegraBonus[]     @relation("ComboItens")
+  id          String           @id @default(cuid())
+  categoria   CategoriaDesafio @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  categoriaId String
+  descricao   String
+  pontos      Int
+  frequencia  FrequenciaItem   @default(DIARIO)
+  marcacoes   MarcacaoItem[]
+  combos      RegraBonus[]     @relation("ComboItens")
+
   @@index([categoriaId])
 }
+
 model MarcacaoItem {
   id        String      @id @default(cuid())
   item      ItemDesafio @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -232,9 +269,11 @@ model MarcacaoItem {
   clienteId String
   data      DateTime    @db.Date
   criadoEm  DateTime    @default(now())
+
   @@unique([itemId, clienteId, data])
   @@index([clienteId, data])
 }
+
 model RegraBonus {
   id           String        @id @default(cuid())
   desafio      Desafio       @relation(fields: [desafioId], references: [id], onDelete: Cascade)
@@ -247,33 +286,39 @@ model RegraBonus {
   emblema      Emblema?      @relation(fields: [emblemaId], references: [id])
   emblemaId    String?
   criadoEm     DateTime      @default(now())
+
   @@index([desafioId])
 }
+
 model DesafioSurpresa {
-  id               String   @id @default(cuid())
-  desafio          Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
+  id               String                 @id @default(cuid())
+  desafio          Desafio                @relation(fields: [desafioId], references: [id], onDelete: Cascade)
   desafioId        String
   titulo           String
   descricao        String?
   pontos           Int
-  exigeComprovacao Boolean  @default(false)
-  criadoEm         DateTime @default(now())
+  exigeComprovacao Boolean                @default(false)
+  criadoEm         DateTime               @default(now())
   participacoes    ParticipacaoSurpresa[]
+
   @@index([desafioId])
 }
+
 model ParticipacaoSurpresa {
-  id                 String    @id @default(cuid())
-  desafioSurpresa    DesafioSurpresa @relation(fields: [desafioSurpresaId], references: [id], onDelete: Cascade)
-  desafioSurpresaId  String
-  cliente            User      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  clienteId          String
-  fotoChave          String?
-  validado           Boolean   @default(false)
-  validadoPor        String?
-  validadoEm         DateTime?
-  criadoEm           DateTime  @default(now())
+  id                String          @id @default(cuid())
+  desafioSurpresa   DesafioSurpresa @relation(fields: [desafioSurpresaId], references: [id], onDelete: Cascade)
+  desafioSurpresaId String
+  cliente           User            @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId         String
+  fotoChave         String?
+  validado          Boolean         @default(false)
+  validadoPor       String?
+  validadoEm        DateTime?
+  criadoEm          DateTime        @default(now())
+
   @@unique([desafioSurpresaId, clienteId])
 }
+
 model Emblema {
   id                     String       @id @default(cuid())
   nome                   String
@@ -285,6 +330,7 @@ model Emblema {
   desafiosRankingGeral   Desafio[]    @relation("EmblemaRankingGeral")
   criadoEm               DateTime     @default(now())
 }
+
 model Conquista {
   id         String        @id @default(cuid())
   cliente    User          @relation(fields: [clienteId], references: [id], onDelete: Cascade)
@@ -296,9 +342,11 @@ model Conquista {
   tipo       TipoConquista
   referencia String?
   criadoEm   DateTime      @default(now())
+
   @@index([clienteId])
   @@index([desafioId])
 }
+
 model JornadaDesafio {
   id                     String   @id @default(cuid())
   desafio                Desafio  @relation(fields: [desafioId], references: [id], onDelete: Cascade)
@@ -313,8 +361,10 @@ model JornadaDesafio {
   avisoEncerramentoVisto Boolean  @default(false)
   criadoEm               DateTime @default(now())
   atualizadoEm           DateTime @updatedAt
+
   @@unique([desafioId, clienteId])
 }
+
 // ---------- contexto: Feed ----------
 model Post {
   id             String        @id @default(cuid())
@@ -328,8 +378,10 @@ model Post {
   comentarios    Comentario[]
   criadoEm       DateTime      @default(now())
   atualizadoEm   DateTime      @updatedAt
+
   @@index([autorId, criadoEm])
 }
+
 model Like {
   id        String   @id @default(cuid())
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -337,9 +389,11 @@ model Like {
   usuario   User     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   usuarioId String
   criadoEm  DateTime @default(now())
+
   @@unique([postId, usuarioId])
   @@index([usuarioId])
 }
+
 model Comentario {
   id       String   @id @default(cuid())
   post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -348,6 +402,7 @@ model Comentario {
   autorId  String
   texto    String
   criadoEm DateTime @default(now())
+
   @@index([postId, criadoEm])
 }
 
@@ -360,4 +415,76 @@ model PerfilParceria {
   fotoChave     String?
   criadoEm      DateTime @default(now())
   atualizadoEm  DateTime @updatedAt
+}
+
+// ---------- contexto: Pacotes de Sessões ----------
+model TipoSessao {
+  id                String            @id @default(cuid())
+  nome              String            @unique
+  ativo             Boolean           @default(true)
+  itensTipoPacote   ItemTipoPacote[]
+  itensCicloPacote  ItemCicloPacote[]
+  sessoesRealizadas SessaoRealizada[]
+  criadoEm          DateTime          @default(now())
+}
+
+model TipoPacote {
+  id       String           @id @default(cuid())
+  nome     String
+  ativo    Boolean          @default(true)
+  itens    ItemTipoPacote[]
+  ciclos   CicloPacote[]
+  criadoEm DateTime         @default(now())
+}
+
+model ItemTipoPacote {
+  id           String     @id @default(cuid())
+  tipoPacote   TipoPacote @relation(fields: [tipoPacoteId], references: [id], onDelete: Cascade)
+  tipoPacoteId String
+  tipoSessao   TipoSessao @relation(fields: [tipoSessaoId], references: [id])
+  tipoSessaoId String
+  quantidade   Int
+
+  @@unique([tipoPacoteId, tipoSessaoId])
+}
+
+model CicloPacote {
+  id           String            @id @default(cuid())
+  cliente      User              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId    String
+  tipoPacote   TipoPacote        @relation(fields: [tipoPacoteId], references: [id])
+  tipoPacoteId String
+  nomePacote   String
+  itens        ItemCicloPacote[]
+  sessoes      SessaoRealizada[]
+  ativo        Boolean           @default(true)
+  criadoEm     DateTime          @default(now())
+  arquivadoEm  DateTime?
+
+  @@index([clienteId, ativo])
+}
+
+model ItemCicloPacote {
+  id                   String      @id @default(cuid())
+  cicloPacote          CicloPacote @relation(fields: [cicloPacoteId], references: [id], onDelete: Cascade)
+  cicloPacoteId        String
+  tipoSessao           TipoSessao  @relation(fields: [tipoSessaoId], references: [id])
+  tipoSessaoId         String
+  quantidadeContratada Int
+
+  @@unique([cicloPacoteId, tipoSessaoId])
+}
+
+model SessaoRealizada {
+  id            String      @id @default(cuid())
+  cicloPacote   CicloPacote @relation(fields: [cicloPacoteId], references: [id], onDelete: Cascade)
+  cicloPacoteId String
+  tipoSessao    TipoSessao  @relation(fields: [tipoSessaoId], references: [id])
+  tipoSessaoId  String
+  data          DateTime    @db.Date
+  marcadoPor    User        @relation(fields: [marcadoPorId], references: [id])
+  marcadoPorId  String
+  criadoEm      DateTime    @default(now())
+
+  @@index([cicloPacoteId, tipoSessaoId])
 }

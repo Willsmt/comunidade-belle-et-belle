@@ -15,6 +15,7 @@ import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { BotaoAcaoMembro } from "./botao-acao-membro";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 
 export default async function MembrosPage() {
   const [membros, totalAdminsGestorasAtivos, session] = await Promise.all([
@@ -41,6 +42,7 @@ export default async function MembrosPage() {
         {membros.map((membro) => {
           const eParceria = membro.papeis.some((p) => p.papel === "PARCERIA");
           const eGestora = membro.papeis.some((p) => p.papel === "GESTORA");
+          const eCliente = membro.papeis.some((p) => p.papel === "CLIENTE");
           const ehVoceMesma = membro.id === meuId;
           const ehAdminOuGestora = membro.papeis.some(
             (p) => p.papel === "ADMIN" || p.papel === "GESTORA",
@@ -65,6 +67,14 @@ export default async function MembrosPage() {
                     </Badge>
                   </div>
                   <div className="flex flex-wrap items-start gap-2">
+                    {eCliente && (
+                      <Link
+                        href={`/painel/membros/${membro.id}`}
+                        className={buttonVariants({ variant: "outline", size: "sm" })}
+                      >
+                        Pacote de sessões
+                      </Link>
+                    )}
                     {membro.status === "ATIVO" ? (
                       !escondeAcoesDeRisco && (
                         <BotaoComConfirmacao

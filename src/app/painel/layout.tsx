@@ -24,6 +24,7 @@ export default async function PainelLayout({
           { href: "/painel/membros", label: "Membros" },
           { href: "/painel/vinculos", label: "Vínculos" },
           { href: "/painel/desafios", label: "Desafios" },
+          { href: "/painel/pacotes", label: "Pacotes" },
         ]}
       />
       <main>{children}</main>
