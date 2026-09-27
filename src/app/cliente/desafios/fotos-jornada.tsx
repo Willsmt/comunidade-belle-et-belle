@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Camera } from "lucide-react";
 import { enviarFotoAntes, enviarFotoDepois } from "./actions";
+import { FotoComZoom } from "@/components/foto-com-zoom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
@@ -42,13 +43,15 @@ export function FotosJornada({
           <h3 className="text-xs font-medium text-muted-foreground">Antes</h3>
           {fotoAntesUrl ? (
             <div className="relative aspect-square w-full">
-              <Image
-                src={fotoAntesUrl}
-                alt="Foto de antes"
-                fill
-                sizes="(min-width: 512px) 220px, 50vw"
-                className="rounded-lg object-cover"
-              />
+              <FotoComZoom src={fotoAntesUrl} alt="Foto de antes" fill>
+                <Image
+                  src={fotoAntesUrl}
+                  alt="Foto de antes"
+                  fill
+                  sizes="(min-width: 512px) 220px, 50vw"
+                  className="rounded-lg object-cover"
+                />
+              </FotoComZoom>
             </div>
           ) : (
             <p className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted p-2 text-center text-xs text-muted-foreground">
@@ -77,13 +80,15 @@ export function FotosJornada({
           <h3 className="text-xs font-medium text-muted-foreground">Depois</h3>
           {fotoDepoisUrl ? (
             <div className="relative aspect-square w-full">
-              <Image
-                src={fotoDepoisUrl}
-                alt="Foto de depois"
-                fill
-                sizes="(min-width: 512px) 220px, 50vw"
-                className="rounded-lg object-cover"
-              />
+              <FotoComZoom src={fotoDepoisUrl} alt="Foto de depois" fill>
+                <Image
+                  src={fotoDepoisUrl}
+                  alt="Foto de depois"
+                  fill
+                  sizes="(min-width: 512px) 220px, 50vw"
+                  className="rounded-lg object-cover"
+                />
+              </FotoComZoom>
             </div>
           ) : (
             <p className="flex aspect-square w-full items-center justify-center rounded-lg bg-muted p-2 text-center text-xs text-muted-foreground">

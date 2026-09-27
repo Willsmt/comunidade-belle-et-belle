@@ -30,6 +30,24 @@ describe("FotosJornada", () => {
     expect(screen.getAllByRole("button", { name: /trocar foto/i })).toHaveLength(2);
   });
 
+  it("abre a foto em overlay ao clicar e fecha ao pressionar Esc", async () => {
+    render(
+      <FotosJornada fotoAntesUrl="https://exemplo/antes.webp" fotoDepoisUrl={null} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /ampliar foto: foto de antes/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByAltText("Foto de antes")).toHaveLength(2);
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.getAllByAltText("Foto de antes")).toHaveLength(1);
+    });
+  });
+
   it("mostra a mensagem de erro original quando o envio da foto de antes falha", async () => {
     vi.mocked(enviarFotoAntes).mockRejectedValue(
       new Error("Nenhum desafio disponível no momento"),

@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { auth } from "@/auth";
 import { obterPerfilPublico } from "./queries";
 import { AvatarPessoa } from "@/components/avatar-pessoa";
+import { FotoComZoom } from "@/components/foto-com-zoom";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -116,13 +117,15 @@ export default async function PerfilPublicoPage({
             <ul className="grid grid-cols-3 gap-2">
               {perfil.fotos.map((foto) => (
                 <li key={foto.id} className="relative aspect-square w-full">
-                  <Image
-                    src={foto.urlAssinada}
-                    alt="Foto de evolução"
-                    fill
-                    sizes="(min-width: 512px) 155px, 33vw"
-                    className="rounded-lg object-cover"
-                  />
+                  <FotoComZoom src={foto.urlAssinada} alt="Foto de evolução" fill>
+                    <Image
+                      src={foto.urlAssinada}
+                      alt="Foto de evolução"
+                      fill
+                      sizes="(min-width: 512px) 155px, 33vw"
+                      className="rounded-lg object-cover"
+                    />
+                  </FotoComZoom>
                 </li>
               ))}
             </ul>

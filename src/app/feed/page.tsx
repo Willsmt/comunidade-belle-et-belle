@@ -9,6 +9,7 @@ import { BotaoCurtir } from "./botao-curtir";
 import { FormularioComentario } from "./formulario-comentario";
 import { BotaoApagarComentario } from "./botao-apagar-comentario";
 import { AvatarPessoa } from "@/components/avatar-pessoa";
+import { FotoComZoom } from "@/components/foto-com-zoom";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,15 +111,17 @@ export default async function FeedPage({
 
                   <CardContent className="flex flex-col gap-3">
                     {post.urlImagem && (
-                      <Image
-                        src={post.urlImagem}
-                        alt="Imagem do post"
-                        width={1600}
-                        height={1600}
-                        sizes="(min-width: 512px) 512px, 100vw"
-                        style={{ width: "100%", height: "auto" }}
-                        className="rounded-lg object-cover"
-                      />
+                      <FotoComZoom src={post.urlImagem} alt="Imagem do post">
+                        <Image
+                          src={post.urlImagem}
+                          alt="Imagem do post"
+                          width={1600}
+                          height={1600}
+                          sizes="(min-width: 512px) 512px, 100vw"
+                          style={{ width: "100%", height: "auto" }}
+                          className="rounded-lg object-cover"
+                        />
+                      </FotoComZoom>
                     )}
                     {post.texto && (
                       <p className="text-sm text-foreground">{post.texto}</p>

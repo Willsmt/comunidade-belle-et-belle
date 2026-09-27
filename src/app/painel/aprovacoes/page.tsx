@@ -4,6 +4,7 @@ import { rejeitarConta, rejeitarMarcacaoItem } from "./actions";
 import { rejeitarParticipacao } from "../desafios/[desafioId]/actions";
 import { BotaoAprovarParticipacao } from "../desafios/[desafioId]/botao-aprovar-participacao";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
+import { FotoComZoom } from "@/components/foto-com-zoom";
 import { BotaoAprovarConta } from "./botao-aprovar-conta";
 import { BotaoAprovarMarcacaoItem } from "./botao-aprovar-marcacao-item";
 import { Card, CardContent } from "@/components/ui/card";
@@ -80,15 +81,20 @@ export default async function AprovacoesPage() {
                       {marcacao.item.categoria.desafio.titulo}
                     </p>
                     {marcacao.fotoUrl && (
-                      <Image
+                      <FotoComZoom
                         src={marcacao.fotoUrl}
                         alt="Comprovação enviada pela cliente"
-                        width={400}
-                        height={400}
-                        sizes="(min-width: 512px) 400px, 100vw"
-                        style={{ width: "100%", height: "auto" }}
-                        className="rounded-lg object-cover"
-                      />
+                      >
+                        <Image
+                          src={marcacao.fotoUrl}
+                          alt="Comprovação enviada pela cliente"
+                          width={400}
+                          height={400}
+                          sizes="(min-width: 512px) 400px, 100vw"
+                          style={{ width: "100%", height: "auto" }}
+                          className="rounded-lg object-cover"
+                        />
+                      </FotoComZoom>
                     )}
                     <div className="flex items-center gap-2">
                       <BotaoAprovarMarcacaoItem marcacaoId={marcacao.id} />
@@ -124,15 +130,20 @@ export default async function AprovacoesPage() {
                       </Badge>
                     </div>
                     {participacao.fotoUrl && (
-                      <Image
+                      <FotoComZoom
                         src={participacao.fotoUrl}
                         alt="Comprovação enviada pela cliente"
-                        width={400}
-                        height={400}
-                        sizes="(min-width: 512px) 400px, 100vw"
-                        style={{ width: "100%", height: "auto" }}
-                        className="rounded-lg object-cover"
-                      />
+                      >
+                        <Image
+                          src={participacao.fotoUrl}
+                          alt="Comprovação enviada pela cliente"
+                          width={400}
+                          height={400}
+                          sizes="(min-width: 512px) 400px, 100vw"
+                          style={{ width: "100%", height: "auto" }}
+                          className="rounded-lg object-cover"
+                        />
+                      </FotoComZoom>
                     )}
                     <div className="flex items-center gap-2">
                       <BotaoAprovarParticipacao participacaoId={participacao.id} />
