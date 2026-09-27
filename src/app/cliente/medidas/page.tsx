@@ -2,12 +2,26 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { listarMedidas } from "./queries";
+import { CAMPOS_MEDIDA } from "./campos";
 import { FormularioRegistro } from "./formulario-registro";
+import { CardMedida } from "./card-medida";
 import { GraficoEvolucao, type PontoEvolucao } from "./grafico-evolucao";
 import { Card, CardContent } from "@/components/ui/card";
 
 type Decimal = { toNumber(): number; toString(): string };
 type Medida = Awaited<ReturnType<typeof listarMedidas>>[number];
+
+const CAMPOS_SERIALIZAVEIS = [...CAMPOS_MEDIDA, "braco", "coxa"] as const;
+
+function serializarMedida(medida: Medida): Record<string, string> {
+  const valores: Record<string, string> = {
+    data: medida.data.toISOString().slice(0, 10),
+  };
+  for (const campo of CAMPOS_SERIALIZAVEIS) {
+    valores[campo] = medida[campo]?.toString() ?? "";
+  }
+  return valores;
+}
 
 export function valorMembro(
   direito: number | null,
@@ -23,28 +37,6 @@ export function valorMembro(
 
 function paraNumero(valor: Decimal | null): number | null {
   return valor?.toNumber() ?? null;
-}
-
-const MEDIDAS_TRONCO = [
-  { chave: "ombro" as const, rotulo: "Ombro" },
-  { chave: "peitoBusto" as const, rotulo: "Peito/busto" },
-  { chave: "cintura" as const, rotulo: "Cintura" },
-  { chave: "abdomen" as const, rotulo: "Abdômen" },
-  { chave: "quadril" as const, rotulo: "Quadril" },
-];
-
-const MEDIDAS_MEMBRO = [
-  { rotulo: "Braço", direito: "bracoDireito" as const, esquerdo: "bracoEsquerdo" as const },
-  { rotulo: "Antebraço", direito: "antebracoDireito" as const, esquerdo: "antebracoEsquerdo" as const },
-  { rotulo: "Punho", direito: "punhoDireito" as const, esquerdo: "punhoEsquerdo" as const },
-  { rotulo: "Coxa", direito: "coxaDireita" as const, esquerdo: "coxaEsquerda" as const },
-  { rotulo: "Joelho", direito: "joelhoDireito" as const, esquerdo: "joelhoEsquerdo" as const },
-  { rotulo: "Panturrilha", direito: "panturrilhaDireita" as const, esquerdo: "panturrilhaEsquerda" as const },
-  { rotulo: "Tornozelo", direito: "tornozeloDireito" as const, esquerdo: "tornozeloEsquerdo" as const },
-];
-
-function formatarValor(valor: Decimal | null): string {
-  return valor?.toString() ?? "—";
 }
 
 export default async function MedidasPage() {
@@ -110,38 +102,11 @@ export default async function MedidasPage() {
         <ul className="mt-2 flex flex-col gap-3">
           {medidas.map((medida: Medida) => (
             <li key={medida.id}>
-              <Card>
-                <CardContent className="flex flex-col gap-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    {medida.data.toLocaleDateString("pt-BR")}
-                  </span>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-3">
-                    <span>Peso: {formatarValor(medida.peso)} kg</span>
-                    <span>Altura: {formatarValor(medida.altura)} cm</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-3">
-                    {MEDIDAS_TRONCO.map((item) => (
-                      <span key={item.chave}>
-                        {item.rotulo}: {formatarValor(medida[item.chave])} cm
-                      </span>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-3">
-                    {MEDIDAS_MEMBRO.map((item) => (
-                      <span key={item.direito}>
-                        {item.rotulo} D/E: {formatarValor(medida[item.direito])} /{" "}
-                        {formatarValor(medida[item.esquerdo])} cm
-                      </span>
-                    ))}
-                    {(medida.braco || medida.coxa) && (
-                      <span>
-                        Braço/coxa (registro anterior): {formatarValor(medida.braco)} /{" "}
-                        {formatarValor(medida.coxa)} cm
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <CardMedida
+                id={medida.id}
+                dataFormatada={medida.data.toLocaleDateString("pt-BR")}
+                valores={serializarMedida(medida)}
+              />
             </li>
           ))}
         </ul>

@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@/lib/actions/executar-action";
 
-const { mockRequererPapel, mockCreate, mockRevalidatePath } = vi.hoisted(() => ({
+const {
+  mockRequererPapel,
+  mockCreate,
+  mockFindUnique,
+  mockUpdate,
+  mockDelete,
+  mockRevalidatePath,
+} = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockCreate: vi.fn(),
+  mockFindUnique: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockDelete: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -11,11 +21,18 @@ vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
   requererPapel: mockRequererPapel,
 }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { registroMedida: { create: mockCreate } },
+  prisma: {
+    registroMedida: {
+      create: mockCreate,
+      findUnique: mockFindUnique,
+      update: mockUpdate,
+      delete: mockDelete,
+    },
+  },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
-import { criarRegistroMedida } from "./actions";
+import { criarRegistroMedida, editarRegistroMedida, excluirRegistroMedida } from "./actions";
 
 function buildFormData(campos: Record<string, string>) {
   const formData = new FormData();
@@ -245,5 +262,121 @@ describe("criarRegistroMedida", () => {
       ).rejects.toThrow("Braço D deve estar entre 8 e 100");
       expect(mockCreate).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("editarRegistroMedida", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockFindUnique.mockReset();
+    mockUpdate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige o papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(
+      editarRegistroMedida("m1", buildFormData({ peso: "60" })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejeita quando o registro não existe", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue(null);
+
+    await expect(
+      editarRegistroMedida("m1", buildFormData({ peso: "60" })),
+    ).rejects.toThrow("Registro não encontrado");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita quando o registro é de outra cliente", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({ id: "m1", clienteId: "outra-cliente" });
+
+    await expect(
+      editarRegistroMedida("m1", buildFormData({ peso: "60" })),
+    ).rejects.toThrow("Registro não encontrado");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita valor fora da faixa, sem chamar update", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({ id: "m1", clienteId: "cliente-1" });
+
+    await expect(
+      editarRegistroMedida("m1", buildFormData({ peso: "10" })),
+    ).rejects.toThrow("Peso deve estar entre 20 e 300");
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("atualiza o registro da própria cliente com os novos valores", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({ id: "m1", clienteId: "cliente-1" });
+    mockUpdate.mockResolvedValue({});
+
+    await editarRegistroMedida(
+      "m1",
+      buildFormData({ data: "2026-02-01", peso: "70" }),
+    );
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "m1" },
+      data: {
+        data: new Date("2026-02-01"),
+        ...TODOS_OS_CAMPOS_UNDEFINED,
+        peso: 70,
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/medidas");
+  });
+});
+
+describe("excluirRegistroMedida", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockFindUnique.mockReset();
+    mockDelete.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige o papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(excluirRegistroMedida("m1")).rejects.toThrow("Acesso negado");
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it("rejeita quando o registro não existe", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue(null);
+
+    await expect(excluirRegistroMedida("m1")).rejects.toThrow(
+      "Registro não encontrado",
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it("rejeita quando o registro é de outra cliente", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({ id: "m1", clienteId: "outra-cliente" });
+
+    await expect(excluirRegistroMedida("m1")).rejects.toThrow(
+      "Registro não encontrado",
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it("exclui o registro da própria cliente", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({ id: "m1", clienteId: "cliente-1" });
+    mockDelete.mockResolvedValue({});
+
+    await excluirRegistroMedida("m1");
+
+    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "m1" } });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/medidas");
   });
 });

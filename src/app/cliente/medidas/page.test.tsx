@@ -26,6 +26,8 @@ vi.mock("./queries", () => ({
 
 vi.mock("./actions", () => ({
   criarRegistroMedida: vi.fn(),
+  editarRegistroMedida: vi.fn(),
+  excluirRegistroMedida: vi.fn(),
 }));
 
 vi.mock("./grafico-evolucao", () => ({

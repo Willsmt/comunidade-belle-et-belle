@@ -4,30 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
-
-const CAMPOS_MEDIDA = [
-  "peso",
-  "altura",
-  "ombro",
-  "peitoBusto",
-  "cintura",
-  "abdomen",
-  "quadril",
-  "bracoDireito",
-  "bracoEsquerdo",
-  "antebracoDireito",
-  "antebracoEsquerdo",
-  "punhoDireito",
-  "punhoEsquerdo",
-  "coxaDireita",
-  "coxaEsquerda",
-  "joelhoDireito",
-  "joelhoEsquerdo",
-  "panturrilhaDireita",
-  "panturrilhaEsquerda",
-  "tornozeloDireito",
-  "tornozeloEsquerdo",
-] as const;
+import { CAMPOS_MEDIDA } from "./campos";
 
 type Faixa = { min: number; max: number; rotulo: string };
 
@@ -57,6 +34,8 @@ const FAIXAS: Record<(typeof CAMPOS_MEDIDA)[number], Faixa> = {
   tornozeloEsquerdo: { min: 8, max: 100, rotulo: "Tornozelo E" },
 };
 
+type Medidas = Record<(typeof CAMPOS_MEDIDA)[number], number | undefined>;
+
 function parseNumero(formData: FormData, campo: string): number | undefined {
   const valor = formData.get(campo);
   if (typeof valor !== "string" || valor.trim() === "") {
@@ -73,26 +52,41 @@ function parseData(formData: FormData): Date | undefined {
   return new Date(valor);
 }
 
+function extrairMedidas(formData: FormData): Medidas {
+  return Object.fromEntries(
+    CAMPOS_MEDIDA.map((campo) => [campo, parseNumero(formData, campo)]),
+  ) as Medidas;
+}
+
+function validarMedidas(medidas: Medidas) {
+  if (CAMPOS_MEDIDA.every((campo) => medidas[campo] === undefined)) {
+    throw new AppError("Preencha ao menos uma medida");
+  }
+
+  for (const campo of CAMPOS_MEDIDA) {
+    const valor = medidas[campo];
+    if (valor === undefined) continue;
+    const { min, max, rotulo } = FAIXAS[campo];
+    if (valor < min || valor > max) {
+      throw new AppError(`${rotulo} deve estar entre ${min} e ${max}`);
+    }
+  }
+}
+
+async function obterRegistroDoCliente(id: string, clienteId: string) {
+  const registro = await prisma.registroMedida.findUnique({ where: { id } });
+  if (!registro || registro.clienteId !== clienteId) {
+    throw new AppError("Registro não encontrado");
+  }
+  return registro;
+}
+
 export async function criarRegistroMedida(formData: FormData) {
   return executarAction(async () => {
     const session = await requererPapel(["CLIENTE"]);
 
-    const medidas = Object.fromEntries(
-      CAMPOS_MEDIDA.map((campo) => [campo, parseNumero(formData, campo)]),
-    ) as Record<(typeof CAMPOS_MEDIDA)[number], number | undefined>;
-
-    if (CAMPOS_MEDIDA.every((campo) => medidas[campo] === undefined)) {
-      throw new AppError("Preencha ao menos uma medida");
-    }
-
-    for (const campo of CAMPOS_MEDIDA) {
-      const valor = medidas[campo];
-      if (valor === undefined) continue;
-      const { min, max, rotulo } = FAIXAS[campo];
-      if (valor < min || valor > max) {
-        throw new AppError(`${rotulo} deve estar entre ${min} e ${max}`);
-      }
-    }
+    const medidas = extrairMedidas(formData);
+    validarMedidas(medidas);
 
     await prisma.registroMedida.create({
       data: {
@@ -101,6 +95,37 @@ export async function criarRegistroMedida(formData: FormData) {
         ...medidas,
       },
     });
+
+    revalidatePath("/cliente/medidas");
+  });
+}
+
+export async function editarRegistroMedida(id: string, formData: FormData) {
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    await obterRegistroDoCliente(id, session.user.id);
+
+    const medidas = extrairMedidas(formData);
+    validarMedidas(medidas);
+
+    await prisma.registroMedida.update({
+      where: { id },
+      data: {
+        data: parseData(formData),
+        ...medidas,
+      },
+    });
+
+    revalidatePath("/cliente/medidas");
+  });
+}
+
+export async function excluirRegistroMedida(id: string) {
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    await obterRegistroDoCliente(id, session.user.id);
+
+    await prisma.registroMedida.delete({ where: { id } });
 
     revalidatePath("/cliente/medidas");
   });

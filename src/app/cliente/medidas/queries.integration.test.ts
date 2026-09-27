@@ -7,7 +7,7 @@ vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { listarMedidas } from "./queries";
-import { criarRegistroMedida } from "./actions";
+import { criarRegistroMedida, editarRegistroMedida, excluirRegistroMedida } from "./actions";
 
 function buildFormData(campos: Record<string, string>) {
   const formData = new FormData();
@@ -91,5 +91,80 @@ describe("listarMedidas (Postgres real)", () => {
     expect(registro.joelhoDireito?.toNumber()).toBe(40);
     expect(registro.joelhoEsquerdo).toBeNull();
     expect(registro.braco).toBeNull();
+  });
+
+  it("editarRegistroMedida atualiza um registro da própria cliente", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente-edicao@example.com", status: "ATIVO", name: "Cliente Edição" },
+    });
+    const registro = await prisma.registroMedida.create({
+      data: { clienteId: cliente.id, bracoEsquerdo: 99.98 },
+    });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+
+    await editarRegistroMedida(registro.id, buildFormData({ bracoEsquerdo: "100" }));
+
+    const [atualizado] = await listarMedidas();
+    expect(atualizado.id).toBe(registro.id);
+    expect(atualizado.bracoEsquerdo?.toNumber()).toBe(100);
+  });
+
+  it("editarRegistroMedida rejeita quando o registro é de outra cliente", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente-dona@example.com", status: "ATIVO", name: "Dona" },
+    });
+    const outraCliente = await prisma.user.create({
+      data: { email: "cliente-intrusa@example.com", status: "ATIVO", name: "Intrusa" },
+    });
+    const registro = await prisma.registroMedida.create({
+      data: { clienteId: cliente.id, peso: 60 },
+    });
+    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, papeis: ["CLIENTE"] } });
+
+    await expect(
+      editarRegistroMedida(registro.id, buildFormData({ peso: "70" })),
+    ).rejects.toThrow("Registro não encontrado");
+
+    const registroInalterado = await prisma.registroMedida.findUnique({
+      where: { id: registro.id },
+    });
+    expect(registroInalterado?.peso?.toNumber()).toBe(60);
+  });
+
+  it("excluirRegistroMedida remove um registro da própria cliente", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente-exclusao@example.com", status: "ATIVO", name: "Cliente Exclusão" },
+    });
+    const registro = await prisma.registroMedida.create({
+      data: { clienteId: cliente.id, peso: 60 },
+    });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+
+    await excluirRegistroMedida(registro.id);
+
+    const resultado = await listarMedidas();
+    expect(resultado).toHaveLength(0);
+  });
+
+  it("excluirRegistroMedida rejeita quando o registro é de outra cliente, sem apagar nada", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente-dona2@example.com", status: "ATIVO", name: "Dona 2" },
+    });
+    const outraCliente = await prisma.user.create({
+      data: { email: "cliente-intrusa2@example.com", status: "ATIVO", name: "Intrusa 2" },
+    });
+    const registro = await prisma.registroMedida.create({
+      data: { clienteId: cliente.id, peso: 60 },
+    });
+    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, papeis: ["CLIENTE"] } });
+
+    await expect(excluirRegistroMedida(registro.id)).rejects.toThrow(
+      "Registro não encontrado",
+    );
+
+    const aindaExiste = await prisma.registroMedida.findUnique({
+      where: { id: registro.id },
+    });
+    expect(aindaExiste).not.toBeNull();
   });
 });

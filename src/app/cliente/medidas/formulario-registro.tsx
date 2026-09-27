@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { criarRegistroMedida } from "./actions";
+import { criarRegistroMedida, editarRegistroMedida } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -11,11 +11,13 @@ function CampoMedida({
   label,
   min,
   max,
+  defaultValue,
 }: {
   id: string;
   label: string;
   min: number;
   max: number;
+  defaultValue?: string;
 }) {
   return (
     <label
@@ -30,6 +32,7 @@ function CampoMedida({
         name={id}
         min={min}
         max={max}
+        defaultValue={defaultValue}
         onWheel={(event) => event.currentTarget.blur()}
       />
     </label>
@@ -61,11 +64,24 @@ const MEDIDAS_MEMBRO = [
   { nome: "Tornozelo", direito: "tornozeloDireito", esquerdo: "tornozeloEsquerdo" },
 ];
 
-export function FormularioRegistro() {
+export function FormularioRegistro({
+  registroId,
+  valoresIniciais,
+  aoConcluir,
+}: {
+  registroId?: string;
+  valoresIniciais?: Record<string, string>;
+  aoConcluir?: () => void;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
+  const emEdicao = registroId !== undefined;
+
+  function valorInicial(campo: string): string | undefined {
+    return valoresIniciais?.[campo] || undefined;
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,9 +90,14 @@ export function FormularioRegistro() {
 
     startTransition(async () => {
       try {
-        await criarRegistroMedida(formData);
+        if (registroId) {
+          await editarRegistroMedida(registroId, formData);
+        } else {
+          await criarRegistroMedida(formData);
+        }
         formRef.current?.reset();
         router.refresh();
+        aoConcluir?.();
       } catch (erro) {
         setErro(
           erro instanceof Error
@@ -91,7 +112,7 @@ export function FormularioRegistro() {
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      aria-label="Novo registro de medidas"
+      aria-label={emEdicao ? "Editar registro de medidas" : "Novo registro de medidas"}
       className="flex flex-col gap-4"
     >
       <label
@@ -99,12 +120,27 @@ export function FormularioRegistro() {
         htmlFor="data"
       >
         Data
-        <Input id="data" type="date" name="data" />
+        <Input
+          id="data"
+          type="date"
+          name="data"
+          defaultValue={valorInicial("data")}
+        />
       </label>
 
       <div className="grid grid-cols-2 gap-4">
-        <CampoMedida id="peso" label="Peso (kg)" {...FAIXA_PESO} />
-        <CampoMedida id="altura" label="Altura (cm)" {...FAIXA_ALTURA} />
+        <CampoMedida
+          id="peso"
+          label="Peso (kg)"
+          defaultValue={valorInicial("peso")}
+          {...FAIXA_PESO}
+        />
+        <CampoMedida
+          id="altura"
+          label="Altura (cm)"
+          defaultValue={valorInicial("altura")}
+          {...FAIXA_ALTURA}
+        />
       </div>
 
       <h3 className="text-sm font-semibold text-foreground">Tronco</h3>
@@ -114,6 +150,7 @@ export function FormularioRegistro() {
             key={medida.id}
             id={medida.id}
             label={medida.label}
+            defaultValue={valorInicial(medida.id)}
             {...FAIXA_TRONCO}
           />
         ))}
@@ -126,20 +163,38 @@ export function FormularioRegistro() {
             <CampoMedida
               id={medida.direito}
               label={`${medida.nome} D (cm)`}
+              defaultValue={valorInicial(medida.direito)}
               {...FAIXA_MEMBRO}
             />
             <CampoMedida
               id={medida.esquerdo}
               label={`${medida.nome} E (cm)`}
+              defaultValue={valorInicial(medida.esquerdo)}
               {...FAIXA_MEMBRO}
             />
           </div>
         ))}
       </div>
 
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "Salvando..." : "Salvar registro"}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isPending}>
+          {isPending
+            ? "Salvando..."
+            : emEdicao
+              ? "Salvar alterações"
+              : "Salvar registro"}
+        </Button>
+        {emEdicao && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => aoConcluir?.()}
+          >
+            Cancelar
+          </Button>
+        )}
+      </div>
       {erro && (
         <p role="alert" className="text-sm text-destructive">
           {erro}
