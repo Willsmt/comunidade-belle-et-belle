@@ -21,6 +21,7 @@ export default async function ParceriaLayout({
         ariaLabel="Área da parceria"
         links={[
           { href: "/parceria/planos", label: "Meus planos" },
+          { href: "/parceria/medidas", label: "Medidas das clientes" },
           { href: "/parceria/perfil", label: "Meu perfil" },
         ]}
       />
