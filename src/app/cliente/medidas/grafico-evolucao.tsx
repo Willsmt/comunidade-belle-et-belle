@@ -111,7 +111,9 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
             }}
           />
           <Legend
-            wrapperStyle={{ color: "var(--muted-foreground)", fontSize: 12 }}
+            wrapperStyle={{ fontSize: 12 }}
+            labelStyle={{ color: "var(--foreground)" }}
+            inactiveColor="var(--muted-foreground)"
             onClick={(entry) => {
               if (typeof entry.dataKey === "string") {
                 alternarLinha(entry.dataKey);
