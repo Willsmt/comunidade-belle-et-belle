@@ -163,11 +163,38 @@ model RegistroMedida {
   cliente   User     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   clienteId String
   data      DateTime @default(now())
+
   peso      Decimal? @db.Decimal(5, 2)
-  cintura   Decimal? @db.Decimal(5, 2)
-  quadril   Decimal? @db.Decimal(5, 2)
+  altura    Decimal? @db.Decimal(5, 2)
+
+  // Tronco — um valor cada, sem lado
+  ombro       Decimal? @db.Decimal(5, 2)
+  peitoBusto  Decimal? @db.Decimal(5, 2)
+  cintura     Decimal? @db.Decimal(5, 2)
+  abdomen     Decimal? @db.Decimal(5, 2)
+  quadril     Decimal? @db.Decimal(5, 2)
+
+  // Membro — bilateral, lado direito/esquerdo separados
+  bracoDireito        Decimal? @db.Decimal(5, 2)
+  bracoEsquerdo       Decimal? @db.Decimal(5, 2)
+  antebracoDireito    Decimal? @db.Decimal(5, 2)
+  antebracoEsquerdo   Decimal? @db.Decimal(5, 2)
+  punhoDireito        Decimal? @db.Decimal(5, 2)
+  punhoEsquerdo       Decimal? @db.Decimal(5, 2)
+  coxaDireita         Decimal? @db.Decimal(5, 2)
+  coxaEsquerda        Decimal? @db.Decimal(5, 2)
+  joelhoDireito       Decimal? @db.Decimal(5, 2)
+  joelhoEsquerdo      Decimal? @db.Decimal(5, 2)
+  panturrilhaDireita  Decimal? @db.Decimal(5, 2)
+  panturrilhaEsquerda Decimal? @db.Decimal(5, 2)
+  tornozeloDireito    Decimal? @db.Decimal(5, 2)
+  tornozeloEsquerdo   Decimal? @db.Decimal(5, 2)
+
+  // Preservados, sem lado — só registros anteriores a esta feature continuam
+  // preenchendo estes dois
   braco     Decimal? @db.Decimal(5, 2)
   coxa      Decimal? @db.Decimal(5, 2)
+
   criadoEm  DateTime @default(now())
 
   @@index([clienteId, data])
