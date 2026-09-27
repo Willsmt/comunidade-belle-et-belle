@@ -28,7 +28,12 @@ para o schema, ver [data-model.md](data-model.md).
 4. Logar como a `CLIENTE`, ir em **Desafios**. Tentar marcar o item "Ida à
    academia" (exige foto): confirmar que o formulário pede uma foto e que
    tentar enviar sem anexar nada é bloqueado (US2, Acceptance Scenario 1).
-5. Enviar uma foto válida. Confirmar que o item aparece como "aguardando
+   Selecionar uma foto e confirmar que aparece uma miniatura de preview antes
+   do botão de confirmar; trocar a foto selecionada e confirmar que o preview
+   atualiza para a nova imagem — só depois disso o botão de confirmar fica
+   disponível (não há "desfazer" depois do envio, então essa é a checagem da
+   cliente antes de comprometer a foto).
+5. Confirmar o envio da foto (já com o preview correto). Confirmar que o item aparece como "aguardando
    aprovação" e que o ranking da cliente **não** inclui os pontos desse item
    (US2, Acceptance Scenario 2; FR-004).
 6. Tentar marcar esse mesmo item de novo no mesmo dia — confirmar bloqueio,

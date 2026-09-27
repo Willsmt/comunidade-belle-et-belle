@@ -153,8 +153,15 @@ src/app/cliente/desafios/
                                             #   Map<itemId, { validado }>;
                                             #   calcularRanking filtra
                                             #   MarcacaoItem por validado: true
-├── formulario-marcar-item-com-foto.tsx    # NOVO — mesmo padrão de
-                                            #   formulario-participar-surpresa.tsx
+├── formulario-marcar-item-com-foto.tsx    # NOVO — base em
+                                            #   formulario-participar-surpresa.tsx,
+                                            #   + preview local (URL.createObjectURL,
+                                            #   revogado em troca/unmount) antes de
+                                            #   confirmar — sem "desfazer" depois do
+                                            #   envio (FR-011), é a única checagem da
+                                            #   cliente antes de comprometer a foto
+├── formulario-marcar-item-com-foto.test.tsx # NOVO — cobre seleção → preview →
+                                            #   troca → preview atualizado → confirma
 ├── botao-marcar-item.tsx                  # sem mudança de contrato (só usado
                                             #   para itens sem exigeFoto)
 ├── page.tsx                               # escolhe BotaoMarcarItem ou
