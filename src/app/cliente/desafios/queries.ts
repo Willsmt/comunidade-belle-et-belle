@@ -34,6 +34,7 @@ async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: D
         item: { categoria: { desafioId } },
         ...(dataInicio && dataFim ? { data: { gte: dataInicio, lte: dataFim } } : {}),
       },
+      orderBy: { id: "asc" },
       include: {
         item: { select: { pontos: true } },
         cliente: { select: selecaoCliente },
@@ -183,7 +184,7 @@ export async function obterFluxoEncerramento() {
 
   const desafio = await prisma.desafio.findFirst({
     where: { ativo: false },
-    orderBy: { criadoEm: "desc" },
+    orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
   });
 
   if (!desafio) {
