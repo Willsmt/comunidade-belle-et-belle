@@ -8,12 +8,15 @@ const {
   mockCategoriaFindUniqueOrThrow,
   mockItemCreate,
   mockItemDelete,
+  mockItemFindUniqueOrThrow,
+  mockItemUpdate,
   mockRegraCreate,
   mockRegraDelete,
   mockSurpresaCreate,
   mockSurpresaDelete,
   mockParticipacaoUpdate,
   mockParticipacaoDelete,
+  mockDeletarComprovante,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererAcessoPainel: vi.fn(),
@@ -22,12 +25,15 @@ const {
   mockCategoriaFindUniqueOrThrow: vi.fn(),
   mockItemCreate: vi.fn(),
   mockItemDelete: vi.fn(),
+  mockItemFindUniqueOrThrow: vi.fn(),
+  mockItemUpdate: vi.fn(),
   mockRegraCreate: vi.fn(),
   mockRegraDelete: vi.fn(),
   mockSurpresaCreate: vi.fn(),
   mockSurpresaDelete: vi.fn(),
   mockParticipacaoUpdate: vi.fn(),
   mockParticipacaoDelete: vi.fn(),
+  mockDeletarComprovante: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -41,11 +47,19 @@ vi.mock("@/lib/prisma", () => ({
       delete: mockCategoriaDelete,
       findUniqueOrThrow: mockCategoriaFindUniqueOrThrow,
     },
-    itemDesafio: { create: mockItemCreate, delete: mockItemDelete },
+    itemDesafio: {
+      create: mockItemCreate,
+      delete: mockItemDelete,
+      findUniqueOrThrow: mockItemFindUniqueOrThrow,
+      update: mockItemUpdate,
+    },
     regraBonus: { create: mockRegraCreate, delete: mockRegraDelete },
     desafioSurpresa: { create: mockSurpresaCreate, delete: mockSurpresaDelete },
     participacaoSurpresa: { update: mockParticipacaoUpdate, delete: mockParticipacaoDelete },
   },
+}));
+vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
+  deletarComprovante: mockDeletarComprovante,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
@@ -54,6 +68,7 @@ import {
   removerCategoria,
   criarItem,
   removerItem,
+  alternarExigeFoto,
   criarRegraLimiar,
   criarRegraCombo,
   criarRegraCategoriaCompleta,
@@ -203,7 +218,7 @@ describe("criarItem", () => {
     expect(mockItemCreate).not.toHaveBeenCalled();
   });
 
-  it("cria o item vinculado à categoria", async () => {
+  it("cria o item vinculado à categoria, sem exigir foto por padrão", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockCategoriaFindUniqueOrThrow.mockResolvedValue({ id: "c1", desafioId: "d1" });
     mockItemCreate.mockResolvedValue({});
@@ -211,9 +226,41 @@ describe("criarItem", () => {
     await criarItem("c1", buildFormData({ descricao: "Beber água", pontos: "5", frequencia: "DIARIO" }));
 
     expect(mockItemCreate).toHaveBeenCalledWith({
-      data: { categoriaId: "c1", descricao: "Beber água", pontos: 5, frequencia: "DIARIO" },
+      data: {
+        categoriaId: "c1",
+        descricao: "Beber água",
+        pontos: 5,
+        frequencia: "DIARIO",
+        exigeFoto: false,
+      },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("cria o item exigindo foto quando o checkbox vem marcado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockCategoriaFindUniqueOrThrow.mockResolvedValue({ id: "c1", desafioId: "d1" });
+    mockItemCreate.mockResolvedValue({});
+
+    await criarItem(
+      "c1",
+      buildFormData({
+        descricao: "Ida à academia",
+        pontos: "5",
+        frequencia: "DIARIO",
+        exigeFoto: "on",
+      }),
+    );
+
+    expect(mockItemCreate).toHaveBeenCalledWith({
+      data: {
+        categoriaId: "c1",
+        descricao: "Ida à academia",
+        pontos: 5,
+        frequencia: "DIARIO",
+        exigeFoto: true,
+      },
+    });
   });
 });
 
@@ -242,6 +289,65 @@ describe("removerItem", () => {
       include: { categoria: true },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+});
+
+describe("alternarExigeFoto", () => {
+  beforeEach(() => {
+    mockRequererAcessoPainel.mockReset();
+    mockItemFindUniqueOrThrow.mockReset();
+    mockItemUpdate.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(alternarExigeFoto("i1")).rejects.toThrow("Acesso negado");
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita item inexistente", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockItemFindUniqueOrThrow.mockRejectedValue(new Error("registro não encontrado"));
+
+    await expect(alternarExigeFoto("inexistente")).rejects.toThrow();
+    expect(mockItemUpdate).not.toHaveBeenCalled();
+  });
+
+  it("inverte exigeFoto de false para true", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: false,
+      categoria: { desafioId: "d1" },
+    });
+    mockItemUpdate.mockResolvedValue({});
+
+    await alternarExigeFoto("i1");
+
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: "i1" },
+      data: { exigeFoto: true },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+  });
+
+  it("inverte exigeFoto de true para false", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+    mockItemUpdate.mockResolvedValue({});
+
+    await alternarExigeFoto("i1");
+
+    expect(mockItemUpdate).toHaveBeenCalledWith({
+      where: { id: "i1" },
+      data: { exigeFoto: false },
+    });
   });
 });
 
@@ -582,6 +688,7 @@ describe("aprovarParticipacao", () => {
   beforeEach(() => {
     mockRequererAcessoPainel.mockReset();
     mockParticipacaoUpdate.mockReset();
+    mockDeletarComprovante.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -592,10 +699,11 @@ describe("aprovarParticipacao", () => {
     expect(mockParticipacaoUpdate).not.toHaveBeenCalled();
   });
 
-  it("marca a participação como validada com quem aprovou e quando", async () => {
+  it("marca a participação como validada com quem aprovou e quando, e revalida as duas rotas", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockParticipacaoUpdate.mockResolvedValue({
       id: "p1",
+      fotoChave: null,
       desafioSurpresa: { desafioId: "d1" },
     });
 
@@ -610,7 +718,24 @@ describe("aprovarParticipacao", () => {
       },
       include: { desafioSurpresa: true },
     });
+    expect(mockDeletarComprovante).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
+  });
+
+  it("apaga a foto do R2 quando a participação tinha comprovação", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoUpdate.mockResolvedValue({
+      id: "p1",
+      fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
+      desafioSurpresa: { desafioId: "d1" },
+    });
+
+    await aprovarParticipacao("p1");
+
+    expect(mockDeletarComprovante).toHaveBeenCalledWith(
+      "comprovantes-surpresa/cliente-1/abc.webp",
+    );
   });
 });
 
@@ -618,6 +743,7 @@ describe("rejeitarParticipacao", () => {
   beforeEach(() => {
     mockRequererAcessoPainel.mockReset();
     mockParticipacaoDelete.mockReset();
+    mockDeletarComprovante.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -628,10 +754,11 @@ describe("rejeitarParticipacao", () => {
     expect(mockParticipacaoDelete).not.toHaveBeenCalled();
   });
 
-  it("remove a participação e revalida a página do desafio dela", async () => {
+  it("remove a participação e revalida as duas rotas, sem apagar foto quando não havia", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockParticipacaoDelete.mockResolvedValue({
       id: "p1",
+      fotoChave: null,
       desafioSurpresa: { desafioId: "d1" },
     });
 
@@ -641,6 +768,23 @@ describe("rejeitarParticipacao", () => {
       where: { id: "p1" },
       include: { desafioSurpresa: true },
     });
+    expect(mockDeletarComprovante).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
+  });
+
+  it("apaga a foto do R2 quando a participação rejeitada tinha comprovação", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoDelete.mockResolvedValue({
+      id: "p1",
+      fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
+      desafioSurpresa: { desafioId: "d1" },
+    });
+
+    await rejeitarParticipacao("p1");
+
+    expect(mockDeletarComprovante).toHaveBeenCalledWith(
+      "comprovantes-surpresa/cliente-1/abc.webp",
+    );
   });
 });

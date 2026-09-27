@@ -255,6 +255,7 @@ model ItemDesafio {
   descricao   String
   pontos      Int
   frequencia  FrequenciaItem   @default(DIARIO)
+  exigeFoto   Boolean          @default(false)
   marcacoes   MarcacaoItem[]
   combos      RegraBonus[]     @relation("ComboItens")
 
@@ -262,13 +263,17 @@ model ItemDesafio {
 }
 
 model MarcacaoItem {
-  id        String      @id @default(cuid())
-  item      ItemDesafio @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  itemId    String
-  cliente   User        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  clienteId String
-  data      DateTime    @db.Date
-  criadoEm  DateTime    @default(now())
+  id          String      @id @default(cuid())
+  item        ItemDesafio @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId      String
+  cliente     User        @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteId   String
+  data        DateTime    @db.Date
+  fotoChave   String?
+  validado    Boolean     @default(true)
+  validadoPor String?
+  validadoEm  DateTime?
+  criadoEm    DateTime    @default(now())
 
   @@unique([itemId, clienteId, data])
   @@index([clienteId, data])

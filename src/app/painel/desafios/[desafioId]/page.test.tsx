@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import DesafioDetalhePage from "./page";
 import { obterDesafioComCategorias } from "./queries";
 import { listarEmblemas } from "../emblemas/queries";
-import { criarCategoria, aprovarParticipacao } from "./actions";
+import { criarCategoria, alternarExigeFoto } from "./actions";
 
 vi.mock("./queries", () => ({
   obterDesafioComCategorias: vi.fn(),
@@ -19,6 +19,7 @@ vi.mock("./actions", () => ({
   removerCategoria: vi.fn(),
   criarItem: vi.fn(),
   removerItem: vi.fn(),
+  alternarExigeFoto: vi.fn(),
   criarRegraLimiar: vi.fn(),
   criarRegraCombo: vi.fn(),
   criarRegraCategoriaCompleta: vi.fn(),
@@ -79,7 +80,13 @@ describe("DesafioDetalhePage", () => {
           nome: "Pele",
           cor: "#f5c",
           itens: [
-            { id: "i1", descricao: "Hidratar", pontos: 5, frequencia: "DIARIO" },
+            {
+              id: "i1",
+              descricao: "Hidratar",
+              pontos: 5,
+              frequencia: "DIARIO",
+              exigeFoto: false,
+            },
           ],
         },
       ],
@@ -93,9 +100,54 @@ describe("DesafioDetalhePage", () => {
     expect(within(itemRow).getByText("Hidratar")).toBeInTheDocument();
     expect(within(itemRow).getByText("5 pts")).toBeInTheDocument();
     expect(within(itemRow).getByText("Diário")).toBeInTheDocument();
+    expect(within(itemRow).queryByText("Exige foto")).not.toBeInTheDocument();
     expect(
       screen.getByRole("form", { name: /criar item em pele/i }),
     ).toBeInTheDocument();
+  });
+
+  it("mostra o indicador 'Exige foto' só no item marcado, e alternar chama a action", async () => {
+    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
+      id: "d1",
+      titulo: "Glow Up",
+      ativo: true,
+      categorias: [
+        {
+          id: "c1",
+          nome: "Pele",
+          cor: "#f5c",
+          itens: [
+            {
+              id: "i1",
+              descricao: "Ida à academia",
+              pontos: 10,
+              frequencia: "DIARIO",
+              exigeFoto: true,
+            },
+            {
+              id: "i2",
+              descricao: "Hidratar",
+              pontos: 5,
+              frequencia: "DIARIO",
+              exigeFoto: false,
+            },
+          ],
+        },
+      ],
+      regrasBonus: [],
+      desafiosSurpresa: [],
+    } as never);
+    vi.mocked(alternarExigeFoto).mockResolvedValue(undefined);
+
+    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
+
+    const itens = screen.getAllByRole("listitem");
+    expect(within(itens[0]).getByText("Exige foto")).toBeInTheDocument();
+    expect(within(itens[1]).queryByText("Exige foto")).not.toBeInTheDocument();
+
+    fireEvent.click(within(itens[1]).getByRole("button", { name: /exigir foto/i }));
+
+    await waitFor(() => expect(alternarExigeFoto).toHaveBeenCalledWith("i2"));
   });
 
   it("renderiza os três formulários de nova regra de bônus", async () => {
@@ -184,7 +236,7 @@ describe("DesafioDetalhePage", () => {
     expect(screen.getByText(/completar a categoria "pele"/i)).toBeInTheDocument();
   });
 
-  it("renderiza desafios surpresa com participações pendentes e aprovadas", async () => {
+  it("renderiza participações de desafio surpresa como histórico somente leitura, sem botões de decisão", async () => {
     vi.mocked(obterDesafioComCategorias).mockResolvedValue({
       id: "d1",
       titulo: "Glow Up",
@@ -221,9 +273,15 @@ describe("DesafioDetalhePage", () => {
     expect(screen.getByText("Corrida 5km")).toBeInTheDocument();
     expect(screen.getByText("Cliente 1")).toBeInTheDocument();
     expect(screen.getByText("Cliente 2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /aprovar/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /rejeitar/i })).toBeInTheDocument();
+    expect(screen.getByText("Pendente")).toBeInTheDocument();
     expect(screen.getByText("Aprovada")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^aprovar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^rejeitar$/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/decisão pendente em \/painel\/aprovacoes/i)).toBeInTheDocument();
     expect(
       screen.getByAltText("Comprovação enviada pela cliente"),
     ).toBeInTheDocument();
@@ -253,38 +311,4 @@ describe("DesafioDetalhePage", () => {
     );
   });
 
-  it("mostra a mensagem de erro original quando aprovar participação falha", async () => {
-    vi.mocked(obterDesafioComCategorias).mockResolvedValue({
-      id: "d1",
-      titulo: "Glow Up",
-      ativo: true,
-      categorias: [],
-      regrasBonus: [],
-      desafiosSurpresa: [
-        {
-          id: "s1",
-          titulo: "Corrida 5km",
-          descricao: null,
-          pontos: 50,
-          exigeComprovacao: false,
-          participacoes: [
-            {
-              id: "p1",
-              cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
-              validado: false,
-            },
-          ],
-        },
-      ],
-    } as never);
-    vi.mocked(aprovarParticipacao).mockRejectedValue(new Error("Acesso negado"));
-
-    render(await DesafioDetalhePage({ params: Promise.resolve({ desafioId: "d1" }) }));
-
-    fireEvent.click(screen.getByRole("button", { name: /aprovar/i }));
-
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
-    );
-  });
 });

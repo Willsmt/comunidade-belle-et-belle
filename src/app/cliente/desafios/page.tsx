@@ -10,6 +10,7 @@ import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries"
 import { RankingToggle } from "./ranking-toggle";
 import { FotosJornada } from "./fotos-jornada";
 import { BotaoMarcarItem } from "./botao-marcar-item";
+import { FormularioMarcarItemComFoto } from "./formulario-marcar-item-com-foto";
 import { FormularioParticiparSurpresa } from "./formulario-participar-surpresa";
 import { BotaoContinuarEncerramento } from "./botao-continuar-encerramento";
 import { FormularioReflexao } from "./formulario-reflexao";
@@ -77,7 +78,7 @@ export default async function DesafiosClientePage() {
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {categoria.itens.map((item) => {
-                        const marcado = itensMarcadosHoje.has(item.id);
+                        const marcacao = itensMarcadosHoje.get(item.id);
                         return (
                           <li
                             key={item.id}
@@ -89,9 +90,23 @@ export default async function DesafiosClientePage() {
                                 {item.pontos} pts
                               </span>
                             </div>
-                            {ehCliente && (
-                              <BotaoMarcarItem itemId={item.id} marcado={marcado} />
-                            )}
+                            {ehCliente &&
+                              (item.exigeFoto ? (
+                                marcacao ? (
+                                  <p className="text-sm font-medium text-accent-foreground">
+                                    {marcacao.validado
+                                      ? "Marcado ✓"
+                                      : "Aguardando aprovação da Patty"}
+                                  </p>
+                                ) : (
+                                  <FormularioMarcarItemComFoto
+                                    itemId={item.id}
+                                    descricao={item.descricao}
+                                  />
+                                )
+                              ) : (
+                                <BotaoMarcarItem itemId={item.id} marcado={Boolean(marcacao)} />
+                              ))}
                           </li>
                         );
                       })}

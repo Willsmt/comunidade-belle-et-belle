@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { uploadComprovante } from "@/lib/storage/comprovantes-surpresa";
+import { uploadComprovanteItem } from "@/lib/storage/comprovantes-item-desafio";
 import { uploadFotoJornada, deletarFotoJornada } from "@/lib/storage/jornada-desafio";
 import {
   verificarConquistasBonus,
@@ -22,6 +23,12 @@ export async function alternarMarcacao(itemId: string) {
       include: { categoria: true },
     });
 
+    if (item.exigeFoto) {
+      throw new AppError(
+        "Esse item exige comprovação por foto — use o formulário de envio de foto",
+      );
+    }
+
     const hoje = obterDataDeHoje();
 
     const existente = await prisma.marcacaoItem.findUnique({
@@ -38,6 +45,44 @@ export async function alternarMarcacao(itemId: string) {
     }
 
     await verificarConquistasRankingSemanal(item.categoria.desafioId, hoje);
+
+    revalidatePath("/cliente/desafios");
+  });
+}
+
+export async function marcarItemComFoto(itemId: string, formData: FormData) {
+  return executarAction(async () => {
+    const session = await requererPapel(["CLIENTE"]);
+    const clienteId = session.user.id;
+
+    const item = await prisma.itemDesafio.findUniqueOrThrow({
+      where: { id: itemId },
+      include: { categoria: true },
+    });
+
+    if (!item.exigeFoto) {
+      throw new AppError("Esse item não exige foto — use a marcação normal");
+    }
+
+    const hoje = obterDataDeHoje();
+
+    const existente = await prisma.marcacaoItem.findUnique({
+      where: { itemId_clienteId_data: { itemId, clienteId, data: hoje } },
+    });
+    if (existente) {
+      throw new AppError("Você já marcou esse item hoje");
+    }
+
+    const arquivo = formData.get("foto");
+    if (!(arquivo instanceof File) || arquivo.size === 0) {
+      throw new AppError("Envie uma foto");
+    }
+
+    const fotoChave = await uploadComprovanteItem(arquivo, clienteId);
+
+    await prisma.marcacaoItem.create({
+      data: { itemId, clienteId, data: hoje, fotoChave, validado: false },
+    });
 
     revalidatePath("/cliente/desafios");
   });

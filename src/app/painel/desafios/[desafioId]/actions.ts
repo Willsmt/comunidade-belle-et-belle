@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
+import { deletarComprovante } from "@/lib/storage/comprovantes-surpresa";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 export async function criarCategoria(desafioId: string, formData: FormData) {
@@ -46,6 +47,7 @@ export async function criarItem(categoriaId: string, formData: FormData) {
     const descricao = formData.get("descricao");
     const pontosRaw = formData.get("pontos");
     const frequencia = formData.get("frequencia");
+    const exigeFoto = formData.get("exigeFoto") === "on";
 
     if (typeof descricao !== "string" || descricao.trim() === "") {
       throw new AppError("Informe a descrição do item");
@@ -65,7 +67,7 @@ export async function criarItem(categoriaId: string, formData: FormData) {
     });
 
     await prisma.itemDesafio.create({
-      data: { categoriaId, descricao, pontos, frequencia },
+      data: { categoriaId, descricao, pontos, frequencia, exigeFoto },
     });
 
     revalidatePath(`/painel/desafios/${categoria.desafioId}`);
@@ -79,6 +81,24 @@ export async function removerItem(itemId: string) {
     const item = await prisma.itemDesafio.delete({
       where: { id: itemId },
       include: { categoria: true },
+    });
+
+    revalidatePath(`/painel/desafios/${item.categoria.desafioId}`);
+  });
+}
+
+export async function alternarExigeFoto(itemId: string) {
+  return executarAction(async () => {
+    await requererAcessoPainel();
+
+    const item = await prisma.itemDesafio.findUniqueOrThrow({
+      where: { id: itemId },
+      include: { categoria: true },
+    });
+
+    await prisma.itemDesafio.update({
+      where: { id: itemId },
+      data: { exigeFoto: !item.exigeFoto },
     });
 
     revalidatePath(`/painel/desafios/${item.categoria.desafioId}`);
@@ -242,7 +262,12 @@ export async function aprovarParticipacao(participacaoId: string) {
       include: { desafioSurpresa: true },
     });
 
+    if (participacao.fotoChave) {
+      await deletarComprovante(participacao.fotoChave);
+    }
+
     revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);
+    revalidatePath("/painel/aprovacoes");
   });
 }
 
@@ -255,6 +280,11 @@ export async function rejeitarParticipacao(participacaoId: string) {
       include: { desafioSurpresa: true },
     });
 
+    if (participacao.fotoChave) {
+      await deletarComprovante(participacao.fotoChave);
+    }
+
     revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);
+    revalidatePath("/painel/aprovacoes");
   });
 }
