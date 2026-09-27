@@ -243,10 +243,12 @@ describe("obterDesafioAtivoParaCliente", () => {
         item: { categoria: { desafioId: "d1" } },
         data: { gte: expect.any(Date), lte: expect.any(Date) },
       },
+      orderBy: { id: "asc" },
       include: { item: { select: { pontos: true } }, cliente: { select: expect.any(Object) } },
     });
     expect(mockFindMany).toHaveBeenNthCalledWith(3, {
       where: { validado: true, item: { categoria: { desafioId: "d1" } } },
+      orderBy: { id: "asc" },
       include: { item: { select: { pontos: true } }, cliente: { select: expect.any(Object) } },
     });
   });
@@ -381,7 +383,7 @@ describe("obterFluxoEncerramento", () => {
 
     expect(mockFindFirst).toHaveBeenCalledWith({
       where: { ativo: false },
-      orderBy: { criadoEm: "desc" },
+      orderBy: [{ criadoEm: "desc" }, { id: "desc" }],
     });
     expect(mockJornadaFindUnique).toHaveBeenCalledWith({
       where: { desafioId_clienteId: { desafioId: "d1", clienteId: "cliente-1" } },
