@@ -53,6 +53,12 @@ describe("valorMembro", () => {
     expect(valorMembro(null, null, 27)).toBe(27);
   });
 
+  it("arredonda a média para 2 casas decimais, sem sobra de ponto flutuante (ex.: 30 e 29.99)", () => {
+    const resultado = valorMembro(30, 29.99);
+    expect(resultado).toBe(29.99);
+    expect(String(resultado)).toBe("29.99");
+  });
+
   it("retorna null quando nenhum dos três existe", () => {
     expect(valorMembro(null, null)).toBeNull();
   });
@@ -82,6 +88,21 @@ describe("MedidasPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("os campos numéricos têm min/max de acordo com a faixa de cada grupo", async () => {
+    vi.mocked(listarMedidas).mockResolvedValue([]);
+
+    render(await MedidasPage());
+
+    expect(screen.getByLabelText(/^peso/i)).toHaveAttribute("min", "20");
+    expect(screen.getByLabelText(/^peso/i)).toHaveAttribute("max", "300");
+    expect(screen.getByLabelText(/^altura/i)).toHaveAttribute("min", "100");
+    expect(screen.getByLabelText(/^altura/i)).toHaveAttribute("max", "250");
+    expect(screen.getByLabelText(/^ombro/i)).toHaveAttribute("min", "40");
+    expect(screen.getByLabelText(/^ombro/i)).toHaveAttribute("max", "200");
+    expect(screen.getByLabelText(/^braço d/i)).toHaveAttribute("min", "8");
+    expect(screen.getByLabelText(/^braço d/i)).toHaveAttribute("max", "100");
+  });
+
   it("ao submeter: chama a action e dá refresh na rota", async () => {
     vi.mocked(listarMedidas).mockResolvedValue([]);
     vi.mocked(criarRegistroMedida).mockResolvedValue(undefined);
@@ -97,9 +118,11 @@ describe("MedidasPage", () => {
     expect(criarRegistroMedida).toHaveBeenCalledTimes(1);
   });
 
-  it("mostra erro se a action falhar, sem dar refresh", async () => {
+  it("mostra a mensagem real do erro (ex.: faixa de validação), sem dar refresh", async () => {
     vi.mocked(listarMedidas).mockResolvedValue([]);
-    vi.mocked(criarRegistroMedida).mockRejectedValue(new Error("falhou"));
+    vi.mocked(criarRegistroMedida).mockRejectedValue(
+      new Error("Peso deve estar entre 20 e 300"),
+    );
 
     render(await MedidasPage());
 
@@ -107,7 +130,7 @@ describe("MedidasPage", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
-        /não foi possível salvar/i,
+        /peso deve estar entre 20 e 300/i,
       ),
     );
     expect(mockRefresh).not.toHaveBeenCalled();

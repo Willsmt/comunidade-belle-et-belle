@@ -6,17 +6,34 @@ import { criarRegistroMedida } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-function CampoMedida({ id, label }: { id: string; label: string }) {
+function CampoMedida({
+  id,
+  label,
+  min,
+  max,
+}: {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+}) {
   return (
     <label
       className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
       htmlFor={id}
     >
       {label}
-      <Input id={id} type="number" step="0.01" name={id} />
+      <Input id={id} type="number" step="0.01" name={id} min={min} max={max} />
     </label>
   );
 }
+
+// Faixas generosas de bom senso — limite de segurança contra erro de
+// digitação, não precisão clínica. Espelham FAIXAS em actions.ts.
+const FAIXA_PESO = { min: 20, max: 300 };
+const FAIXA_ALTURA = { min: 100, max: 250 };
+const FAIXA_TRONCO = { min: 40, max: 200 };
+const FAIXA_MEMBRO = { min: 8, max: 100 };
 
 const MEDIDAS_TRONCO = [
   { id: "ombro", label: "Ombro (cm)" },
@@ -52,9 +69,11 @@ export function FormularioRegistro() {
         await criarRegistroMedida(formData);
         formRef.current?.reset();
         router.refresh();
-      } catch {
+      } catch (erro) {
         setErro(
-          "Não foi possível salvar o registro. Preencha ao menos uma medida.",
+          erro instanceof Error
+            ? erro.message
+            : "Não foi possível salvar o registro.",
         );
       }
     });
@@ -76,14 +95,19 @@ export function FormularioRegistro() {
       </label>
 
       <div className="grid grid-cols-2 gap-4">
-        <CampoMedida id="peso" label="Peso (kg)" />
-        <CampoMedida id="altura" label="Altura (cm)" />
+        <CampoMedida id="peso" label="Peso (kg)" {...FAIXA_PESO} />
+        <CampoMedida id="altura" label="Altura (cm)" {...FAIXA_ALTURA} />
       </div>
 
       <h3 className="text-sm font-semibold text-foreground">Tronco</h3>
       <div className="grid grid-cols-2 gap-4">
         {MEDIDAS_TRONCO.map((medida) => (
-          <CampoMedida key={medida.id} id={medida.id} label={medida.label} />
+          <CampoMedida
+            key={medida.id}
+            id={medida.id}
+            label={medida.label}
+            {...FAIXA_TRONCO}
+          />
         ))}
       </div>
 
@@ -91,8 +115,16 @@ export function FormularioRegistro() {
       <div className="flex flex-col gap-4">
         {MEDIDAS_MEMBRO.map((medida) => (
           <div key={medida.direito} className="grid grid-cols-2 gap-4">
-            <CampoMedida id={medida.direito} label={`${medida.nome} D (cm)`} />
-            <CampoMedida id={medida.esquerdo} label={`${medida.nome} E (cm)`} />
+            <CampoMedida
+              id={medida.direito}
+              label={`${medida.nome} D (cm)`}
+              {...FAIXA_MEMBRO}
+            />
+            <CampoMedida
+              id={medida.esquerdo}
+              label={`${medida.nome} E (cm)`}
+              {...FAIXA_MEMBRO}
+            />
           </div>
         ))}
       </div>

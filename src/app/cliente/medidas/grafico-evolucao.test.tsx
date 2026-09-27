@@ -77,7 +77,7 @@ describe("GraficoEvolucao", () => {
     }
   });
 
-  it("clicar numa legenda oculta mostra a linha correspondente; clicar de novo esconde de novo", () => {
+  it("clicar numa legenda de tronco oculta (Ombro) mostra a linha; clicar de novo esconde de novo", () => {
     render(<GraficoEvolucao pontos={[PONTO]} />);
 
     expect(screen.getByTestId("line-ombro")).toHaveAttribute("data-hidden", "true");
@@ -87,6 +87,27 @@ describe("GraficoEvolucao", () => {
 
     fireEvent.click(screen.getByText("Ombro (cm)"));
     expect(screen.getByTestId("line-ombro")).toHaveAttribute("data-hidden", "true");
+  });
+
+  it("clicar numa legenda de membro oculta (Joelho) mostra a linha; clicar de novo esconde de novo", () => {
+    render(<GraficoEvolucao pontos={[PONTO]} />);
+
+    expect(screen.getByTestId("line-joelho")).toHaveAttribute("data-hidden", "true");
+
+    fireEvent.click(screen.getByText("Joelho (cm)"));
+    expect(screen.getByTestId("line-joelho")).toHaveAttribute("data-hidden", "false");
+
+    fireEvent.click(screen.getByText("Joelho (cm)"));
+    expect(screen.getByTestId("line-joelho")).toHaveAttribute("data-hidden", "true");
+  });
+
+  it("clicar numa legenda de membro visível (Coxa) esconde a linha correspondente", () => {
+    render(<GraficoEvolucao pontos={[PONTO]} />);
+
+    expect(screen.getByTestId("line-coxa")).toHaveAttribute("data-hidden", "false");
+
+    fireEvent.click(screen.getByText("Coxa (cm)"));
+    expect(screen.getByTestId("line-coxa")).toHaveAttribute("data-hidden", "true");
   });
 
   it("clicar numa legenda visível esconde a linha correspondente", () => {

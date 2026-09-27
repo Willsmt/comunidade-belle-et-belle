@@ -90,7 +90,7 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
   return (
     <div
       style={{ width: "100%", height: 320 }}
-      className="[&_.recharts-legend-item]:cursor-pointer"
+      className="[&_.recharts-legend-item]:cursor-pointer [&_.recharts-legend-item.inactive_.recharts-legend-item-text]:line-through [&_.recharts-legend-item.inactive_.recharts-legend-item-text]:opacity-60"
     >
       <ResponsiveContainer>
         <LineChart data={pontos}>

@@ -14,10 +14,11 @@ export function valorMembro(
   esquerdo: number | null,
   legado: number | null = null,
 ): number | null {
-  if (direito != null && esquerdo != null) return (direito + esquerdo) / 2;
-  if (direito != null) return direito;
-  if (esquerdo != null) return esquerdo;
-  return legado;
+  const bruto =
+    direito != null && esquerdo != null
+      ? (direito + esquerdo) / 2
+      : direito ?? esquerdo ?? legado;
+  return bruto == null ? null : Number(bruto.toFixed(2));
 }
 
 function paraNumero(valor: Decimal | null): number | null {
