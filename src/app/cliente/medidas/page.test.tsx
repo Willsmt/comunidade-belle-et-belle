@@ -103,6 +103,20 @@ describe("MedidasPage", () => {
     expect(screen.getByLabelText(/^braço d/i)).toHaveAttribute("max", "100");
   });
 
+  it("perde o foco ao rolar a roda do mouse sobre um campo numérico, pra não alterar o valor por acidente", async () => {
+    vi.mocked(listarMedidas).mockResolvedValue([]);
+
+    render(await MedidasPage());
+
+    const campoPeso = screen.getByLabelText(/^peso/i);
+    campoPeso.focus();
+    expect(campoPeso).toHaveFocus();
+
+    fireEvent.wheel(campoPeso);
+
+    expect(campoPeso).not.toHaveFocus();
+  });
+
   it("ao submeter: chama a action e dá refresh na rota", async () => {
     vi.mocked(listarMedidas).mockResolvedValue([]);
     vi.mocked(criarRegistroMedida).mockResolvedValue(undefined);

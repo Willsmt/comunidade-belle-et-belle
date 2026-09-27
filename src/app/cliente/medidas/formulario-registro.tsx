@@ -23,7 +23,15 @@ function CampoMedida({
       htmlFor={id}
     >
       {label}
-      <Input id={id} type="number" step="0.01" name={id} min={min} max={max} />
+      <Input
+        id={id}
+        type="number"
+        step="0.01"
+        name={id}
+        min={min}
+        max={max}
+        onWheel={(event) => event.currentTarget.blur()}
+      />
     </label>
   );
 }
