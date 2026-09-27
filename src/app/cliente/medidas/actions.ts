@@ -5,7 +5,29 @@ import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
-const CAMPOS_MEDIDA = ["peso", "cintura", "quadril", "braco", "coxa"] as const;
+const CAMPOS_MEDIDA = [
+  "peso",
+  "altura",
+  "ombro",
+  "peitoBusto",
+  "cintura",
+  "abdomen",
+  "quadril",
+  "bracoDireito",
+  "bracoEsquerdo",
+  "antebracoDireito",
+  "antebracoEsquerdo",
+  "punhoDireito",
+  "punhoEsquerdo",
+  "coxaDireita",
+  "coxaEsquerda",
+  "joelhoDireito",
+  "joelhoEsquerdo",
+  "panturrilhaDireita",
+  "panturrilhaEsquerda",
+  "tornozeloDireito",
+  "tornozeloEsquerdo",
+] as const;
 
 function parseNumero(formData: FormData, campo: string): number | undefined {
   const valor = formData.get(campo);

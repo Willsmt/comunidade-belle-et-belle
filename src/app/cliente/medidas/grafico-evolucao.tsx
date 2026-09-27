@@ -14,11 +14,40 @@ import {
 export type PontoEvolucao = {
   data: string;
   peso: number | null;
+  ombro: number | null;
+  peitoBusto: number | null;
   cintura: number | null;
+  abdomen: number | null;
   quadril: number | null;
   braco: number | null;
+  antebraco: number | null;
+  punho: number | null;
   coxa: number | null;
+  joelho: number | null;
+  panturrilha: number | null;
+  tornozelo: number | null;
 };
+
+const LINHAS: Array<{
+  dataKey: keyof Omit<PontoEvolucao, "data">;
+  name: string;
+  stroke: string;
+  strokeDasharray?: string;
+}> = [
+  { dataKey: "peso", name: "Peso (kg)", stroke: "var(--chart-1)" },
+  { dataKey: "cintura", name: "Cintura (cm)", stroke: "var(--chart-2)" },
+  { dataKey: "quadril", name: "Quadril (cm)", stroke: "var(--chart-3)" },
+  { dataKey: "braco", name: "Braço (cm)", stroke: "var(--chart-4)" },
+  { dataKey: "coxa", name: "Coxa (cm)", stroke: "var(--chart-5)" },
+  { dataKey: "ombro", name: "Ombro (cm)", stroke: "var(--chart-1)", strokeDasharray: "6 3" },
+  { dataKey: "peitoBusto", name: "Peito/busto (cm)", stroke: "var(--chart-2)", strokeDasharray: "6 3" },
+  { dataKey: "abdomen", name: "Abdômen (cm)", stroke: "var(--chart-3)", strokeDasharray: "6 3" },
+  { dataKey: "antebraco", name: "Antebraço (cm)", stroke: "var(--chart-4)", strokeDasharray: "6 3" },
+  { dataKey: "punho", name: "Punho (cm)", stroke: "var(--chart-5)", strokeDasharray: "6 3" },
+  { dataKey: "joelho", name: "Joelho (cm)", stroke: "var(--chart-1)", strokeDasharray: "2 2" },
+  { dataKey: "panturrilha", name: "Panturrilha (cm)", stroke: "var(--chart-2)", strokeDasharray: "2 2" },
+  { dataKey: "tornozelo", name: "Tornozelo (cm)", stroke: "var(--chart-3)", strokeDasharray: "2 2" },
+];
 
 export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
   if (pontos.length === 0) {
@@ -50,41 +79,17 @@ export function GraficoEvolucao({ pontos }: { pontos: PontoEvolucao[] }) {
             }}
           />
           <Legend wrapperStyle={{ color: "var(--muted-foreground)", fontSize: 12 }} />
-          <Line
-            type="monotone"
-            dataKey="peso"
-            name="Peso (kg)"
-            stroke="var(--chart-1)"
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="cintura"
-            name="Cintura (cm)"
-            stroke="var(--chart-2)"
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="quadril"
-            name="Quadril (cm)"
-            stroke="var(--chart-3)"
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="braco"
-            name="Braço (cm)"
-            stroke="var(--chart-4)"
-            connectNulls
-          />
-          <Line
-            type="monotone"
-            dataKey="coxa"
-            name="Coxa (cm)"
-            stroke="var(--chart-5)"
-            connectNulls
-          />
+          {LINHAS.map((linha) => (
+            <Line
+              key={linha.dataKey}
+              type="monotone"
+              dataKey={linha.dataKey}
+              name={linha.name}
+              stroke={linha.stroke}
+              strokeDasharray={linha.strokeDasharray}
+              connectNulls
+            />
+          ))}
         </LineChart>
       </ResponsiveContainer>
     </div>

@@ -6,6 +6,36 @@ import { criarRegistroMedida } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+function CampoMedida({ id, label }: { id: string; label: string }) {
+  return (
+    <label
+      className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
+      htmlFor={id}
+    >
+      {label}
+      <Input id={id} type="number" step="0.01" name={id} />
+    </label>
+  );
+}
+
+const MEDIDAS_TRONCO = [
+  { id: "ombro", label: "Ombro (cm)" },
+  { id: "peitoBusto", label: "Peito/busto (cm)" },
+  { id: "cintura", label: "Cintura (cm)" },
+  { id: "abdomen", label: "Abdômen (cm)" },
+  { id: "quadril", label: "Quadril (cm)" },
+];
+
+const MEDIDAS_MEMBRO = [
+  { nome: "Braço", direito: "bracoDireito", esquerdo: "bracoEsquerdo" },
+  { nome: "Antebraço", direito: "antebracoDireito", esquerdo: "antebracoEsquerdo" },
+  { nome: "Punho", direito: "punhoDireito", esquerdo: "punhoEsquerdo" },
+  { nome: "Coxa", direito: "coxaDireita", esquerdo: "coxaEsquerda" },
+  { nome: "Joelho", direito: "joelhoDireito", esquerdo: "joelhoEsquerdo" },
+  { nome: "Panturrilha", direito: "panturrilhaDireita", esquerdo: "panturrilhaEsquerda" },
+  { nome: "Tornozelo", direito: "tornozeloDireito", esquerdo: "tornozeloEsquerdo" },
+];
+
 export function FormularioRegistro() {
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
@@ -44,43 +74,29 @@ export function FormularioRegistro() {
         Data
         <Input id="data" type="date" name="data" />
       </label>
+
       <div className="grid grid-cols-2 gap-4">
-        <label
-          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-          htmlFor="peso"
-        >
-          Peso (kg)
-          <Input id="peso" type="number" step="0.01" name="peso" />
-        </label>
-        <label
-          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-          htmlFor="cintura"
-        >
-          Cintura (cm)
-          <Input id="cintura" type="number" step="0.01" name="cintura" />
-        </label>
-        <label
-          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-          htmlFor="quadril"
-        >
-          Quadril (cm)
-          <Input id="quadril" type="number" step="0.01" name="quadril" />
-        </label>
-        <label
-          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-          htmlFor="braco"
-        >
-          Braço (cm)
-          <Input id="braco" type="number" step="0.01" name="braco" />
-        </label>
-        <label
-          className="flex flex-col gap-1.5 text-sm font-medium text-foreground"
-          htmlFor="coxa"
-        >
-          Coxa (cm)
-          <Input id="coxa" type="number" step="0.01" name="coxa" />
-        </label>
+        <CampoMedida id="peso" label="Peso (kg)" />
+        <CampoMedida id="altura" label="Altura (cm)" />
       </div>
+
+      <h3 className="text-sm font-semibold text-foreground">Tronco</h3>
+      <div className="grid grid-cols-2 gap-4">
+        {MEDIDAS_TRONCO.map((medida) => (
+          <CampoMedida key={medida.id} id={medida.id} label={medida.label} />
+        ))}
+      </div>
+
+      <h3 className="text-sm font-semibold text-foreground">Membros</h3>
+      <div className="flex flex-col gap-4">
+        {MEDIDAS_MEMBRO.map((medida) => (
+          <div key={medida.direito} className="grid grid-cols-2 gap-4">
+            <CampoMedida id={medida.direito} label={`${medida.nome} D (cm)`} />
+            <CampoMedida id={medida.esquerdo} label={`${medida.nome} E (cm)`} />
+          </div>
+        ))}
+      </div>
+
       <Button type="submit" disabled={isPending}>
         {isPending ? "Salvando..." : "Salvar registro"}
       </Button>
