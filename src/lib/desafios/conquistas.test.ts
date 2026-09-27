@@ -5,6 +5,7 @@ const {
   mockConquistaFindFirst,
   mockConquistaCreate,
   mockMarcacaoCount,
+  mockMarcacaoFindMany,
   mockItemCount,
   mockDesafioFindUniqueOrThrow,
 } = vi.hoisted(() => ({
@@ -12,6 +13,7 @@ const {
   mockConquistaFindFirst: vi.fn(),
   mockConquistaCreate: vi.fn(),
   mockMarcacaoCount: vi.fn(),
+  mockMarcacaoFindMany: vi.fn(),
   mockItemCount: vi.fn(),
   mockDesafioFindUniqueOrThrow: vi.fn(),
 }));
@@ -20,7 +22,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     regraBonus: { findMany: mockRegraFindMany },
     conquista: { findFirst: mockConquistaFindFirst, create: mockConquistaCreate },
-    marcacaoItem: { count: mockMarcacaoCount, findMany: vi.fn() },
+    marcacaoItem: { count: mockMarcacaoCount, findMany: mockMarcacaoFindMany },
     itemDesafio: { count: mockItemCount },
     desafio: { findUniqueOrThrow: mockDesafioFindUniqueOrThrow },
   },
@@ -38,6 +40,7 @@ describe("verificarConquistasBonus", () => {
     mockConquistaFindFirst.mockReset();
     mockConquistaCreate.mockReset();
     mockMarcacaoCount.mockReset();
+    mockMarcacaoFindMany.mockReset();
     mockItemCount.mockReset();
   });
 
@@ -84,6 +87,14 @@ describe("verificarConquistasBonus", () => {
         emblemaId: "e1",
         tipo: "BONUS",
         referencia: "r1",
+      },
+    });
+    expect(mockMarcacaoCount).toHaveBeenCalledWith({
+      where: {
+        clienteId: "cliente-1",
+        data: expect.any(Date),
+        validado: true,
+        item: { categoria: { desafioId: "d1" } },
       },
     });
   });
@@ -134,6 +145,14 @@ describe("verificarConquistasBonus", () => {
         referencia: "r2",
       },
     });
+    expect(mockMarcacaoCount).toHaveBeenCalledWith({
+      where: {
+        clienteId: "cliente-1",
+        data: expect.any(Date),
+        validado: true,
+        itemId: { in: ["i1", "i2"] },
+      },
+    });
   });
 
   it("não cria conquista de COMBO quando só parte dos itens está marcada", async () => {
@@ -181,6 +200,14 @@ describe("verificarConquistasBonus", () => {
         emblemaId: "e3",
         tipo: "BONUS",
         referencia: "r3",
+      },
+    });
+    expect(mockMarcacaoCount).toHaveBeenCalledWith({
+      where: {
+        clienteId: "cliente-1",
+        data: expect.any(Date),
+        validado: true,
+        item: { categoriaId: "cat1" },
       },
     });
   });
@@ -255,5 +282,33 @@ describe("verificarConquistaRankingGeral", () => {
     await verificarConquistaRankingGeral("d1");
 
     expect(mockConquistaCreate).not.toHaveBeenCalled();
+  });
+
+  it("calcula o ranking filtrando MarcacaoItem por validado: true", async () => {
+    mockDesafioFindUniqueOrThrow.mockResolvedValue({
+      id: "d1",
+      emblemaRankingGeralId: "e1",
+    });
+    mockConquistaFindFirst.mockResolvedValue(null);
+    mockMarcacaoFindMany.mockResolvedValue([
+      { clienteId: "cliente-1", item: { pontos: 10 } },
+    ]);
+    mockConquistaCreate.mockResolvedValue({});
+
+    await verificarConquistaRankingGeral("d1");
+
+    expect(mockMarcacaoFindMany).toHaveBeenCalledWith({
+      where: { validado: true, item: { categoria: { desafioId: "d1" } } },
+      include: { item: { select: { pontos: true } } },
+    });
+    expect(mockConquistaCreate).toHaveBeenCalledWith({
+      data: {
+        clienteId: "cliente-1",
+        desafioId: "d1",
+        emblemaId: "e1",
+        tipo: "RANKING_GERAL",
+        referencia: null,
+      },
+    });
   });
 });
