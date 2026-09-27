@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import DesafiosClientePage from "./page";
 import { redirect } from "next/navigation";
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
+import { alternarMarcacao } from "./actions";
 
 const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 
@@ -22,6 +23,7 @@ vi.mock("./queries", () => ({
 
 vi.mock("./actions", () => ({
   alternarMarcacao: vi.fn(),
+  marcarItemComFoto: vi.fn(),
   participarDesafioSurpresa: vi.fn(),
   enviarFotoAntes: vi.fn(),
   enviarFotoDepois: vi.fn(),
@@ -74,7 +76,7 @@ describe("DesafiosClientePage", () => {
         ],
         desafiosSurpresa: [],
       },
-      itensMarcadosHoje: new Set(["i1"]),
+      itensMarcadosHoje: new Map([["i1", { validado: true }]]),
       rankingSemanal: [{ clienteId: "cliente-1", nome: "Você", pontos: 8 }],
       rankingGeral: [{ clienteId: "cliente-1", nome: "Você", pontos: 20 }],
       clienteId: "cliente-1",
@@ -87,6 +89,118 @@ describe("DesafiosClientePage", () => {
     expect(screen.getByText("Glow Up")).toBeInTheDocument();
     expect(screen.getByText("Hidratar")).toBeInTheDocument();
     expect(screen.getAllByText(/nenhuma foto enviada ainda/i)).toHaveLength(2);
+  });
+
+  it("item com exigeFoto sem marcação mostra o formulário de envio de foto, não o botão normal", async () => {
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
+      desafio: {
+        id: "d1",
+        titulo: "Glow Up",
+        fraseMotivacional: null,
+        categorias: [
+          {
+            id: "c1",
+            nome: "Pele",
+            cor: "#f5c",
+            itens: [{ id: "i1", descricao: "Ida à academia", pontos: 10, exigeFoto: true }],
+          },
+        ],
+        desafiosSurpresa: [],
+      },
+      itensMarcadosHoje: new Map(),
+      rankingSemanal: [],
+      rankingGeral: [],
+      clienteId: "cliente-1",
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(
+      screen.getByRole("form", { name: /marcar ida à academia com foto/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^marcar$/i })).not.toBeInTheDocument();
+  });
+
+  it("item com exigeFoto já marcado mostra o status (pendente ou aprovado), não o formulário", async () => {
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
+      desafio: {
+        id: "d1",
+        titulo: "Glow Up",
+        fraseMotivacional: null,
+        categorias: [
+          {
+            id: "c1",
+            nome: "Pele",
+            cor: "#f5c",
+            itens: [
+              { id: "i1", descricao: "Ida à academia", pontos: 10, exigeFoto: true },
+              { id: "i2", descricao: "Corrida", pontos: 10, exigeFoto: true },
+            ],
+          },
+        ],
+        desafiosSurpresa: [],
+      },
+      itensMarcadosHoje: new Map([
+        ["i1", { validado: false }],
+        ["i2", { validado: true }],
+      ]),
+      rankingSemanal: [],
+      rankingGeral: [],
+      clienteId: "cliente-1",
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(screen.getByText(/aguardando aprovação da patty/i)).toBeInTheDocument();
+    expect(screen.getByText(/marcado ✓/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("form", { name: /marcar ida à academia com foto/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("US4 (não regressão): item sem exigeFoto soma ponto na hora, independente do estado do item com exigeFoto ao lado", async () => {
+    vi.mocked(alternarMarcacao).mockResolvedValue(undefined);
+    vi.mocked(obterDesafioAtivoParaCliente).mockResolvedValue({
+      desafio: {
+        id: "d1",
+        titulo: "Glow Up",
+        fraseMotivacional: null,
+        categorias: [
+          {
+            id: "c1",
+            nome: "Pele",
+            cor: "#f5c",
+            itens: [
+              { id: "i1", descricao: "Ida à academia", pontos: 10, exigeFoto: true },
+              { id: "i2", descricao: "Beber água", pontos: 3, exigeFoto: false },
+            ],
+          },
+        ],
+        desafiosSurpresa: [],
+      },
+      itensMarcadosHoje: new Map([["i1", { validado: false }]]),
+      rankingSemanal: [],
+      rankingGeral: [],
+      clienteId: "cliente-1",
+      fotoAntesUrl: null,
+      fotoDepoisUrl: null,
+    } as never);
+
+    render(await DesafiosClientePage());
+
+    expect(screen.getByText(/aguardando aprovação da patty/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("form", { name: /marcar ida à academia com foto/i }),
+    ).not.toBeInTheDocument();
+
+    const botaoMarcar = screen.getByRole("button", { name: /^marcar$/i });
+    fireEvent.click(botaoMarcar);
+
+    await waitFor(() => expect(alternarMarcacao).toHaveBeenCalledWith("i2"));
   });
 
   it("mostra o aviso de encerramento com o ranking final quando ainda não foi visto", async () => {
@@ -190,7 +304,7 @@ describe("DesafiosClientePage", () => {
           },
         ],
       },
-      itensMarcadosHoje: new Set(),
+      itensMarcadosHoje: new Map(),
       rankingSemanal: [{ clienteId: "cliente-1", nome: "Marina", pontos: 8 }],
       rankingGeral: [{ clienteId: "cliente-1", nome: "Marina", pontos: 20 }],
       clienteId: "gestora-1",

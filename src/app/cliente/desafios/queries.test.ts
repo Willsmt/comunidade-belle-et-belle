@@ -222,6 +222,91 @@ describe("obterDesafioAtivoParaCliente", () => {
     );
   });
 
+  it("filtra MarcacaoItem por validado: true ao calcular o ranking", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    await obterDesafioAtivoParaCliente();
+
+    expect(mockFindMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        validado: true,
+        item: { categoria: { desafioId: "d1" } },
+        data: { gte: expect.any(Date), lte: expect.any(Date) },
+      },
+      include: { item: { select: { pontos: true } }, cliente: { select: expect.any(Object) } },
+    });
+    expect(mockFindMany).toHaveBeenNthCalledWith(3, {
+      where: { validado: true, item: { categoria: { desafioId: "d1" } } },
+      include: { item: { select: { pontos: true } }, cliente: { select: expect.any(Object) } },
+    });
+  });
+
+  it("itensMarcadosHoje traz o validado de cada marcação (pendente e aprovada)", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([
+        { itemId: "i1", validado: false },
+        { itemId: "i2", validado: true },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.itensMarcadosHoje.get("i1")).toEqual({ validado: false });
+    expect(resultado?.itensMarcadosHoje.get("i2")).toEqual({ validado: true });
+  });
+
+  it("US4 (não regressão): soma na hora um item sem exigeFoto, e a mesma consulta já exclui itens pendentes por construção", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    // O mock simula o que o Postgres real devolveria depois de aplicar
+    // `where: { validado: true }` — só a marcação do item sem exigeFoto
+    // (que nasce validado: true) aparece aqui; uma marcação pendente de
+    // outro item nunca chegaria a este array (asserção do filtro em cima).
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          clienteId: "cliente-1",
+          item: { pontos: 10 },
+          cliente: { id: "cliente-1", name: "Você", email: "voce@x.com" },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(mockFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ where: expect.objectContaining({ validado: true }) }),
+    );
+    expect(resultado?.rankingSemanal).toEqual([
+      { clienteId: "cliente-1", nome: "Você", pontos: 10, fotoUrl: null },
+    ]);
+  });
+
   it("soma os pontos de participações surpresa aprovadas no ranking geral, mas não no semanal", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindFirst.mockResolvedValue({

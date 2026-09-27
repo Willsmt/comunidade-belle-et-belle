@@ -30,6 +30,7 @@ async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: D
   const [marcacoes, participacoesSurpresa] = await Promise.all([
     prisma.marcacaoItem.findMany({
       where: {
+        validado: true,
         item: { categoria: { desafioId } },
         ...(dataInicio && dataFim ? { data: { gte: dataInicio, lte: dataFim } } : {}),
       },
@@ -142,7 +143,7 @@ export async function obterDesafioAtivoParaCliente() {
         data: hoje,
         item: { categoria: { desafioId: desafio.id } },
       },
-      select: { itemId: true },
+      select: { itemId: true, validado: true },
     }),
     calcularRanking(desafio.id, inicioSemana, fimSemana),
     calcularRanking(desafio.id),
@@ -162,7 +163,9 @@ export async function obterDesafioAtivoParaCliente() {
 
   return {
     desafio,
-    itensMarcadosHoje: new Set(marcacoesHoje.map((marcacao) => marcacao.itemId)),
+    itensMarcadosHoje: new Map(
+      marcacoesHoje.map((marcacao) => [marcacao.itemId, { validado: marcacao.validado }]),
+    ),
     rankingSemanal,
     rankingGeral,
     clienteId: session.user.id,

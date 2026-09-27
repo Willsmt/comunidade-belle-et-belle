@@ -11,6 +11,7 @@ const {
   mockParticipacaoFindUnique,
   mockParticipacaoCreate,
   mockUploadComprovante,
+  mockUploadComprovanteItem,
   mockDesafioFindFirst,
   mockJornadaFindUnique,
   mockJornadaUpsert,
@@ -29,6 +30,7 @@ const {
   mockParticipacaoFindUnique: vi.fn(),
   mockParticipacaoCreate: vi.fn(),
   mockUploadComprovante: vi.fn(),
+  mockUploadComprovanteItem: vi.fn(),
   mockDesafioFindFirst: vi.fn(),
   mockJornadaFindUnique: vi.fn(),
   mockJornadaUpsert: vi.fn(),
@@ -62,6 +64,9 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
   uploadComprovante: mockUploadComprovante,
 }));
+vi.mock("@/lib/storage/comprovantes-item-desafio", () => ({
+  uploadComprovanteItem: mockUploadComprovanteItem,
+}));
 vi.mock("@/lib/storage/jornada-desafio", () => ({
   uploadFotoJornada: mockUploadFotoJornada,
   deletarFotoJornada: mockDeletarFotoJornada,
@@ -74,6 +79,7 @@ vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
 import {
   alternarMarcacao,
+  marcarItemComFoto,
   participarDesafioSurpresa,
   enviarFotoAntes,
   enviarFotoDepois,
@@ -102,7 +108,11 @@ describe("alternarMarcacao", () => {
 
   it("cria a marcação e verifica conquistas de bônus e semanal quando ainda não existe pra hoje", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1", categoria: { desafioId: "d1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: false,
+      categoria: { desafioId: "d1" },
+    });
     mockMarcacaoFindUnique.mockResolvedValue(null);
     mockMarcacaoCreate.mockResolvedValue({});
 
@@ -126,7 +136,11 @@ describe("alternarMarcacao", () => {
 
   it("remove a marcação e NÃO verifica conquistas de bônus quando já existe pra hoje", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockItemFindUniqueOrThrow.mockResolvedValue({ id: "i1", categoria: { desafioId: "d1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: false,
+      categoria: { desafioId: "d1" },
+    });
     mockMarcacaoFindUnique.mockResolvedValue({ id: "m1" });
     mockMarcacaoDelete.mockResolvedValue({});
 
@@ -148,6 +162,21 @@ describe("alternarMarcacao", () => {
 
     await expect(alternarMarcacao("i-inexistente")).rejects.toThrow();
     expect(mockMarcacaoFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejeita item que exige foto, orientando a usar o outro formulário", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+
+    await expect(alternarMarcacao("i1")).rejects.toThrow(
+      "Esse item exige comprovação por foto — use o formulário de envio de foto",
+    );
+    expect(mockMarcacaoFindUnique).not.toHaveBeenCalled();
+    expect(mockMarcacaoCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -247,6 +276,101 @@ describe("participarDesafioSurpresa", () => {
         fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
       },
     });
+  });
+});
+
+describe("marcarItemComFoto", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset();
+    mockItemFindUniqueOrThrow.mockReset();
+    mockMarcacaoFindUnique.mockReset();
+    mockMarcacaoCreate.mockReset();
+    mockUploadComprovanteItem.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("exige papel CLIENTE", async () => {
+    mockRequererPapel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(
+      marcarItemComFoto("i1", buildFormDataComArquivo("foto")),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockItemFindUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  it("rejeita item que não exige foto", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: false,
+      categoria: { desafioId: "d1" },
+    });
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await expect(
+      marcarItemComFoto("i1", buildFormDataComArquivo("foto", arquivo)),
+    ).rejects.toThrow("Esse item não exige foto — use a marcação normal");
+    expect(mockMarcacaoCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita marcação duplicada no mesmo dia", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+    mockMarcacaoFindUnique.mockResolvedValue({ id: "m1" });
+
+    const arquivo = new File(["x"], "foto.png", { type: "image/png" });
+    await expect(
+      marcarItemComFoto("i1", buildFormDataComArquivo("foto", arquivo)),
+    ).rejects.toThrow("Você já marcou esse item hoje");
+    expect(mockUploadComprovanteItem).not.toHaveBeenCalled();
+    expect(mockMarcacaoCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem arquivo", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+    mockMarcacaoFindUnique.mockResolvedValue(null);
+
+    await expect(
+      marcarItemComFoto("i1", buildFormDataComArquivo("foto")),
+    ).rejects.toThrow("Envie uma foto");
+    expect(mockUploadComprovanteItem).not.toHaveBeenCalled();
+    expect(mockMarcacaoCreate).not.toHaveBeenCalled();
+  });
+
+  it("faz upload da foto e cria a marcação pendente (validado: false)", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+    mockMarcacaoFindUnique.mockResolvedValue(null);
+    mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-1/abc.webp");
+    mockMarcacaoCreate.mockResolvedValue({});
+
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+    await marcarItemComFoto("i1", buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockUploadComprovanteItem).toHaveBeenCalledWith(arquivo, "cliente-1");
+    expect(mockMarcacaoCreate).toHaveBeenCalledWith({
+      data: {
+        itemId: "i1",
+        clienteId: "cliente-1",
+        data: expect.any(Date),
+        fotoChave: "comprovantes-item/cliente-1/abc.webp",
+        validado: false,
+      },
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
   });
 });
 

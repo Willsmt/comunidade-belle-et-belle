@@ -8,6 +8,7 @@ async function calcularRankingParaConquista(
 ) {
   const marcacoes = await prisma.marcacaoItem.findMany({
     where: {
+      validado: true,
       item: { categoria: { desafioId } },
       ...(dataInicio && dataFim ? { data: { gte: dataInicio, lte: dataFim } } : {}),
     },
@@ -45,6 +46,7 @@ async function regraSatisfeitaHoje(
       where: {
         clienteId,
         data: hoje,
+        validado: true,
         item: { categoria: { desafioId: regra.desafioId } },
       },
     });
@@ -57,6 +59,7 @@ async function regraSatisfeitaHoje(
       where: {
         clienteId,
         data: hoje,
+        validado: true,
         itemId: { in: regra.itensCombo.map((item) => item.id) },
       },
     });
@@ -73,6 +76,7 @@ async function regraSatisfeitaHoje(
       where: {
         clienteId,
         data: hoje,
+        validado: true,
         item: { categoriaId: regra.categoriaId },
       },
     });

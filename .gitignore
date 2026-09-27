@@ -52,3 +52,5 @@ next-env.d.ts
 .windsurf/
 skills-lock.json
 .env.test
+*:Zone.Identifier
+*:Zone.Identifier

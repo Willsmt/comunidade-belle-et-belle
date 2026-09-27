@@ -3,15 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 import { obterDataDeHoje } from "@/lib/hoje";
 
-const { mockAuth } = vi.hoisted(() => ({
+const { mockAuth, mockUploadComprovanteItem } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
+  mockUploadComprovanteItem: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({
   auth: mockAuth,
 }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/storage/comprovantes-item-desafio", () => ({
+  uploadComprovanteItem: mockUploadComprovanteItem,
+}));
 
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";
+import { marcarItemComFoto } from "./actions";
 
 afterEach(async () => {
   await limparBanco();
@@ -114,6 +120,55 @@ describe("obterDesafioAtivoParaCliente (Postgres real)", () => {
         { clienteId: clienteA.id, nome: "Cliente A", pontos: 5, fotoUrl: null },
         { clienteId: clienteB.id, nome: "Cliente B", pontos: 5, fotoUrl: null },
       ]),
+    );
+  });
+});
+
+describe("marcarItemComFoto até o ranking (Postgres real)", () => {
+  it("cria a marcação pendente e o ranking não inclui os pontos até aprovar", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente@x.com", status: "ATIVO", name: "Cliente X" },
+    });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+        ativo: true,
+      },
+    });
+    const categoria = await prisma.categoriaDesafio.create({
+      data: { desafioId: desafio.id, nome: "Corpo", cor: "#f5c" },
+    });
+    const item = await prisma.itemDesafio.create({
+      data: {
+        categoriaId: categoria.id,
+        descricao: "Ida à academia",
+        pontos: 10,
+        exigeFoto: true,
+      },
+    });
+
+    mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-x/abc.webp");
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+    const formData = new FormData();
+    formData.set("foto", arquivo);
+    await marcarItemComFoto(item.id, formData);
+
+    const marcacao = await prisma.marcacaoItem.findFirstOrThrow({
+      where: { itemId: item.id, clienteId: cliente.id },
+    });
+    expect(marcacao.validado).toBe(false);
+    expect(marcacao.fotoChave).toBe("comprovantes-item/cliente-x/abc.webp");
+
+    const resultado = await obterDesafioAtivoParaCliente();
+    expect(resultado?.rankingGeral).toEqual([]);
+
+    // segunda tentativa de marcar o mesmo item no mesmo dia é bloqueada (FR-006)
+    await expect(marcarItemComFoto(item.id, formData)).rejects.toThrow(
+      "Você já marcou esse item hoje",
     );
   });
 });

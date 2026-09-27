@@ -55,6 +55,18 @@ export function FormularioCriarItem({
           <option value="SEMANAL">Semanal</option>
         </select>
       </label>
+      <label
+        className="flex items-center gap-2 text-sm text-foreground"
+        htmlFor={`exigeFoto-${categoriaId}`}
+      >
+        <input
+          id={`exigeFoto-${categoriaId}`}
+          name="exigeFoto"
+          type="checkbox"
+          className="size-4 rounded border-input accent-primary"
+        />
+        Exige foto
+      </label>
       {erro && (
         <p role="alert" className="text-sm text-destructive">
           {erro}

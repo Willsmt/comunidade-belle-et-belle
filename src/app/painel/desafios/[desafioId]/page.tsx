@@ -7,16 +7,15 @@ import {
   removerItem,
   removerRegraBonus,
   removerDesafioSurpresa,
-  rejeitarParticipacao,
 } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { FormularioCriarCategoria } from "./formulario-criar-categoria";
 import { FormularioCriarItem } from "./formulario-criar-item";
+import { BotaoAlternarExigeFoto } from "./botao-alternar-exige-foto";
 import { FormularioCriarRegraLimiar } from "./formulario-criar-regra-limiar";
 import { FormularioCriarRegraCombo } from "./formulario-criar-regra-combo";
 import { FormularioCriarRegraCategoriaCompleta } from "./formulario-criar-regra-categoria-completa";
 import { FormularioCriarDesafioSurpresa } from "./formulario-criar-desafio-surpresa";
-import { BotaoAprovarParticipacao } from "./botao-aprovar-participacao";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -95,12 +94,16 @@ export default async function DesafioDetalhePage({
                             <span className="text-xs text-muted-foreground">
                               {item.frequencia === "DIARIO" ? "Diário" : "Semanal"}
                             </span>
+                            {item.exigeFoto && <Badge variant="secondary">Exige foto</Badge>}
                           </div>
-                          <BotaoComConfirmacao
-                            label="Remover"
-                            mensagemConfirmacao={`Remover o item "${item.descricao}"?`}
-                            action={removerItem.bind(null, item.id)}
-                          />
+                          <div className="flex items-center gap-2">
+                            <BotaoAlternarExigeFoto itemId={item.id} exigeFoto={item.exigeFoto} />
+                            <BotaoComConfirmacao
+                              label="Remover"
+                              mensagemConfirmacao={`Remover o item "${item.descricao}"?`}
+                              action={removerItem.bind(null, item.id)}
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -243,7 +246,9 @@ export default async function DesafioDetalhePage({
                             <span className="text-sm text-foreground">
                               {participacao.cliente.name ?? participacao.cliente.email}
                             </span>
-                            {participacao.validado && <Badge variant="secondary">Aprovada</Badge>}
+                            <Badge variant={participacao.validado ? "secondary" : "outline"}>
+                              {participacao.validado ? "Aprovada" : "Pendente"}
+                            </Badge>
                           </div>
                           {participacao.fotoUrl && (
                             <Image
@@ -257,14 +262,9 @@ export default async function DesafioDetalhePage({
                             />
                           )}
                           {!participacao.validado && (
-                            <div className="flex items-center gap-2">
-                              <BotaoAprovarParticipacao participacaoId={participacao.id} />
-                              <BotaoComConfirmacao
-                                label="Rejeitar"
-                                mensagemConfirmacao="Rejeitar essa participação? Ela será removida e a cliente pode enviar de novo."
-                                action={rejeitarParticipacao.bind(null, participacao.id)}
-                              />
-                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Decisão pendente em /painel/aprovacoes.
+                            </p>
                           )}
                         </li>
                       ))}

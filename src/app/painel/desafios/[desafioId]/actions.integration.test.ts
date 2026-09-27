@@ -7,7 +7,7 @@ const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { criarRegraLimiar, aprovarParticipacao } from "./actions";
+import { criarRegraLimiar, aprovarParticipacao, alternarExigeFoto } from "./actions";
 import { alternarMarcacao, participarDesafioSurpresa } from "@/app/cliente/desafios/actions";
 import { obterDesafioAtivoParaCliente } from "@/app/cliente/desafios/queries";
 
@@ -100,6 +100,44 @@ describe("regra de bônus conectada a um emblema até a Conquista (Postgres real
 
     const conquistas = await prisma.conquista.findMany({ where: { clienteId: cliente.id } });
     expect(conquistas).toHaveLength(0);
+  });
+});
+
+describe("alternarExigeFoto (Postgres real)", () => {
+  it("persiste o valor invertido a cada chamada", async () => {
+    const gestora = await prisma.user.create({
+      data: { email: "gestora@x.com", status: "ATIVO", name: "Gestora" },
+    });
+    const desafio = await prisma.desafio.create({
+      data: {
+        titulo: "Glow Up",
+        dataInicio: new Date("2026-09-01"),
+        dataFim: new Date("2026-09-30"),
+      },
+    });
+    const categoria = await prisma.categoriaDesafio.create({
+      data: { desafioId: desafio.id, nome: "Pele", cor: "#f5c" },
+    });
+    const item = await prisma.itemDesafio.create({
+      data: { categoriaId: categoria.id, descricao: "Ida à academia", pontos: 10 },
+    });
+    expect(item.exigeFoto).toBe(false);
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(gestora.id, ["GESTORA"]));
+    await alternarExigeFoto(item.id);
+
+    const depoisDaPrimeira = await prisma.itemDesafio.findUniqueOrThrow({
+      where: { id: item.id },
+    });
+    expect(depoisDaPrimeira.exigeFoto).toBe(true);
+
+    mockAuth.mockResolvedValueOnce(sessaoDe(gestora.id, ["GESTORA"]));
+    await alternarExigeFoto(item.id);
+
+    const depoisDaSegunda = await prisma.itemDesafio.findUniqueOrThrow({
+      where: { id: item.id },
+    });
+    expect(depoisDaSegunda.exigeFoto).toBe(false);
   });
 });
 
