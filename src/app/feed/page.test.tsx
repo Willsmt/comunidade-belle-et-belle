@@ -7,6 +7,7 @@ const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("./queries", () => ({
   listarPosts: vi.fn(),
+  obterPostDestaque: vi.fn(),
   obterTeaserDesafioAtivo: vi.fn(),
 }));
 vi.mock("./actions", () => ({
@@ -14,11 +15,12 @@ vi.mock("./actions", () => ({
   alternarCurtida: vi.fn(),
   comentar: vi.fn(),
   apagarComentario: vi.fn(),
+  alternarDestaque: vi.fn(),
 }));
 
 import FeedPage from "./page";
-import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
-import { apagarPost, alternarCurtida, comentar } from "./actions";
+import { listarPosts, obterPostDestaque, obterTeaserDesafioAtivo } from "./queries";
+import { apagarPost, alternarCurtida, comentar, alternarDestaque } from "./actions";
 
 function buildSearchParams(cursor?: string) {
   return Promise.resolve(cursor ? { cursor } : {});
@@ -42,6 +44,7 @@ function buildPostView(overrides: Record<string, unknown> = {}) {
     curtidoPeloUsuario: false,
     totalCurtidas: 0,
     comentarios: [],
+    destaque: false,
     ...overrides,
   };
 }
@@ -50,7 +53,10 @@ describe("FeedPage", () => {
   beforeEach(() => {
     mockAuth.mockReset();
     vi.mocked(listarPosts).mockReset();
+    vi.mocked(obterPostDestaque).mockReset();
+    vi.mocked(obterPostDestaque).mockResolvedValue(null);
     vi.mocked(obterTeaserDesafioAtivo).mockReset();
+    vi.mocked(alternarDestaque).mockReset();
   });
 
   it("retorna null quando não há sessão", async () => {
@@ -346,6 +352,101 @@ describe("FeedPage", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(
         "Escreva um comentário",
       ),
+    );
+  });
+
+  it("mostra o post em destaque fixado no topo, acima da lista cronológica, com o badge Destaque", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(obterPostDestaque).mockResolvedValue(
+      buildPostView({ id: "post-destaque", texto: "post fixado", destaque: true }) as never,
+    );
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView({ id: "post-recente", texto: "post recente" })],
+      proximoCursor: null,
+    } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    const badges = screen.getAllByText("Destaque");
+    expect(badges).toHaveLength(1);
+    const textos = screen.getAllByText(/post (fixado|recente)/).map((el) => el.textContent);
+    expect(textos).toEqual(["post fixado", "post recente"]);
+  });
+
+  it("não mostra badge nem seção fixada quando não há post em destaque", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-1"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView()],
+      proximoCursor: null,
+    } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(screen.queryByText("Destaque")).not.toBeInTheDocument();
+  });
+
+  it("mostra o botão de alternar destaque pra quem tem acesso ao painel", async () => {
+    mockAuth.mockResolvedValue(buildSessao("patty-1", ["GESTORA"]));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView({ autorId: "cliente-1" })],
+      proximoCursor: null,
+    } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(
+      screen.getByRole("button", { name: /marcar como destaque/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("não mostra o botão de alternar destaque pra quem não tem acesso ao painel", async () => {
+    mockAuth.mockResolvedValue(buildSessao("cliente-2"));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView({ autorId: "cliente-1" })],
+      proximoCursor: null,
+    } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(
+      screen.queryByRole("button", { name: /marcar como destaque/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mostra 'Remover destaque' no post que já está em destaque", async () => {
+    mockAuth.mockResolvedValue(buildSessao("patty-1", ["GESTORA"]));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(obterPostDestaque).mockResolvedValue(
+      buildPostView({ id: "post-destaque", destaque: true }) as never,
+    );
+    vi.mocked(listarPosts).mockResolvedValue({ posts: [], proximoCursor: null } as never);
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    expect(
+      screen.getByRole("button", { name: /remover destaque/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("mostra a mensagem de erro original quando alternar destaque falha", async () => {
+    mockAuth.mockResolvedValue(buildSessao("patty-1", ["GESTORA"]));
+    vi.mocked(obterTeaserDesafioAtivo).mockResolvedValue(null);
+    vi.mocked(listarPosts).mockResolvedValue({
+      posts: [buildPostView()],
+      proximoCursor: null,
+    } as never);
+    vi.mocked(alternarDestaque).mockRejectedValue(new Error("Acesso negado"));
+
+    render(await FeedPage({ searchParams: buildSearchParams() }));
+
+    fireEvent.click(screen.getByRole("button", { name: /marcar como destaque/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Acesso negado"),
     );
   });
 });

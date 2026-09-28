@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/objetos";
 import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
@@ -13,59 +14,79 @@ async function obterFotoUrlAutor(autor: {
     : (autor.image ?? null);
 }
 
-export async function listarPosts(usuarioId: string, cursor?: string) {
-  const posts = await prisma.post.findMany({
-    orderBy: { criadoEm: "desc" },
-    take: TAMANHO_PAGINA + 1,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    include: {
-      autor: { select: { id: true, name: true } },
-      likes: { where: { usuarioId }, select: { id: true } },
-      comentarios: {
-        orderBy: { criadoEm: "asc" },
-        include: {
-          autor: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-              perfil: { select: { fotoChave: true } },
-            },
+function construirIncludeExibicaoPost(usuarioId: string) {
+  return {
+    autor: { select: { id: true, name: true } },
+    likes: { where: { usuarioId }, select: { id: true } },
+    comentarios: {
+      orderBy: { criadoEm: "asc" as const },
+      include: {
+        autor: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            perfil: { select: { fotoChave: true } },
           },
         },
       },
-      _count: { select: { likes: true } },
     },
+    _count: { select: { likes: true } },
+  };
+}
+
+type PostComInclude = Prisma.PostGetPayload<{
+  include: ReturnType<typeof construirIncludeExibicaoPost>;
+}>;
+
+async function mapearPostParaExibicao(post: PostComInclude) {
+  return {
+    ...post,
+    urlImagem: post.imagemChave
+      ? await gerarUrlAssinada(post.imagemChave)
+      : null,
+    curtidoPeloUsuario: post.likes.length > 0,
+    totalCurtidas: post._count.likes,
+    comentarios: await Promise.all(
+      post.comentarios.map(async (comentario) => ({
+        ...comentario,
+        autor: {
+          id: comentario.autor.id,
+          name: comentario.autor.name,
+          fotoUrl: await obterFotoUrlAutor(comentario.autor),
+        },
+      })),
+    ),
+  };
+}
+
+export async function listarPosts(usuarioId: string, cursor?: string) {
+  const posts = await prisma.post.findMany({
+    where: { destaque: false },
+    orderBy: { criadoEm: "desc" },
+    take: TAMANHO_PAGINA + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: construirIncludeExibicaoPost(usuarioId),
   });
 
   const temMais = posts.length > TAMANHO_PAGINA;
   const pagina = temMais ? posts.slice(0, TAMANHO_PAGINA) : posts;
 
-  const paginaComUrl = await Promise.all(
-    pagina.map(async (post) => ({
-      ...post,
-      urlImagem: post.imagemChave
-        ? await gerarUrlAssinada(post.imagemChave)
-        : null,
-      curtidoPeloUsuario: post.likes.length > 0,
-      totalCurtidas: post._count.likes,
-      comentarios: await Promise.all(
-        post.comentarios.map(async (comentario) => ({
-          ...comentario,
-          autor: {
-            id: comentario.autor.id,
-            name: comentario.autor.name,
-            fotoUrl: await obterFotoUrlAutor(comentario.autor),
-          },
-        })),
-      ),
-    })),
-  );
+  const paginaComUrl = await Promise.all(pagina.map(mapearPostParaExibicao));
 
   return {
     posts: paginaComUrl,
     proximoCursor: temMais ? pagina[pagina.length - 1].id : null,
   };
+}
+
+export async function obterPostDestaque(usuarioId: string) {
+  const post = await prisma.post.findFirst({
+    where: { destaque: true },
+    include: construirIncludeExibicaoPost(usuarioId),
+  });
+
+  return post ? mapearPostParaExibicao(post) : null;
 }
 
 export async function obterPost(postId: string) {

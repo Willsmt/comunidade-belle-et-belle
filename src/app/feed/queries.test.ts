@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockFindManyPost,
   mockFindUniquePost,
+  mockFindFirstPost,
   mockFindManyFoto,
   mockFindFirstDesafio,
   mockGerarUrlAssinada,
@@ -10,6 +11,7 @@ const {
 } = vi.hoisted(() => ({
   mockFindManyPost: vi.fn(),
   mockFindUniquePost: vi.fn(),
+  mockFindFirstPost: vi.fn(),
   mockFindManyFoto: vi.fn(),
   mockFindFirstDesafio: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
@@ -18,7 +20,11 @@ const {
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    post: { findMany: mockFindManyPost, findUnique: mockFindUniquePost },
+    post: {
+      findMany: mockFindManyPost,
+      findUnique: mockFindUniquePost,
+      findFirst: mockFindFirstPost,
+    },
     fotoEvolucao: { findMany: mockFindManyFoto },
     desafio: { findFirst: mockFindFirstDesafio },
   },
@@ -33,6 +39,7 @@ vi.mock("@/lib/storage/perfil", () => ({
 import {
   listarPosts,
   obterPost,
+  obterPostDestaque,
   listarFotosEvolucaoDoUsuario,
   obterTeaserDesafioAtivo,
 } from "./queries";
@@ -44,6 +51,7 @@ function buildPost(id: string) {
     texto: "texto",
     imagemChave: null,
     fotoEvolucaoId: null,
+    destaque: false,
     criadoEm: new Date(),
     atualizadoEm: new Date(),
     autor: { id: "autor-1", name: "Autor" },
@@ -56,6 +64,7 @@ function buildPost(id: string) {
 beforeEach(() => {
   mockFindManyPost.mockReset();
   mockFindUniquePost.mockReset();
+  mockFindFirstPost.mockReset();
   mockFindManyFoto.mockReset();
   mockFindFirstDesafio.mockReset();
   mockGerarUrlAssinada.mockReset();
@@ -63,6 +72,15 @@ beforeEach(() => {
 });
 
 describe("listarPosts", () => {
+  it("exclui o post em destaque da lista cronológica", async () => {
+    mockFindManyPost.mockResolvedValue([]);
+
+    await listarPosts("usuario-1");
+
+    const chamada = mockFindManyPost.mock.calls[0][0];
+    expect(chamada.where).toEqual({ destaque: false });
+  });
+
   it("busca sem cursor quando não informado", async () => {
     mockFindManyPost.mockResolvedValue([]);
 
@@ -229,6 +247,43 @@ describe("listarPosts", () => {
     const resultado = await listarPosts("usuario-1");
 
     expect(resultado.posts[0].comentarios[0].autor.fotoUrl).toBeNull();
+  });
+});
+
+describe("obterPostDestaque", () => {
+  it("busca o post com destaque true, filtrando likes pelo usuário logado", async () => {
+    mockFindFirstPost.mockResolvedValue(null);
+
+    await obterPostDestaque("usuario-1");
+
+    const chamada = mockFindFirstPost.mock.calls[0][0];
+    expect(chamada.where).toEqual({ destaque: true });
+    expect(chamada.include.likes.where).toEqual({ usuarioId: "usuario-1" });
+  });
+
+  it("retorna null quando nenhum post está em destaque", async () => {
+    mockFindFirstPost.mockResolvedValue(null);
+
+    const resultado = await obterPostDestaque("usuario-1");
+
+    expect(resultado).toBeNull();
+  });
+
+  it("retorna o post mapeado (com urlImagem e contagem de curtidas) quando existe destaque", async () => {
+    mockFindFirstPost.mockResolvedValue({
+      ...buildPost("post-destaque"),
+      destaque: true,
+      imagemChave: "posts/destaque.webp",
+      likes: [{ id: "like-1" }],
+      _count: { likes: 5 },
+    });
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo/destaque");
+
+    const resultado = await obterPostDestaque("usuario-1");
+
+    expect(resultado?.urlImagem).toBe("https://url-assinada.exemplo/destaque");
+    expect(resultado?.curtidoPeloUsuario).toBe(true);
+    expect(resultado?.totalCurtidas).toBe(5);
   });
 });
 

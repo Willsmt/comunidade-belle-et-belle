@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { listarFotosEvolucaoDoUsuario } from "../queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormularioNovoPost } from "./formulario-novo-post";
@@ -8,6 +9,9 @@ export default async function NovoPostPage() {
   const fotosEvolucao = session?.user
     ? await listarFotosEvolucaoDoUsuario(session.user.id)
     : [];
+  const podeDestacar = session?.user
+    ? temAlgumPapel(session.user.papeis, ["GESTORA", "ADMIN"])
+    : false;
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
@@ -15,7 +19,10 @@ export default async function NovoPostPage() {
 
       <Card className="mt-4">
         <CardContent>
-          <FormularioNovoPost fotosEvolucao={fotosEvolucao} />
+          <FormularioNovoPost
+            fotosEvolucao={fotosEvolucao}
+            podeDestacar={podeDestacar}
+          />
         </CardContent>
       </Card>
     </main>

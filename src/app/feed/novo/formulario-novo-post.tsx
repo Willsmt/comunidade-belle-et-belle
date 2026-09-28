@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 
 export function FormularioNovoPost({
   fotosEvolucao,
+  podeDestacar,
 }: {
   fotosEvolucao: Awaited<ReturnType<typeof listarFotosEvolucaoDoUsuario>>;
+  podeDestacar: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -88,6 +90,21 @@ export function FormularioNovoPost({
             ))}
           </div>
         </fieldset>
+      )}
+
+      {podeDestacar && (
+        <label
+          htmlFor="destaque"
+          className="flex items-center gap-2 text-sm text-foreground"
+        >
+          <input
+            id="destaque"
+            name="destaque"
+            type="checkbox"
+            className="size-4 rounded border-input accent-primary"
+          />
+          Marcar como destaque
+        </label>
       )}
 
       {erro && <p role="alert">{erro}</p>}

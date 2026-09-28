@@ -31,8 +31,9 @@ import {
   alternarCurtida,
   comentar,
   apagarComentario,
+  alternarDestaque,
 } from "./actions";
-import { listarPosts, obterTeaserDesafioAtivo } from "./queries";
+import { listarPosts, obterPostDestaque, obterTeaserDesafioAtivo } from "./queries";
 
 afterEach(async () => {
   await limparBanco();
@@ -55,6 +56,13 @@ function formDataTexto(texto: string) {
 function formDataFotoEvolucao(fotoEvolucaoId: string) {
   const formData = new FormData();
   formData.set("fotoEvolucaoId", fotoEvolucaoId);
+  return formData;
+}
+
+function formDataTextoComDestaque(texto: string) {
+  const formData = new FormData();
+  formData.set("texto", texto);
+  formData.set("destaque", "on");
   return formData;
 }
 
@@ -130,6 +138,82 @@ describe("criarPost (Postgres real)", () => {
       criarPost(formDataFotoEvolucao(foto.id)),
     ).rejects.toThrow("Foto de evolução inválida");
     expect(await prisma.post.count()).toBe(0);
+  });
+
+  it("rejeita marcar destaque na criação sem acesso ao painel, sem criar o post", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    mockAuth.mockResolvedValue(sessaoDe(cliente.id));
+
+    await expect(
+      criarPost(formDataTextoComDestaque("quero destaque")),
+    ).rejects.toThrow("Acesso negado");
+    expect(await prisma.post.count()).toBe(0);
+  });
+
+  it("cria post em destaque desmarcando o destaque anterior no banco real", async () => {
+    const gestora = await criarUsuario("gestora@x.com", "Gestora");
+    const postAnterior = await prisma.post.create({
+      data: { autorId: gestora.id, texto: "post antigo em destaque", destaque: true },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(gestora.id, ["GESTORA"]));
+
+    await expect(
+      criarPost(formDataTextoComDestaque("novo post em destaque")),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    const posts = await prisma.post.findMany({ orderBy: { criadoEm: "asc" } });
+    expect(posts).toHaveLength(2);
+    expect(posts.filter((p) => p.destaque)).toHaveLength(1);
+    expect(
+      posts.find((p) => p.id === postAnterior.id)?.destaque,
+    ).toBe(false);
+    expect(
+      posts.find((p) => p.texto === "novo post em destaque")?.destaque,
+    ).toBe(true);
+  });
+});
+
+describe("alternarDestaque (Postgres real)", () => {
+  it("exige acesso ao painel", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const post = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post" },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(cliente.id));
+
+    await expect(alternarDestaque(post.id)).rejects.toThrow("Acesso negado");
+    expect(
+      (await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).destaque,
+    ).toBe(false);
+  });
+
+  it("marca um post como destaque desmarcando o anterior, no máximo um ativo por vez", async () => {
+    const gestora = await criarUsuario("gestora@x.com", "Gestora");
+    const postA = await prisma.post.create({
+      data: { autorId: gestora.id, texto: "post A", destaque: true },
+    });
+    const postB = await prisma.post.create({
+      data: { autorId: gestora.id, texto: "post B" },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(gestora.id, ["GESTORA"]));
+
+    await alternarDestaque(postB.id);
+
+    const posts = await prisma.post.findMany();
+    expect(posts.find((p) => p.id === postA.id)?.destaque).toBe(false);
+    expect(posts.find((p) => p.id === postB.id)?.destaque).toBe(true);
+  });
+
+  it("remove o destaque quando acionado no próprio post em destaque, ficando nenhum ativo", async () => {
+    const gestora = await criarUsuario("gestora@x.com", "Gestora");
+    const post = await prisma.post.create({
+      data: { autorId: gestora.id, texto: "post em destaque", destaque: true },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(gestora.id, ["GESTORA"]));
+
+    await alternarDestaque(post.id);
+
+    expect(await prisma.post.count({ where: { destaque: true } })).toBe(0);
   });
 });
 
@@ -395,5 +479,46 @@ describe("listarPosts (Postgres real)", () => {
     expect(segundaPagina.posts).toHaveLength(1);
     expect(segundaPagina.posts[0].id).toBe(criados[0].id);
     expect(segundaPagina.proximoCursor).toBeNull();
+  });
+
+  it("não inclui o post em destaque na lista cronológica", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const destaque = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post destaque", destaque: true },
+    });
+    const normal = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post normal" },
+    });
+
+    const { posts } = await listarPosts(cliente.id);
+
+    expect(posts.map((p) => p.id)).toEqual([normal.id]);
+    expect(posts.map((p) => p.id)).not.toContain(destaque.id);
+  });
+});
+
+describe("obterPostDestaque (Postgres real)", () => {
+  it("retorna null quando não há post em destaque", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    await prisma.post.create({ data: { autorId: cliente.id, texto: "post comum" } });
+
+    const resultado = await obterPostDestaque(cliente.id);
+
+    expect(resultado).toBeNull();
+  });
+
+  it("retorna o post em destaque mapeado com curtidas e comentários", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const post = await prisma.post.create({
+      data: { autorId: cliente.id, texto: "post destaque", destaque: true },
+    });
+    await prisma.like.create({ data: { postId: post.id, usuarioId: cliente.id } });
+
+    const resultado = await obterPostDestaque(cliente.id);
+
+    expect(resultado?.id).toBe(post.id);
+    expect(resultado?.destaque).toBe(true);
+    expect(resultado?.curtidoPeloUsuario).toBe(true);
+    expect(resultado?.totalCurtidas).toBe(1);
   });
 });

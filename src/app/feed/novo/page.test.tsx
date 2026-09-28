@@ -34,7 +34,7 @@ describe("NovoPostPage", () => {
   });
 
   it("não mostra o fieldset de fotos quando o usuário não tem nenhuma", async () => {
-    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1", papeis: ["CLIENTE"] } });
     vi.mocked(listarFotosEvolucaoDoUsuario).mockResolvedValue([]);
 
     render(await NovoPostPage());
@@ -44,8 +44,28 @@ describe("NovoPostPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("não mostra a caixa de destaque pra quem não tem acesso ao painel", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1", papeis: ["CLIENTE"] } });
+    vi.mocked(listarFotosEvolucaoDoUsuario).mockResolvedValue([]);
+
+    render(await NovoPostPage());
+
+    expect(
+      screen.queryByLabelText(/marcar como destaque/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("mostra a caixa de destaque pra quem tem acesso ao painel", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "patty-1", papeis: ["GESTORA"] } });
+    vi.mocked(listarFotosEvolucaoDoUsuario).mockResolvedValue([]);
+
+    render(await NovoPostPage());
+
+    expect(screen.getByLabelText(/marcar como destaque/i)).toBeInTheDocument();
+  });
+
   it("mostra as fotos de evolução do usuário como opções de rádio", async () => {
-    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1", papeis: ["CLIENTE"] } });
     vi.mocked(listarFotosEvolucaoDoUsuario).mockResolvedValue([
       {
         id: "foto-1",

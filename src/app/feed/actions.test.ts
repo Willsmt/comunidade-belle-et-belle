@@ -3,10 +3,13 @@ import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererSessao,
+  mockRequererAcessoPainel,
   mockPostCreate,
   mockPostFindUnique,
   mockPostUpdate,
+  mockPostUpdateMany,
   mockPostDelete,
+  mockTransaction,
   mockFindUniqueFotoEvolucao,
   mockLikeFindUnique,
   mockLikeCreate,
@@ -20,10 +23,13 @@ const {
   mockRedirect,
 } = vi.hoisted(() => ({
   mockRequererSessao: vi.fn(),
+  mockRequererAcessoPainel: vi.fn(),
   mockPostCreate: vi.fn(),
   mockPostFindUnique: vi.fn(),
   mockPostUpdate: vi.fn(),
+  mockPostUpdateMany: vi.fn(),
   mockPostDelete: vi.fn(),
+  mockTransaction: vi.fn(),
   mockFindUniqueFotoEvolucao: vi.fn(),
   mockLikeFindUnique: vi.fn(),
   mockLikeCreate: vi.fn(),
@@ -41,6 +47,7 @@ const {
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
   requererSessao: mockRequererSessao,
+  requererAcessoPainel: mockRequererAcessoPainel,
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -48,6 +55,7 @@ vi.mock("@/lib/prisma", () => ({
       create: mockPostCreate,
       findUnique: mockPostFindUnique,
       update: mockPostUpdate,
+      updateMany: mockPostUpdateMany,
       delete: mockPostDelete,
     },
     fotoEvolucao: {
@@ -63,6 +71,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mockComentarioFindUnique,
       delete: mockComentarioDelete,
     },
+    $transaction: mockTransaction,
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -88,6 +97,7 @@ import {
   alternarCurtida,
   comentar,
   apagarComentario,
+  alternarDestaque,
 } from "./actions";
 
 function buildArquivo(nome = "post.jpg") {
@@ -102,12 +112,14 @@ function buildFormDataCriar(opts: {
   texto?: string;
   arquivo?: File;
   fotoEvolucaoId?: string;
+  destaque?: boolean;
 }) {
   const formData = new FormData();
   if (opts.texto !== undefined) formData.set("texto", opts.texto);
   if (opts.arquivo) formData.set("arquivo", opts.arquivo);
   if (opts.fotoEvolucaoId !== undefined)
     formData.set("fotoEvolucaoId", opts.fotoEvolucaoId);
+  if (opts.destaque) formData.set("destaque", "on");
   return formData;
 }
 
@@ -144,10 +156,13 @@ function buildFormDataComentarioId(comentarioId: string) {
 
 beforeEach(() => {
   mockRequererSessao.mockReset();
+  mockRequererAcessoPainel.mockReset();
   mockPostCreate.mockReset();
   mockPostFindUnique.mockReset();
   mockPostUpdate.mockReset();
+  mockPostUpdateMany.mockReset();
   mockPostDelete.mockReset();
+  mockTransaction.mockReset();
   mockFindUniqueFotoEvolucao.mockReset();
   mockLikeFindUnique.mockReset();
   mockLikeCreate.mockReset();
@@ -262,6 +277,65 @@ describe("criarPost", () => {
       },
     });
     expect(mockRedirect).toHaveBeenCalledWith("/feed");
+  });
+
+  it("rejeita marcar destaque na criação pra quem não tem acesso ao painel", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "oi", destaque: true })),
+    ).rejects.toThrow("Acesso negado");
+    expect(mockPostCreate).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("cria post em destaque desmarcando o destaque anterior numa única transação", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("patty-1", ["GESTORA"]));
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockPostUpdateMany.mockReturnValue("updateMany-op");
+    mockPostCreate.mockReturnValue("create-op");
+    mockTransaction.mockResolvedValue([{}, {}]);
+
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "novo destaque", destaque: true })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mockPostUpdateMany).toHaveBeenCalledWith({
+      where: { destaque: true },
+      data: { destaque: false },
+    });
+    expect(mockPostCreate).toHaveBeenCalledWith({
+      data: {
+        autorId: "patty-1",
+        texto: "novo destaque",
+        imagemChave: null,
+        fotoEvolucaoId: null,
+        destaque: true,
+      },
+    });
+    expect(mockTransaction).toHaveBeenCalledWith(["updateMany-op", "create-op"]);
+    expect(mockRedirect).toHaveBeenCalledWith("/feed");
+  });
+
+  it("cria post sem destaque normalmente quando a caixa não é marcada, sem transação", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("patty-1", ["GESTORA"]));
+    mockPostCreate.mockResolvedValue({});
+
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "post comum" })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mockRequererAcessoPainel).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockPostCreate).toHaveBeenCalledWith({
+      data: {
+        autorId: "patty-1",
+        texto: "post comum",
+        imagemChave: null,
+        fotoEvolucaoId: null,
+      },
+    });
   });
 });
 
@@ -658,5 +732,61 @@ describe("apagarComentario", () => {
     expect(mockComentarioDelete).toHaveBeenCalledWith({
       where: { id: "comentario-1" },
     });
+  });
+});
+
+describe("alternarDestaque", () => {
+  it("exige acesso ao painel", async () => {
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(alternarDestaque("post-1")).rejects.toThrow("Acesso negado");
+    expect(mockPostFindUnique).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("rejeita post inexistente", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockPostFindUnique.mockResolvedValue(null);
+
+    await expect(alternarDestaque("post-inexistente")).rejects.toThrow(
+      "Post não encontrado",
+    );
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("marca como destaque, desmarcando qualquer outro post em destaque numa única transação", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockPostFindUnique.mockResolvedValue({ id: "post-2", destaque: false });
+    mockPostUpdateMany.mockReturnValue("updateMany-op");
+    mockPostUpdate.mockReturnValue("update-op");
+    mockTransaction.mockResolvedValue([{}, {}]);
+
+    await alternarDestaque("post-2");
+
+    expect(mockPostUpdateMany).toHaveBeenCalledWith({
+      where: { destaque: true },
+      data: { destaque: false },
+    });
+    expect(mockPostUpdate).toHaveBeenCalledWith({
+      where: { id: "post-2" },
+      data: { destaque: true },
+    });
+    expect(mockTransaction).toHaveBeenCalledWith(["updateMany-op", "update-op"]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+  });
+
+  it("remove o destaque do próprio post já em destaque, sem afetar os demais", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockPostFindUnique.mockResolvedValue({ id: "post-1", destaque: true });
+    mockPostUpdate.mockResolvedValue({});
+
+    await alternarDestaque("post-1");
+
+    expect(mockPostUpdate).toHaveBeenCalledWith({
+      where: { id: "post-1" },
+      data: { destaque: false },
+    });
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
   });
 });

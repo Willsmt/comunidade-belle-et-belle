@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requererSessao } from "@/lib/auth/requerer-acesso-painel";
+import { requererAcessoPainel, requererSessao } from "@/lib/auth/requerer-acesso-painel";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { uploadImagemPost, deletarImagemPost } from "@/lib/storage/posts";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
@@ -18,6 +18,7 @@ export async function criarPost(formData: FormData) {
     const texto = formData.get("texto");
     const arquivo = formData.get("arquivo");
     const fotoEvolucaoId = formData.get("fotoEvolucaoId");
+    const destacarSolicitado = formData.get("destaque") === "on";
 
     const textoValido =
       typeof texto === "string" && texto.trim() !== "" ? texto.trim() : null;
@@ -42,17 +43,68 @@ export async function criarPost(formData: FormData) {
       throw new AppError("O post precisa de um texto ou uma imagem");
     }
 
-    await prisma.post.create({
-      data: {
-        autorId: session.user.id,
-        texto: textoValido,
-        imagemChave,
-        fotoEvolucaoId: fotoEvolucaoIdValido,
-      },
-    });
+    if (destacarSolicitado) {
+      await requererAcessoPainel();
+
+      await prisma.$transaction([
+        prisma.post.updateMany({
+          where: { destaque: true },
+          data: { destaque: false },
+        }),
+        prisma.post.create({
+          data: {
+            autorId: session.user.id,
+            texto: textoValido,
+            imagemChave,
+            fotoEvolucaoId: fotoEvolucaoIdValido,
+            destaque: true,
+          },
+        }),
+      ]);
+    } else {
+      await prisma.post.create({
+        data: {
+          autorId: session.user.id,
+          texto: textoValido,
+          imagemChave,
+          fotoEvolucaoId: fotoEvolucaoIdValido,
+        },
+      });
+    }
 
     revalidatePath("/feed");
     redirect("/feed");
+  });
+}
+
+export async function alternarDestaque(postId: string) {
+  return executarAction(async () => {
+    await requererAcessoPainel();
+
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post) {
+      throw new AppError("Post não encontrado");
+    }
+
+    if (post.destaque) {
+      await prisma.post.update({
+        where: { id: postId },
+        data: { destaque: false },
+      });
+    } else {
+      await prisma.$transaction([
+        prisma.post.updateMany({
+          where: { destaque: true },
+          data: { destaque: false },
+        }),
+        prisma.post.update({
+          where: { id: postId },
+          data: { destaque: true },
+        }),
+      ]);
+    }
+
+    revalidatePath("/feed");
   });
 }
 

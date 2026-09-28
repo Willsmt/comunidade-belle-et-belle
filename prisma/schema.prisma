@@ -408,10 +408,12 @@ model Post {
   fotoEvolucaoId String?
   likes          Like[]
   comentarios    Comentario[]
+  destaque       Boolean       @default(false)
   criadoEm       DateTime      @default(now())
   atualizadoEm   DateTime      @updatedAt
 
   @@index([autorId, criadoEm])
+  @@index([destaque])
 }
 
 model Like {

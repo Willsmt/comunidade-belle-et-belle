@@ -15,7 +15,7 @@ describe("FormularioNovoPost", () => {
 
   it("chama criarPost com os dados do formulário ao publicar", async () => {
     vi.mocked(criarPost).mockResolvedValue(undefined as never);
-    render(<FormularioNovoPost fotosEvolucao={[]} />);
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
 
     fireEvent.change(screen.getByLabelText(/texto/i), {
       target: { value: "meu progresso" },
@@ -26,11 +26,30 @@ describe("FormularioNovoPost", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("mostra a caixa 'Marcar como destaque' só quando podeDestacar é true", async () => {
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
+    expect(
+      screen.queryByLabelText(/marcar como destaque/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("envia o campo destaque marcado quando a caixa é marcada", async () => {
+    vi.mocked(criarPost).mockResolvedValue(undefined as never);
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={true} />);
+
+    fireEvent.click(screen.getByLabelText(/marcar como destaque/i));
+    fireEvent.click(screen.getByRole("button", { name: /publicar/i }));
+
+    await waitFor(() => expect(criarPost).toHaveBeenCalledTimes(1));
+    const formData = vi.mocked(criarPost).mock.calls[0][0] as FormData;
+    expect(formData.get("destaque")).toBe("on");
+  });
+
   it("mostra a mensagem de erro e mantém o texto já digitado quando o post é inválido", async () => {
     vi.mocked(criarPost).mockRejectedValue(
       new Error("O post precisa de um texto ou uma imagem"),
     );
-    render(<FormularioNovoPost fotosEvolucao={[]} />);
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
 
     const campoTexto = screen.getByLabelText(/texto/i) as HTMLTextAreaElement;
     fireEvent.change(campoTexto, { target: { value: "rascunho salvo" } });
@@ -46,7 +65,7 @@ describe("FormularioNovoPost", () => {
 
   it("volta a habilitar o botão depois do erro", async () => {
     vi.mocked(criarPost).mockRejectedValue(new Error("Erro qualquer"));
-    render(<FormularioNovoPost fotosEvolucao={[]} />);
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
 
     const botao = screen.getByRole("button", { name: /publicar/i });
     fireEvent.click(botao);
@@ -69,7 +88,7 @@ describe("FormularioNovoPost", () => {
     const onErroGlobal = vi.fn((event: ErrorEvent) => event.preventDefault());
     window.addEventListener("error", onErroGlobal);
 
-    render(<FormularioNovoPost fotosEvolucao={[]} />);
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: /publicar/i }));
 
