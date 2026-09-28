@@ -48,9 +48,13 @@ next-env.d.ts
 
 # Skills de assistentes geradas pelo Prisma init (não fazem parte do projeto)
 .agents/
-.claude/
+.claude/*
+!.claude/agents/
+!.claude/skills/
 .windsurf/
 skills-lock.json
 .env.test
 *:Zone.Identifier
 *:Zone.Identifier
+.claude/skills/prisma-*
+.claude/skills/load-testing-geral/

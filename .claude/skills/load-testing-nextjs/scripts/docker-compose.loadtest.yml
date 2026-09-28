@@ -1,0 +1,27 @@
+# Banco (e, opcionalmente, Redis) isolados para o teste de carga.
+# Nunca aponta pro banco do .env do projeto — porta e nome vêm de loadtest.env.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${LOADTEST_DB_NAME:-app_loadtest}
+    ports:
+      - "${LOADTEST_DB_PORT:-5435}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    ports:
+      - "${LOADTEST_REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
