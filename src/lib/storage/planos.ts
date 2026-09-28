@@ -1,3 +1,4 @@
+import { AppError } from "@/lib/actions/executar-action";
 import { randomUUID } from "node:crypto";
 import { uploadObjeto, gerarUrlAssinada, deletarObjeto } from "./objetos";
 
@@ -5,10 +6,10 @@ const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024;
 
 export function validarArquivoPdf(arquivo: File): void {
   if (arquivo.type !== "application/pdf") {
-    throw new Error("Formato inválido. Envie um arquivo PDF.");
+    throw new AppError("Formato inválido. Envie um arquivo PDF.");
   }
   if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-    throw new Error("Arquivo muito grande. Tamanho máximo: 10MB.");
+    throw new AppError("Arquivo muito grande. Tamanho máximo: 10MB.");
   }
 }
 
