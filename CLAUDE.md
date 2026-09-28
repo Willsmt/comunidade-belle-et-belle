@@ -129,3 +129,5 @@ Se o `graphify` estiver instalado (`graphify --version`), antes de alterar uma f
 2. Rode `graphify affected "nome()" --depth 1` para ver quem é impactado e `graphify explain "nome()"` para ver o que ele usa.
 
 Nunca leia `graphify-out/graph.json` diretamente (é grande); use os comandos acima. O grafo cobre chamadas e imports de código. Não cobre tipos, models do Prisma nem testes, e um resultado vazio não prova que nada usa o símbolo. Para tipos e campos do Prisma use `npm run typecheck`, e confirme com `grep -rn` antes de concluir que nada mais o usa.
+
+Ao afirmar que um símbolo não é referenciado fora de `src/`, busque em todos os tipos de arquivo (sem `--include`), porque `docs/`, `specs/` e os agentes citam nomes de função.
