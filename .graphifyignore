@@ -1,0 +1,34 @@
+# Segredos e ambiente
+.env*
+
+# Dependências, build e gerados
+node_modules/
+.next/
+coverage/
+src/generated/
+graphify-out/
+package-lock.json
+
+# Fora do escopo do primeiro build (texto e imagens iriam para o LLM)
+.git/
+.claude/
+.specify/
+specs/
+docs/
+public/
+*.md
+*.sql
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg
+*.pdf
+
+# Testes (apague estas duas linhas se quiser os testes no grafo)
+*.test.ts
+*.test.tsx
+src/components/ui/
+package.json
+components.json
+tsconfig.json

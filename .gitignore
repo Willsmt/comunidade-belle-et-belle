@@ -58,3 +58,4 @@ skills-lock.json
 *:Zone.Identifier
 .claude/skills/prisma-*
 .claude/skills/load-testing-geral/
+graphify-out/

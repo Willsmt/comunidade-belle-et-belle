@@ -120,3 +120,12 @@ Em nenhum dos três casos existe um índice único parcial no banco garantindo i
 Ao concluir uma mudança que altere o comportamento do sistema (model ou campo do Prisma, migration, rota, Server Action, gate de acesso, módulo de storage, variável de ambiente ou dependência) e antes de commitar, execute o agente `doc-sync-onboarding` para atualizar `CLAUDE.md` e `docs/`. Não execute para ajustes que não mudam comportamento (testes, estilo, textos, refatoração interna).
 
 O repositório é público: nunca registre vulnerabilidades nem proteções ausentes em arquivo versionado.
+
+## Mapa de dependências (graphify, opcional)
+
+Se o `graphify` estiver instalado (`graphify --version`), antes de alterar uma função ou componente usado em vários lugares:
+
+1. Atualize o grafo: `graphify update .` (não usa API).
+2. Rode `graphify affected "nome()" --depth 1` para ver quem é impactado e `graphify explain "nome()"` para ver o que ele usa.
+
+Nunca leia `graphify-out/graph.json` diretamente (é grande); use os comandos acima. O grafo cobre chamadas e imports de código. Não cobre tipos, models do Prisma nem testes, e um resultado vazio não prova que nada usa o símbolo. Para tipos e campos do Prisma use `npm run typecheck`, e confirme com `grep -rn` antes de concluir que nada mais o usa.
