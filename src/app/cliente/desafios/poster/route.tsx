@@ -26,7 +26,7 @@ async function carregarFotoComoPngDataUri(url: string | null): Promise<string | 
     const resposta = await fetch(url);
     if (!resposta.ok) {
       console.error(
-        `Poster: falha ao buscar foto (status ${resposta.status}) em ${url}`,
+        `Poster: falha ao buscar foto (status ${resposta.status})`,
       );
       return null;
     }
