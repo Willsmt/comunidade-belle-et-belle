@@ -39,7 +39,7 @@ describe("criarEmblema", () => {
 
     await expect(
       criarEmblema(buildFormData({ nome: "Campeã da Semana" })),
-    ).rejects.toThrow("Acesso negado");
+    ).rejects.toThrow("Não foi possível concluir a ação.");
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -121,7 +121,7 @@ describe("removerEmblema", () => {
   it("exige acesso ao painel", async () => {
     mockRequererAcessoPainel.mockRejectedValue(new Error("Acesso negado"));
 
-    await expect(removerEmblema("e1")).rejects.toThrow("Acesso negado");
+    await expect(removerEmblema("e1")).rejects.toThrow("Não foi possível concluir a ação.");
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
@@ -179,12 +179,12 @@ describe("removerEmblema", () => {
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
-  it("relança erro não relacionado a FK sem traduzir", async () => {
+  it("mascara erro não relacionado a FK com a mensagem genérica", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
     mockDelete.mockRejectedValue(new Error("Falha de conexão com o banco"));
 
     await expect(removerEmblema("e1")).rejects.toThrow(
-      "Falha de conexão com o banco",
+      "Não foi possível concluir a ação.",
     );
   });
 });

@@ -70,7 +70,7 @@ describe("enviarFoto", () => {
 
     await expect(
       enviarFoto(buildFormDataComArquivo(buildArquivo())),
-    ).rejects.toThrow("Acesso negado");
+    ).rejects.toThrow("Não foi possível concluir a ação.");
     expect(mockUploadFoto).not.toHaveBeenCalled();
   });
 

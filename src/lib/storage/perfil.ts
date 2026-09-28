@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AppError } from "@/lib/actions/executar-action";
 import { uploadObjeto, deletarObjeto, gerarUrlAssinada } from "./objetos";
 import { comprimirImagem } from "./comprimir-imagem";
 
@@ -7,12 +8,12 @@ const TAMANHO_MAXIMO_BYTES = 5 * 1024 * 1024;
 
 export function validarArquivo(arquivo: File): void {
   if (!TIPOS_PERMITIDOS.includes(arquivo.type)) {
-    throw new Error(
+    throw new AppError(
       "Formato de imagem não suportado. Envie JPEG, PNG ou WebP.",
     );
   }
   if (arquivo.size > TAMANHO_MAXIMO_BYTES) {
-    throw new Error("Imagem muito grande. Tamanho máximo: 5MB.");
+    throw new AppError("Imagem muito grande. Tamanho máximo: 5MB.");
   }
 }
 

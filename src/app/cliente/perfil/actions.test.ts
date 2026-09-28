@@ -65,7 +65,7 @@ describe("atualizarPerfil", () => {
 
     await expect(
       atualizarPerfil(buildFormData({ bio: "oi" })),
-    ).rejects.toThrow("Acesso negado");
+    ).rejects.toThrow("Não foi possível concluir a ação.");
 
     expect(mockRequererPapel).toHaveBeenCalledWith(["CLIENTE"]);
     expect(mockUpsert).not.toHaveBeenCalled();

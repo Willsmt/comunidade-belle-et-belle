@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { isDriverAdapterError } from "@prisma/driver-adapter-utils";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { AppError, executarAction } from "@/lib/actions/executar-action";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 import { ehNomeIconeEmblemaValido } from "@/lib/emblemas/icones";
 
@@ -30,47 +31,53 @@ function ehViolacaoRestricaoFK(erro: unknown): boolean {
 }
 
 export async function criarEmblema(formData: FormData) {
-  await requererAcessoPainel();
-  const nome = formData.get("nome");
-  const descricao = formData.get("descricao");
-  const icone = formData.get("icone");
-  if (typeof nome !== "string" || nome.trim() === "") {
-    throw new Error("Informe o nome do emblema");
-  }
-  if (nome.length > NOME_MAXIMO_CARACTERES) {
-    throw new Error(`Nome muito longo. Máximo: ${NOME_MAXIMO_CARACTERES} caracteres.`);
-  }
-  if (typeof descricao === "string" && descricao.length > DESCRICAO_MAXIMA_CARACTERES) {
-    throw new Error(
-      `Descrição muito longa. Máximo: ${DESCRICAO_MAXIMA_CARACTERES} caracteres.`,
-    );
-  }
-  if (typeof icone === "string" && icone.trim() !== "" && !ehNomeIconeEmblemaValido(icone)) {
-    throw new Error("Ícone inválido");
-  }
-  await prisma.emblema.create({
-    data: {
-      nome,
-      descricao: typeof descricao === "string" && descricao.trim() !== "" ? descricao : null,
-      icone: typeof icone === "string" && icone.trim() !== "" ? icone : null,
-    },
+  return executarAction(async () => {
+    await requererAcessoPainel();
+    const nome = formData.get("nome");
+    const descricao = formData.get("descricao");
+    const icone = formData.get("icone");
+    if (typeof nome !== "string" || nome.trim() === "") {
+      throw new AppError("Informe o nome do emblema");
+    }
+    if (nome.length > NOME_MAXIMO_CARACTERES) {
+      throw new AppError(
+        `Nome muito longo. Máximo: ${NOME_MAXIMO_CARACTERES} caracteres.`,
+      );
+    }
+    if (typeof descricao === "string" && descricao.length > DESCRICAO_MAXIMA_CARACTERES) {
+      throw new AppError(
+        `Descrição muito longa. Máximo: ${DESCRICAO_MAXIMA_CARACTERES} caracteres.`,
+      );
+    }
+    if (typeof icone === "string" && icone.trim() !== "" && !ehNomeIconeEmblemaValido(icone)) {
+      throw new AppError("Ícone inválido");
+    }
+    await prisma.emblema.create({
+      data: {
+        nome,
+        descricao: typeof descricao === "string" && descricao.trim() !== "" ? descricao : null,
+        icone: typeof icone === "string" && icone.trim() !== "" ? icone : null,
+      },
+    });
+    revalidatePath("/painel/desafios/emblemas");
   });
-  revalidatePath("/painel/desafios/emblemas");
 }
 
 export async function removerEmblema(emblemaId: string) {
-  await requererAcessoPainel();
-  try {
-    await prisma.emblema.delete({
-      where: { id: emblemaId },
-    });
-  } catch (erro) {
-    if (ehViolacaoRestricaoFK(erro)) {
-      throw new Error(
-        "Não é possível remover: esse emblema já foi concedido a alguém.",
-      );
+  return executarAction(async () => {
+    await requererAcessoPainel();
+    try {
+      await prisma.emblema.delete({
+        where: { id: emblemaId },
+      });
+    } catch (erro) {
+      if (ehViolacaoRestricaoFK(erro)) {
+        throw new AppError(
+          "Não é possível remover: esse emblema já foi concedido a alguém.",
+        );
+      }
+      throw erro;
     }
-    throw erro;
-  }
-  revalidatePath("/painel/desafios/emblemas");
+    revalidatePath("/painel/desafios/emblemas");
+  });
 }

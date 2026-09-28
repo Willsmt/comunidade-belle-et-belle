@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { AppError } from "@/lib/actions/executar-action";
 
 // Limite explícito de pixels de entrada — mesmo valor padrão do sharp/libvips
 // (268402689 ≈ 16383×16383), mas declarado aqui pra não depender de um
@@ -20,12 +21,12 @@ async function validarFormatoReal(buffer: Buffer): Promise<void> {
       limitInputPixels: LIMITE_PIXELS_ENTRADA,
     }).metadata());
   } catch {
-    throw new Error(
+    throw new AppError(
       "Não foi possível ler essa imagem. Verifique o arquivo e tente novamente.",
     );
   }
   if (!formato || !FORMATOS_PERMITIDOS.has(formato)) {
-    throw new Error(
+    throw new AppError(
       "Formato de imagem não suportado. Envie JPEG, PNG ou WebP.",
     );
   }
@@ -39,7 +40,7 @@ export async function comprimirImagem(buffer: Buffer): Promise<Buffer> {
       .webp({ quality: 80 })
       .toBuffer();
   } catch {
-    throw new Error(
+    throw new AppError(
       "Não foi possível processar essa imagem. Verifique o arquivo e tente novamente.",
     );
   }
