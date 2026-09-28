@@ -114,3 +114,9 @@ Três models usam o mesmo padrão — um booleano `ativo`/`destaque` que só pod
 | `Post` | `destaque` | Global (só um post fixado no feed todo) | `$transaction` que zera `destaque` de todos antes de marcar o novo, em `src/app/feed/actions.ts` (`criarPost` e `alternarDestaque`) |
 
 Em nenhum dos três casos existe um índice único parcial no banco garantindo isso — é responsabilidade da lógica de aplicação (transação ou checagem antes de escrever). Ao adicionar um novo caminho de escrita para esses campos, replique o mesmo cuidado.
+
+## Sincronização da documentação
+
+Ao concluir uma mudança que altere o comportamento do sistema (model ou campo do Prisma, migration, rota, Server Action, gate de acesso, módulo de storage, variável de ambiente ou dependência) e antes de commitar, execute o agente `doc-sync-onboarding` para atualizar `CLAUDE.md` e `docs/`. Não execute para ajustes que não mudam comportamento (testes, estilo, textos, refatoração interna).
+
+O repositório é público: nunca registre vulnerabilidades nem proteções ausentes em arquivo versionado.
