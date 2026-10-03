@@ -89,12 +89,12 @@ Estes padrões se repetem em quase toda Server Action do projeto — vale conhec
 
 Toda Server Action envolve seu corpo em `executarAction(async () => { ... })`. Isso garante que:
 - Sinais internos do Next (`redirect`, `notFound`) continuem funcionando (`unstable_rethrow`).
-- Um `throw new AppError("mensagem amigável")` chega ao client exatamente com essa mensagem — inclusive as validações de upload em `src/lib/storage/*` (formato/tamanho de arquivo), que lançam `AppError` para isso.
+- Um `throw new AppError("mensagem amigável")` chega ao client exatamente com essa mensagem — inclusive as validações de upload em `src/lib/storage/*` (formato/tamanho de arquivo, assinatura `%PDF-` do plano) e as cotas de `src/lib/storage/cotas.ts`, que lançam `AppError` para isso.
 - Qualquer outro erro (bug, erro do Prisma, uma variável de ambiente obrigatória ausente) vira a mensagem genérica `"Não foi possível concluir a ação."` no client, e o erro real é logado no servidor com `console.error`.
 
 ### `useAcaoComErro` (`src/hooks/use-acao-com-erro.ts`)
 
-Hook client-side usado por quase todo formulário/botão que chama uma Server Action: controla `isPending` (via `useTransition`) e `erro`, exibindo `error.message` na tela quando a action lança — seguro porque toda Server Action já passa por `executarAction`.
+Hook client-side usado por quase todo formulário/botão que chama uma Server Action: controla `isPending` (via `useTransition`) e `erro`, exibindo `error.message` na tela quando a action lança — seguro porque toda Server Action já passa por `executarAction`. Exceção ao padrão "action + `revalidatePath`": `BotaoCurtir` (`src/app/feed/botao-curtir.tsx`) atualiza a curtida de forma otimista e `alternarCurtida` devolve `{ curtiu, total }` sem revalidar o feed (ver `docs/features/feed.md`, "Fluxo: curtir").
 
 ### Gates de acesso (`src/lib/auth/`)
 
@@ -119,9 +119,28 @@ Em nenhum dos três casos existe um índice único parcial no banco garantindo i
 
 Wrapper de `next/image` que força `unoptimized`, para que fotos corporais e comprovantes sejam servidos direto pela signed URL do R2 (expira em 5 minutos), sem passar pelo otimizador `/_next/image`. Use-o em toda tela que exiba foto de evolução, foto de jornada (antes/depois) ou comprovante de desafio — inclusive imagem de post com `fotoEvolucaoId`. Imagens não sensíveis (foto de perfil, upload próprio de post) continuam com `next/image`. Lista de usos em `docs/architecture.md`.
 
+### URL assinada efêmera vs. cacheável (`src/lib/storage/objetos.ts`)
+
+- `gerarUrlAssinada(chave)` — expira em 300s e muda a cada chamada. Use para o mesmo conteúdo que vai em `ImagemSensivel` (fotos de evolução, imagem de post com `fotoEvolucaoId`, jornada, comprovantes) e para o PDF de plano.
+- `gerarUrlAssinadaCacheavel(chave)` — assina a partir do início da hora cheia e expira em 7200s, então devolve a **mesma** URL durante a hora, o que deixa o navegador e o otimizador do Next reaproveitarem a imagem. Usada para foto de perfil (cliente e parceria, ranking de desafios) e imagem de post com upload próprio (`src/app/feed/queries.ts` e `src/app/perfil/[clienteId]/queries.ts` escolhem por post, olhando `fotoEvolucaoId`).
+
+Detalhes e lista de chamadores em `docs/architecture.md` ("Dois tipos de URL assinada").
+
+### Cotas de upload (`src/lib/storage/cotas.ts`)
+
+Três actions conferem uma cota por usuária **antes** de subir o arquivo ao R2; estourada, a função lança `AppError` com a mensagem do limite e nada é enviado:
+
+| Função | Limite | Chamada em |
+| --- | --- | --- |
+| `garantirCotaFotosEvolucao` | 100 `FotoEvolucao` por cliente, no total | `enviarFoto` (`src/app/cliente/fotos/actions.ts`) |
+| `garantirCotaPostsComImagem` | 10 posts com upload de imagem em 24h por autora (posts com `fotoEvolucaoId` não contam) | `criarPost` (`src/app/feed/actions.ts`), só com arquivo novo |
+| `garantirCotaPlanos` | 5 `PlanoRecebido` em 24h por parceria | `enviarPlano` (`src/app/parceria/planos/actions.ts`) |
+
+`editarPost` não confere cota porque a troca de imagem apaga a antiga. O PDF de plano tem limite de 5MB e precisa começar com `%PDF-` (`src/lib/storage/planos.ts`). Detalhes em `docs/architecture.md` ("Cotas de upload por usuária").
+
 ### Foto de evolução ↔ post
 
-Só `FotoEvolucao` com `publica = true` pode ser anexada a um `Post` (`criarPost` rejeita a privada). Tornar a foto privada ou excluí-la apaga, numa `$transaction`, os posts com aquele `fotoEvolucaoId` (`src/app/cliente/fotos/actions.ts`). Ao criar um novo caminho que anexe ou exponha foto de evolução, mantenha essa regra. Detalhes em `docs/features/feed.md` e `docs/features/perfil.md`.
+Só `FotoEvolucao` com `publica = true` pode ser anexada a um `Post` (`criarPost` rejeita a privada). Tornar a foto privada ou excluí-la apaga, numa `$transaction`, os posts com aquele `fotoEvolucaoId` da própria cliente (`deleteMany({ where: { fotoEvolucaoId, autorId: session.user.id } })`, em `src/app/cliente/fotos/actions.ts`). Ao criar um novo caminho que anexe ou exponha foto de evolução, mantenha essa regra. Detalhes em `docs/features/feed.md` e `docs/features/perfil.md`.
 
 ## Sincronização da documentação
 

@@ -91,7 +91,7 @@ Não existe um estado "rejeitada" persistido — rejeitar sempre apaga o registr
 
 - **Ranking semanal**: filtra `MarcacaoItem.data` na janela da semana atual (calculada a partir de `Desafio.dataInicio`, semanas de 7 dias corridos desde o início — não desde domingo). Desafios surpresa **não entram no ranking semanal** — o comentário no próprio código (`queries.ts:43-44`) admite que "desafios surpresa não têm data/semana própria no schema", então só contam para o ranking geral.
 - **Ranking geral**: soma tudo, sem filtro de data.
-- Cada linha do ranking busca a foto de perfil da cliente via `gerarUrlAssinadaPerfil`, com fallback pra `User.image` (foto do Google) — uma chamada de assinatura de URL por cliente distinta no ranking, dentro de um `Promise.all`.
+- Cada linha do ranking busca a foto de perfil da cliente via `gerarUrlAssinadaPerfil` (alias de `gerarUrlAssinadaCacheavel` de `src/lib/storage/perfil.ts`, URL estável durante a hora cheia; ver [`docs/architecture.md`](../architecture.md#dois-tipos-de-url-assinada-efêmera-vs-cacheável)), com fallback pra `User.image` (foto do Google) — uma chamada de assinatura de URL por cliente distinta no ranking, dentro de um `Promise.all`.
 
 ### Bônus e emblemas
 

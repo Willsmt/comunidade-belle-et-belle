@@ -120,14 +120,78 @@ sequenceDiagram
     Obj->>R2: PutObjectCommand
     Note over Page,R2: o banco só guarda a "chave" (o caminho), nunca o arquivo
 
-    Page->>Obj: gerarUrlAssinada(chave)
+    Page->>Obj: gerarUrlAssinada(chave) — conteúdo sensível
     Obj->>R2: getSignedUrl(GetObjectCommand, expiresIn: 300s)
     R2-->>Page: URL temporária (expira em 5 minutos)
+
+    Page->>Obj: gerarUrlAssinadaCacheavel(chave) — conteúdo não sensível
+    Obj->>R2: getSignedUrl(GetObjectCommand, expiresIn: 7200s, signingDate: início da hora)
+    R2-->>Page: URL idêntica durante a hora cheia (vale até 2h após o início dela)
 ```
 
-Cada feature que lida com arquivos tem seu próprio módulo fino em `src/lib/storage/` (ex.: `fotos.ts`, `perfil.ts`, `planos.ts`, `posts.ts`, `comprovantes-*.ts`, `jornada-desafio.ts`) — todos delegam para as três funções genéricas de `objetos.ts` (`uploadObjeto`, `gerarUrlAssinada`, `deletarObjeto`), e cada um decide suas próprias regras de validação (tipo de arquivo, tamanho máximo, compressão). A validação real de formato é feita lendo os bytes do arquivo (magic bytes, via `sharp`), não confiando no `Content-Type` declarado pelo client — decisão de segurança documentada no próprio código de `comprimir-imagem.ts`.
+Cada feature que lida com arquivos tem seu próprio módulo fino em `src/lib/storage/` (ex.: `fotos.ts`, `perfil.ts`, `planos.ts`, `posts.ts`, `comprovantes-*.ts`, `jornada-desafio.ts`) — todos delegam para as funções genéricas de `objetos.ts` (`uploadObjeto`, `gerarUrlAssinada`, `gerarUrlAssinadaCacheavel`, `deletarObjeto`; ver [Dois tipos de URL assinada](#dois-tipos-de-url-assinada-efêmera-vs-cacheável)), e cada um decide suas próprias regras de validação (tipo de arquivo, tamanho máximo, compressão). A validação real de formato é feita lendo os bytes do arquivo (magic bytes, via `sharp`), não confiando no `Content-Type` declarado pelo client — decisão de segurança documentada no próprio código de `comprimir-imagem.ts`. Para o PDF de plano, o equivalente é `uploadPlano` (`planos.ts`), que exige a assinatura `%PDF-` nos primeiros bytes além do tipo declarado e do limite de 5MB (ver [`docs/features/parcerias.md`](./features/parcerias.md#validação-do-pdf)).
 
 Exclusão de arquivo é sempre real (`DeleteObjectCommand`), nunca uma flag de "apagado" no banco — condizente com a promessa de exclusão de dados feita no termo de consentimento (ver [`docs/features/identidade-acesso.md`](./features/identidade-acesso.md)).
+
+### Dois tipos de URL assinada: efêmera vs. cacheável
+
+**Em linguagem simples:** o navegador nunca recebe o "endereço permanente" de um arquivo do R2; recebe um link com prazo de validade. Para fotos do corpo e comprovantes, o link vence em 5 minutos e muda a cada vez que a página é montada. Para imagens que não são sensíveis (foto de perfil, foto que a pessoa enviou num post), o app usa um link "da hora": durante a mesma hora cheia, a mesma imagem recebe exatamente o mesmo link. Como o link não muda, o navegador e o otimizador de imagens do Next conseguem reaproveitar a cópia que já baixaram, em vez de baixar de novo a cada carregamento do feed.
+
+**Detalhe técnico** (`src/lib/storage/objetos.ts`):
+
+| Função | Validade | Como a URL é gerada | Para quê |
+| --- | --- | --- | --- |
+| `gerarUrlAssinada(chave)` | 300s (`EXPIRACAO_URL_ASSINADA_SEGUNDOS`) | `getSignedUrl` com o relógio atual: cada chamada produz uma URL diferente | Conteúdo sensível: fotos de evolução, imagem de post com `fotoEvolucaoId`, fotos de jornada (antes/depois), comprovantes de desafio, PDF de plano |
+| `gerarUrlAssinadaCacheavel(chave, agora?)` | 7200s (`EXPIRACAO_URL_CACHEAVEL_SEGUNDOS`) | `signingDate` arredondado para baixo ao início da janela de 1h (`JANELA_URL_CACHEAVEL_MS`): toda chamada dentro da mesma hora gera a **mesma** URL; na virada da hora, a URL muda | Conteúdo não sensível: foto de perfil (cliente e parceria) e imagem de post enviada por upload próprio |
+
+Como a assinatura parte do início da hora e vale 2h, uma URL gerada no último segundo da janela (ex.: 10:59:59) ainda vale até 12:00 — sempre resta pelo menos 1h de validade. O parâmetro `agora` existe para os testes (`src/lib/storage/objetos.test.ts`) fixarem o relógio.
+
+`perfil.ts` e `parcerias.ts` reexportam as duas funções; os demais módulos de storage (`fotos.ts`, `posts.ts`, `planos.ts`, `comprovantes-*.ts`, `jornada-desafio.ts`) reexportam só `gerarUrlAssinada`. Quem chama a versão cacheável hoje:
+
+| Arquivo | Imagem |
+| --- | --- |
+| `src/app/feed/queries.ts` | Avatar da autora (`gerarUrlAssinadaPerfil`) e imagem do post **quando `fotoEvolucaoId` é nulo** (com `fotoEvolucaoId`, usa `gerarUrlAssinada`) |
+| `src/app/perfil/[clienteId]/queries.ts` | Avatar do perfil público e imagem de post com a mesma regra do feed (as fotos de evolução públicas continuam com `gerarUrlAssinada`) |
+| `src/app/cliente/perfil/page.tsx` | Foto do próprio perfil da cliente |
+| `src/app/parceria/perfil/page.tsx` | Foto do próprio perfil da parceria |
+| `src/app/cliente/parcerias/queries.ts` | Foto do `PerfilParceria` das parcerias vinculadas |
+| `src/app/cliente/desafios/queries.ts` | Avatar de cada linha do ranking (as fotos de jornada continuam com `gerarUrlAssinada`) |
+
+**Regra para código novo:** a escolha acompanha a de `ImagemSensivel` (abaixo). Imagem que seria renderizada com `ImagemSensivel` usa `gerarUrlAssinada`; imagem não sensível pode usar `gerarUrlAssinadaCacheavel`. Em telas que misturam os dois casos (feed, perfil público), a decisão é feita por item, olhando `post.fotoEvolucaoId`.
+
+### Cotas de upload por usuária (`src/lib/storage/cotas.ts`)
+
+**Em linguagem simples:** além do limite de tamanho de cada arquivo, cada pessoa tem um "teto" de quantos arquivos pode enviar em três lugares do app. É como a franquia de um plano de celular: passou do limite, o app avisa e não aceita mais até a franquia "renovar" (ou, no caso das fotos de evolução, até a cliente liberar espaço excluindo fotos antigas).
+
+**Detalhe técnico:** `cotas.ts` exporta uma função `garantirCota*` por caso. Cada uma faz um `prisma.<model>.count(...)` e, se o total já tiver chegado ao limite, lança `AppError` com uma mensagem amigável — que chega à tela pelo caminho normal de `executarAction` (ver `CLAUDE.md`, "Padrões-chave"). As actions chamam a função **antes** do upload ao R2, então um envio barrado pela cota não grava nada no bucket. As janelas de 24h são móveis (`agora - JANELA_COTA_MS`), não por dia do calendário, e a contagem olha o que existe no banco: apagar um registro libera a vaga.
+
+| Função | Limite (constante) | O que conta | Chamada em | Doc |
+| --- | --- | --- | --- | --- |
+| `garantirCotaFotosEvolucao(clienteId)` | 100 fotos no total (`LIMITE_FOTOS_EVOLUCAO_POR_CLIENTE`), sem janela | Todas as `FotoEvolucao` da cliente | `enviarFoto` (`src/app/cliente/fotos/actions.ts`) | [`perfil.md`](./features/perfil.md#limite-de-fotos-de-evolução) |
+| `garantirCotaPostsComImagem(autorId, agora?)` | 10 em 24h (`LIMITE_POSTS_COM_IMAGEM_POR_JANELA`) | `Post` da autora com `imagemChave` preenchida e `fotoEvolucaoId` nulo, `criadoEm` na janela | `criarPost` (`src/app/feed/actions.ts`), só quando vem arquivo novo | [`feed.md`](./features/feed.md#cota-de-posts-com-imagem) |
+| `garantirCotaPlanos(parceriaId, agora?)` | 5 em 24h (`LIMITE_PLANOS_POR_JANELA`) | `PlanoRecebido` enviados pela parceria, `enviadoEm` na janela | `enviarPlano` (`src/app/parceria/planos/actions.ts`) | [`parcerias.md`](./features/parcerias.md#cota-de-envio-de-planos) |
+
+```mermaid
+sequenceDiagram
+    participant A as Server Action (enviarFoto / criarPost / enviarPlano)
+    participant C as src/lib/storage/cotas.ts
+    participant DB as Banco
+    participant S as Módulo de storage (fotos.ts / posts.ts / planos.ts)
+    participant R2 as Cloudflare R2
+
+    A->>C: garantirCota*(id do usuário)
+    C->>DB: count(...) na janela / no total
+    alt limite atingido
+        C-->>A: throw AppError (mensagem do limite)
+        Note over A: executarAction devolve a mensagem ao client; nada vai ao R2
+    else dentro do limite
+        A->>S: upload*(arquivo)
+        S->>R2: PutObjectCommand
+        A->>DB: create do registro
+    end
+```
+
+Fora das cotas ficam: `editarPost` (a troca de imagem apaga do R2 a imagem antiga do post, então o total de objetos não cresce), foto de perfil (cliente e parceria, sempre substitui a anterior) e os uploads de desafios (comprovantes e jornada). O parâmetro opcional `agora` das funções com janela existe para os testes (`cotas.test.ts`, `cotas.integration.test.ts`) fixarem o relógio. Ao criar um novo caminho de upload que acumule arquivos por usuária, avalie adicionar uma função aqui seguindo o mesmo formato (contar, comparar com a constante, lançar `AppError` antes do upload).
 
 ### Exibindo imagens sensíveis: `ImagemSensivel`
 
@@ -145,7 +209,7 @@ Exclusão de arquivo é sempre real (`DeleteObjectCommand`), nunca uma flag de "
 | `src/app/painel/aprovacoes/page.tsx` | Fotos de comprovação de item e de desafio surpresa |
 | `src/app/painel/desafios/[desafioId]/page.tsx` | Fotos de comprovação de desafio surpresa |
 
-**Regra para código novo:** qualquer tela que exiba foto corporal, foto de evolução ou comprovante (imagem vinda de `src/lib/storage/fotos.ts`, `jornada-desafio.ts` ou `comprovantes-*.ts`) deve usar `ImagemSensivel`, não `next/image` direto. Imagens não sensíveis (foto de perfil, upload próprio de post, emblemas) continuam com `next/image` normal. Observação: em dev, `next.config.ts` já desliga a otimização para todas as imagens (`images.unoptimized` fora de produção, por causa do problema do `sharp` no WSL2), então a diferença entre os dois componentes só aparece em build de produção.
+**Regra para código novo:** qualquer tela que exiba foto corporal, foto de evolução ou comprovante (imagem vinda de `src/lib/storage/fotos.ts`, `jornada-desafio.ts` ou `comprovantes-*.ts`) deve usar `ImagemSensivel`, não `next/image` direto. Imagens não sensíveis (foto de perfil, upload próprio de post, emblemas) continuam com `next/image` normal, e as que vêm do R2 usam a URL cacheável (ver [Dois tipos de URL assinada](#dois-tipos-de-url-assinada-efêmera-vs-cacheável)). Observação: em dev, `next.config.ts` já desliga a otimização para todas as imagens (`images.unoptimized` fora de produção, por causa do problema do `sharp` no WSL2), então a diferença entre os dois componentes só aparece em build de produção.
 
 ## Configuração por ambiente
 

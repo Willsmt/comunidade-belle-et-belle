@@ -16,7 +16,7 @@ Existem duas telas de edição (uma pra editar o próprio perfil, outra só pra 
 | `src/app/cliente/perfil/queries.ts` | `obterPerfilProprio` |
 | `src/app/cliente/fotos/page.tsx` | "Minhas fotos de evolução" — upload + galeria |
 | `src/app/cliente/fotos/actions.ts` | `enviarFoto`, `alternarVisibilidadeFoto`, `excluirFoto` |
-| `src/app/cliente/fotos/formulario-upload.tsx` | Formulário client de upload de nova foto (texto explica que a foto nasce privada e pode ser tornada pública no perfil ou compartilhada em post) |
+| `src/app/cliente/fotos/formulario-upload.tsx` | Formulário client de upload de nova foto (texto explica que a foto nasce privada e pode ser tornada pública no perfil ou compartilhada em post); em caso de erro exibe `error.message` da action (ex.: limite de fotos, formato/tamanho) e só cai no texto genérico se o erro vier sem mensagem |
 | `src/app/cliente/fotos/item-foto.tsx` | Card de cada foto (imagem via `ImagemSensivel`; toggle público/privado + excluir, com confirmação que informa quantos posts serão apagados) |
 | `src/app/cliente/fotos/queries.ts` | `listarFotos` — fotos do usuário logado com URL assinada e `totalPosts` (quantos posts usam a foto) |
 | `src/app/perfil/[clienteId]/page.tsx` | Página pública de perfil de qualquer usuário (fotos de evolução e imagens de post com `fotoEvolucaoId` via `ImagemSensivel`) |
@@ -24,6 +24,7 @@ Existem duas telas de edição (uma pra editar o próprio perfil, outra só pra 
 | `src/components/imagem-sensivel.tsx` | Wrapper de `next/image` sempre `unoptimized`, usado para fotos corporais (ver [`docs/architecture.md`](../architecture.md#exibindo-imagens-sensíveis-imagemsensivel)) |
 | `src/lib/storage/perfil.ts` | Upload/validação/delete da foto de perfil no R2 |
 | `src/lib/storage/fotos.ts` | Upload/validação/delete das fotos de evolução no R2 |
+| `src/lib/storage/cotas.ts` | `garantirCotaFotosEvolucao` — limite de 100 fotos de evolução por cliente (ver [Limite de fotos de evolução](#limite-de-fotos-de-evolução)) |
 | `src/lib/storage/comprimir-imagem.ts` | Validação real de formato (magic bytes) + resize/recompressão pra WebP |
 | `src/lib/iniciais.ts` | Gera iniciais a partir do nome (fallback de avatar sem foto) |
 
@@ -41,7 +42,7 @@ Ver [`docs/database.md`](../database.md#perfil--ver-docsfeaturesperfilmd) para o
 | `GET /cliente/perfil` | Formulário de edição do próprio perfil | Checagem manual na própria page (`podeAcessarAreaCliente` + `redirect("/")`) — **não** usa `requererPapel` | `Perfil` |
 | `atualizarPerfil` | Upsert de `Perfil` (bio, toggles, foto) + `User.name` | `requererPapel(["CLIENTE"])` | `Perfil`, `User` |
 | `GET /cliente/fotos` | Upload + galeria de fotos próprias | Mesmo padrão manual de gate da page de perfil | `FotoEvolucao` |
-| `enviarFoto` | Upload de nova foto (privada por padrão) | `requererPapel(["CLIENTE"])` | `FotoEvolucao` |
+| `enviarFoto` | Confere o limite de 100 fotos da cliente (`garantirCotaFotosEvolucao`) e só então faz o upload de nova foto (privada por padrão) | `requererPapel(["CLIENTE"])` | `FotoEvolucao` |
 | `alternarVisibilidadeFoto` | Inverte `FotoEvolucao.publica`; ao tornar **privada**, apaga na mesma `$transaction` os posts que usam a foto. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
 | `excluirFoto` | Apaga posts que usam a foto + a linha da foto numa `$transaction`, e só depois o arquivo no R2. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
 | `GET /perfil/[clienteId]` | Perfil público de qualquer usuário | Só `auth()` — qualquer sessão autenticada, sem checar papel ou vínculo | `User`, `Perfil`, `Conquista`, `FotoEvolucao`, `Post`, `RegistroMedida` |
@@ -79,8 +80,10 @@ Uma foto de evolução pública pode ser anexada a um post do feed (ver [`docs/f
 | Ação | Banco (numa `$transaction`) | R2 | Revalida |
 | --- | --- | --- | --- |
 | Tornar pública | `update publica = true` | — | `/feed`, `/cliente/fotos`, `/perfil/[id]` |
-| Tornar privada | `post.deleteMany({ fotoEvolucaoId })` + `update publica = false` | Nada é apagado (a foto continua na galeria privada) | idem |
-| Excluir | `post.deleteMany({ fotoEvolucaoId })` + `fotoEvolucao.delete` | `deletarFoto(chave)` **depois** do commit | idem |
+| Tornar privada | `post.deleteMany({ fotoEvolucaoId, autorId })` + `update publica = false` | Nada é apagado (a foto continua na galeria privada) | idem |
+| Excluir | `post.deleteMany({ fotoEvolucaoId, autorId })` + `fotoEvolucao.delete` | `deletarFoto(chave)` **depois** do commit | idem |
+
+O `autorId` do `deleteMany` é sempre o `session.user.id` da cliente logada (a mesma que `obterFotoDoUsuario` confirmou ser dona da foto), então a transação só apaga posts da própria cliente.
 
 `Like` e `Comentario` dos posts apagados saem por `onDelete: Cascade`. O apagamento explícito é necessário porque a FK `Post.fotoEvolucaoId` é `ON DELETE SET NULL` — sem ele, o post sobreviveria com `imagemChave` apontando para a mesma foto (ver [`docs/database.md`](../database.md#ondelete-e-cascatas)).
 
@@ -97,7 +100,7 @@ sequenceDiagram
     C->>UI: confirma
     UI->>A: FormData(fotoId)
     A->>DB: confere dono da foto
-    A->>DB: $transaction [deleteMany Post, delete FotoEvolucao]
+    A->>DB: $transaction [deleteMany Post (fotoEvolucaoId + autorId), delete FotoEvolucao]
     A->>R2: deletarFoto(chave)
     alt falha no R2
         A-->>A: console.error (banco não é revertido)
@@ -116,6 +119,12 @@ A exclusão continua real, não é uma flag: o arquivo é removido do bucket —
 | Tornar privada, `totalPosts > 0` | Botão vira `BotaoComConfirmacao`: "Esta foto está em N post(s) no feed. Ao torná-la privada, esse(s) post(s) será(ão) apagado(s). Deseja continuar?" |
 | Tornar privada sem posts / tornar pública | Botão simples, sem confirmação |
 
+### Limite de fotos de evolução
+
+**Em linguagem simples:** cada cliente guarda no máximo 100 fotos de evolução. É um total, não um limite por dia: quando chega a 100, ela precisa excluir fotos antigas para enviar novas.
+
+`garantirCotaFotosEvolucao(clienteId)` (`src/lib/storage/cotas.ts`) conta todas as `FotoEvolucao` da cliente (públicas e privadas). Se o total já for `>= LIMITE_FOTOS_EVOLUCAO_POR_CLIENTE` (100), lança `AppError("Você atingiu o limite de 100 fotos. Exclua fotos antigas para enviar novas.")`. Em `enviarFoto` a checagem roda depois de confirmar que veio um arquivo e **antes** de `uploadFoto`, então, com o limite atingido, nada é enviado ao R2. Excluir uma foto (`excluirFoto`) libera a vaga imediatamente; tornar privada não libera, porque a foto continua existindo. Visão geral de todas as cotas: [`docs/architecture.md`](../architecture.md#cotas-de-upload-por-usuária).
+
 ## Visibilidade: como os 3 toggles + a flag por-foto se combinam
 
 | Controle | Escopo | Efeito em `/perfil/[clienteId]` quando desligado |
@@ -127,14 +136,14 @@ A exclusão continua real, não é uma flag: o arquivo é removido do bucket —
 
 Importante: nenhum desses controles depende de `VinculoParceria`. É visibilidade **pública geral** — qualquer usuário autenticado da comunidade vê o que estiver marcado como público, não é uma permissão específica de parceria. O acesso de uma parceria às medidas de uma cliente vinculada é um mecanismo **separado**, via `VinculoParceria.ativo`, coberto em [`docs/features/medidas.md`](./medidas.md) — não pelos toggles do `Perfil`.
 
-Todos os posts do autor aparecem na página pública, independente de qualquer visibilidade própria de post no feed (não há filtro de "post privado"). Como um post só pode carregar foto de evolução pública — e é apagado quando ela deixa de ser — nenhuma foto privada aparece por meio de post. Posts com `fotoEvolucaoId` renderizam a imagem com `ImagemSensivel`; posts com upload próprio usam `next/image` comum.
+Todos os posts do autor aparecem na página pública, independente de qualquer visibilidade própria de post no feed (não há filtro de "post privado"). Como um post só pode carregar foto de evolução pública — e é apagado quando ela deixa de ser — nenhuma foto privada aparece por meio de post. Posts com `fotoEvolucaoId` renderizam a imagem com `ImagemSensivel` e URL assinada de 5 minutos (`gerarUrlAssinada`); posts com upload próprio usam `next/image` comum e URL cacheável (`gerarUrlAssinadaCacheavel`, estável durante a hora cheia). A decisão é feita por post em `obterPerfilPublico`, olhando `post.fotoEvolucaoId`.
 
 ## Fallback de avatar
 
-Se não há `Perfil.fotoChave`, a página pública usa `User.image` (a foto de perfil do Google) como fallback. Isso mistura dois modelos de exposição de imagem: a foto própria vira uma signed URL temporária do R2 (expira em 5 minutos), enquanto a foto do Google é uma URL pública direta, servida sem passar pelo storage do projeto. Se nenhuma das duas existir, `iniciais.ts` gera as iniciais do nome para um avatar textual.
+Se não há `Perfil.fotoChave`, a página pública usa `User.image` (a foto de perfil do Google) como fallback. Isso mistura dois modelos de exposição de imagem: a foto própria vira uma signed URL do R2 do tipo cacheável (`gerarUrlAssinadaCacheavel` reexportada por `src/lib/storage/perfil.ts`: a mesma URL durante a hora cheia, válida por até 2h; ver [`docs/architecture.md`](../architecture.md#dois-tipos-de-url-assinada-efêmera-vs-cacheável)), enquanto a foto do Google é uma URL pública direta, servida sem passar pelo storage do projeto. Se nenhuma das duas existir, `iniciais.ts` gera as iniciais do nome para um avatar textual.
 
 ## Pegadinhas e dívidas técnicas
 
 - **Gate de página duplicado e manual**: `cliente/perfil/page.tsx` e `cliente/fotos/page.tsx` fazem `if (!session?.user || !podeAcessarAreaCliente(...)) redirect("/")` cada um na própria página, em vez de um helper único reaproveitável — existe `requererPapel`/`requererSessao` para actions, mas nada equivalente pronto para page components. Duplicação com risco de divergência se a regra mudar num lugar e não no outro.
-- **Sem paginação em `obterPerfilPublico`**: posts, fotos e conquistas são listados por completo, e cada foto/post gera uma chamada separada de assinatura de URL ao R2 (via `Promise.all`, sem cache) — cresce sem limite conforme o histórico da cliente aumenta.
+- **Sem paginação em `obterPerfilPublico`**: posts, fotos e conquistas são listados por completo, e cada foto/post gera uma chamada separada de assinatura de URL (via `Promise.all`) — cresce sem limite conforme o histórico da cliente aumenta. A URL cacheável dos posts com upload próprio e do avatar reduz o re-download das imagens pelo navegador, mas a assinatura continua sendo calculada a cada render e as fotos de evolução seguem com URL de 5 minutos.
 - **Validação de arquivo é "dupla" por design**: o `Content-Type` declarado é checado primeiro (rápido, mas confia no client), e a validação que realmente importa — leitura de magic bytes — acontece em `comprimir-imagem.ts`. Isso é uma decisão de arquitetura documentada no próprio código, não um bug, mas vale ter em mente ao alterar a validação de upload em qualquer lugar do projeto (o mesmo padrão vale para os demais uploads de imagem: `storage/posts.ts`, `storage/parcerias.ts` e os storages de comprovante e jornada).
