@@ -68,6 +68,43 @@ if (errorRate > LIMITES.errorRate.atencao) falhasCriticas.push(`Taxa de erro ${(
 if (p95 !== undefined && p95 > LIMITES.p95.atencao) falhasCriticas.push(`p95 ${p95.toFixed(0)}ms acima de ${LIMITES.p95.atencao}ms.`);
 if (p99 !== undefined && p99 > LIMITES.p99.atencao) falhasCriticas.push(`p99 ${p99.toFixed(0)}ms acima de ${LIMITES.p99.atencao}ms.`);
 
+// --- Por rota (extensão): lê as submétricas http_req_duration{name:X} /
+// http_req_failed{name:X}, que o k6 só exporta quando o loadtest.js declara
+// um threshold para elas. Aplica o gate por rota de references/thresholds.md
+// (p99 > 3s ou erro > 1% reprova, mesmo com o agregado ok).
+const LIMITE_ROTA = { p99: 3000, erro: 0.01 };
+const rotas = [];
+for (const [chave, valor] of Object.entries(m)) {
+  const casamento = /^http_req_duration\{name:(.+)\}$/.exec(chave);
+  if (!casamento) continue;
+  const nome = casamento[1];
+  const falhas = m[`http_req_failed{name:${nome}}`];
+  const totalFalhas = falhas ? (falhas.passes ?? 0) : 0;
+  const totalRota = falhas ? (falhas.passes ?? 0) + (falhas.fails ?? 0) : (valor.count ?? 0);
+  rotas.push({
+    nome,
+    reqs: valor.count ?? totalRota,
+    p50: valor.med,
+    p95: valor["p(95)"],
+    p99: valor["p(99)"],
+    erro: totalRota > 0 ? totalFalhas / totalRota : 0,
+    erros: totalFalhas,
+  });
+}
+rotas.sort((a, b) => (b.p95 ?? 0) - (a.p95 ?? 0));
+for (const r of rotas) {
+  if (!r.reqs) falhasCriticas.push(`Rota ${r.nome} sem nenhum request (contagem 0) — cenário não a exercitou.`);
+  if ((r.p99 ?? 0) > LIMITE_ROTA.p99) falhasCriticas.push(`Rota ${r.nome}: p99 ${r.p99.toFixed(0)}ms acima de ${LIMITE_ROTA.p99}ms.`);
+  if (r.erro > LIMITE_ROTA.erro) falhasCriticas.push(`Rota ${r.nome}: erro ${(r.erro * 100).toFixed(2)}% acima de ${LIMITE_ROTA.erro * 100}%.`);
+}
+
+// Checks (status + conteúdo esperado): um 200 com a página errada não é sucesso.
+const checks = m.checks;
+const taxaChecks = checks ? checks.value : null;
+if (taxaChecks !== null && taxaChecks !== undefined && taxaChecks < 0.99) {
+  falhasCriticas.push(`Checks aprovados ${(taxaChecks * 100).toFixed(2)}% (< 99%) — respostas com status/conteúdo inesperado.`);
+}
+
 let baseline = null;
 if (baselinePath && existsSync(baselinePath)) {
   baseline = JSON.parse(readFileSync(baselinePath, "utf-8"));
@@ -92,9 +129,22 @@ linhas.push(`| --- | ---: | ---: | :---: |`);
 linhas.push(`| Requests/s | ${rps.toFixed(2)} | — | — |`);
 linhas.push(`| Total de requests | ${totalReqs} | ≥ 100 | ${totalReqs >= 100 ? "✅" : "❌"} |`);
 linhas.push(`| Taxa de erro | ${(errorRate * 100).toFixed(2)}% | < ${LIMITES.errorRate.ok * 100}% | ${status(errorRate, LIMITES.errorRate)} |`);
+if (httpDur.med !== undefined) linhas.push(`| p50 | ${httpDur.med.toFixed(0)} ms | — | — |`);
+if (taxaChecks !== null && taxaChecks !== undefined) linhas.push(`| Checks aprovados | ${(taxaChecks * 100).toFixed(2)}% | ≥ 99% | ${taxaChecks >= 0.99 ? "✅" : "❌"} |`);
 if (p95 !== undefined) linhas.push(`| p95 | ${p95.toFixed(0)} ms | ≤ ${LIMITES.p95.ok} ms | ${status(p95, LIMITES.p95)} |`);
 if (p99 !== undefined) linhas.push(`| p99 | ${p99.toFixed(0)} ms | ≤ ${LIMITES.p99.ok} ms | ${status(p99, LIMITES.p99)} |`);
 linhas.push("");
+
+if (rotas.length > 0) {
+  const ms = (v) => (v === undefined ? "—" : `${v.toFixed(0)} ms`);
+  linhas.push(`## Por rota (ordenado por p95)`, "");
+  linhas.push(`| Rota | Reqs | p50 | p95 | p99 | Erros |`);
+  linhas.push(`| --- | ---: | ---: | ---: | ---: | ---: |`);
+  for (const r of rotas) {
+    linhas.push(`| ${r.nome} | ${r.reqs} | ${ms(r.p50)} | ${ms(r.p95)} | ${ms(r.p99)} | ${r.erros} (${(r.erro * 100).toFixed(2)}%) |`);
+  }
+  linhas.push("");
+}
 
 if (baseline) {
   linhas.push(`## Comparação com o baseline (${baseline.capturedAt ?? "?"})`, "");
