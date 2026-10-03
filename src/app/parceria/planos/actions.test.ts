@@ -7,6 +7,7 @@ const {
   mockCreate,
   mockRevalidatePath,
   mockUploadPlano,
+  mockApagarObjeto,
   mockGarantirCotaPlanos,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
@@ -14,6 +15,7 @@ const {
   mockCreate: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadPlano: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockGarantirCotaPlanos: vi.fn(),
 }));
 
@@ -31,6 +33,9 @@ vi.mock("@/lib/storage/cotas", () => ({
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/planos", () => ({ uploadPlano: mockUploadPlano }));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
+}));
 
 import { enviarPlano } from "./actions";
 
@@ -56,6 +61,7 @@ describe("enviarPlano", () => {
     mockCreate.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadPlano.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
     mockGarantirCotaPlanos.mockReset().mockResolvedValue(undefined);
   });
 
@@ -163,6 +169,31 @@ describe("enviarPlano", () => {
       },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/parceria/planos");
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
+  it("se a escrita no banco falhar, apaga o PDF recém-enviado e relança o erro original", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "parceria-1" } });
+    mockFindUniqueVinculo.mockResolvedValue({ ativo: true });
+    mockUploadPlano.mockResolvedValue("planos/c1/abc.pdf");
+    mockCreate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      enviarPlano(
+        buildFormData({ clienteId: "c1", tipo: "DIETA" }, buildArquivo()),
+      ),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "planos/c1/abc.pdf",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
   it("salva o título quando preenchido", async () => {

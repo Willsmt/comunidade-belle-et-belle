@@ -2,10 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
-import {
-  uploadFotoParceria,
-  deletarFotoParceria,
-} from "@/lib/storage/parcerias";
+import { uploadFotoParceria } from "@/lib/storage/parcerias";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { executarAction } from "@/lib/actions/executar-action";
 
 function parseTexto(formData: FormData, campo: string): string | null {
@@ -27,28 +25,36 @@ export async function atualizarPerfilParceria(formData: FormData) {
       novaChave = await uploadFotoParceria(arquivo, session.user.id);
     }
 
-    const perfilAtual = await prisma.perfilParceria.findUnique({
-      where: { usuarioId: session.user.id },
-    });
+    let perfilAtual;
+    try {
+      perfilAtual = await prisma.perfilParceria.findUnique({
+        where: { usuarioId: session.user.id },
+      });
 
-    if (novaChave && perfilAtual?.fotoChave) {
-      await deletarFotoParceria(perfilAtual.fotoChave);
+      await prisma.perfilParceria.upsert({
+        where: { usuarioId: session.user.id },
+        create: {
+          usuarioId: session.user.id,
+          especialidade,
+          bio,
+          fotoChave: novaChave ?? null,
+        },
+        update: {
+          especialidade,
+          bio,
+          ...(novaChave ? { fotoChave: novaChave } : {}),
+        },
+      });
+    } catch (erro) {
+      if (novaChave) {
+        await apagarObjetoEmMelhorEsforco(novaChave, "atualizarPerfilParceria: falha ao gravar no banco");
+      }
+      throw erro;
     }
 
-    await prisma.perfilParceria.upsert({
-      where: { usuarioId: session.user.id },
-      create: {
-        usuarioId: session.user.id,
-        especialidade,
-        bio,
-        fotoChave: novaChave ?? null,
-      },
-      update: {
-        especialidade,
-        bio,
-        ...(novaChave ? { fotoChave: novaChave } : {}),
-      },
-    });
+    if (novaChave && perfilAtual?.fotoChave) {
+      await apagarObjetoEmMelhorEsforco(perfilAtual.fotoChave, "atualizarPerfilParceria: foto substituída");
+    }
 
     revalidatePath("/parceria/perfil");
   });

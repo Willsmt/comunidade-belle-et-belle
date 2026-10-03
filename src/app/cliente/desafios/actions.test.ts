@@ -16,7 +16,7 @@ const {
   mockJornadaFindUnique,
   mockJornadaUpsert,
   mockUploadFotoJornada,
-  mockDeletarFotoJornada,
+  mockApagarObjeto,
   mockVerificarConquistasBonus,
   mockVerificarConquistasRankingSemanal,
   mockRevalidatePath,
@@ -35,7 +35,7 @@ const {
   mockJornadaFindUnique: vi.fn(),
   mockJornadaUpsert: vi.fn(),
   mockUploadFotoJornada: vi.fn(),
-  mockDeletarFotoJornada: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockVerificarConquistasBonus: vi.fn(),
   mockVerificarConquistasRankingSemanal: vi.fn(),
   mockRevalidatePath: vi.fn(),
@@ -69,7 +69,9 @@ vi.mock("@/lib/storage/comprovantes-item-desafio", () => ({
 }));
 vi.mock("@/lib/storage/jornada-desafio", () => ({
   uploadFotoJornada: mockUploadFotoJornada,
-  deletarFotoJornada: mockDeletarFotoJornada,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 vi.mock("@/lib/desafios/conquistas", () => ({
   verificarConquistasBonus: mockVerificarConquistasBonus,
@@ -86,6 +88,10 @@ import {
   marcarAvisoEncerramentoVisto,
   salvarReflexao,
 } from "./actions";
+
+beforeEach(() => {
+  mockApagarObjeto.mockReset().mockResolvedValue(undefined);
+});
 
 describe("alternarMarcacao", () => {
   beforeEach(() => {
@@ -279,6 +285,107 @@ describe("participarDesafioSurpresa", () => {
   });
 });
 
+describe("participarDesafioSurpresa — compensação do R2", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset().mockResolvedValue({ user: { id: "cliente-1" } });
+    mockSurpresaFindUniqueOrThrow.mockReset();
+    mockParticipacaoFindUnique.mockReset().mockResolvedValue(null);
+    mockParticipacaoCreate.mockReset();
+    mockUploadComprovante.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("se a escrita falhar (inclusive pela constraint única numa corrida), apaga o comprovante novo e relança o erro original", async () => {
+    mockSurpresaFindUniqueOrThrow.mockResolvedValue({ id: "s1", exigeComprovacao: true });
+    mockUploadComprovante.mockResolvedValue("comprovantes-surpresa/cliente-1/abc.webp");
+    mockParticipacaoCreate.mockRejectedValue(new Error("Unique constraint failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+
+    await expect(
+      participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao", arquivo)),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "comprovantes-surpresa/cliente-1/abc.webp",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "Unique constraint failed" }),
+    );
+  });
+
+  it("sem comprovação exigida e com falha no banco, não tenta apagar nada", async () => {
+    mockSurpresaFindUniqueOrThrow.mockResolvedValue({ id: "s1", exigeComprovacao: false });
+    mockParticipacaoCreate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      participarDesafioSurpresa("s1", new FormData()),
+    ).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
+  it("no sucesso não apaga nada", async () => {
+    mockSurpresaFindUniqueOrThrow.mockResolvedValue({ id: "s1", exigeComprovacao: true });
+    mockUploadComprovante.mockResolvedValue("comprovantes-surpresa/cliente-1/abc.webp");
+    mockParticipacaoCreate.mockResolvedValue({});
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+
+    await participarDesafioSurpresa("s1", buildFormDataComArquivo("comprovacao", arquivo));
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+});
+
+describe("marcarItemComFoto — compensação do R2", () => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset().mockResolvedValue({ user: { id: "cliente-1" } });
+    mockItemFindUniqueOrThrow.mockReset().mockResolvedValue({
+      id: "i1",
+      exigeFoto: true,
+      categoria: { desafioId: "d1" },
+    });
+    mockMarcacaoFindUnique.mockReset().mockResolvedValue(null);
+    mockMarcacaoCreate.mockReset();
+    mockUploadComprovanteItem.mockReset();
+    mockRevalidatePath.mockReset();
+  });
+
+  it("se a escrita falhar (inclusive pela constraint única numa corrida), apaga o comprovante novo e relança o erro original", async () => {
+    mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-1/abc.webp");
+    mockMarcacaoCreate.mockRejectedValue(new Error("Unique constraint failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+
+    await expect(
+      marcarItemComFoto("i1", buildFormDataComArquivo("foto", arquivo)),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "comprovantes-item/cliente-1/abc.webp",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "Unique constraint failed" }),
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("no sucesso não apaga nada", async () => {
+    mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-1/abc.webp");
+    mockMarcacaoCreate.mockResolvedValue({});
+    const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
+
+    await marcarItemComFoto("i1", buildFormDataComArquivo("foto", arquivo));
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+});
+
 describe("marcarItemComFoto", () => {
   beforeEach(() => {
     mockRequererPapel.mockReset();
@@ -381,7 +488,6 @@ describe("enviarFotoAntes", () => {
     mockJornadaFindUnique.mockReset();
     mockJornadaUpsert.mockReset();
     mockUploadFotoJornada.mockReset();
-    mockDeletarFotoJornada.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -476,8 +582,9 @@ describe("enviarFotoAntes", () => {
     const arquivo = new File(["x"], "foto.png", { type: "image/png" });
     await enviarFotoAntes(buildFormDataComArquivo("foto", arquivo));
 
-    expect(mockDeletarFotoJornada).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "jornada-desafio/cliente-1/antiga.webp",
+      expect.any(String),
     );
   });
 });
@@ -489,7 +596,6 @@ describe("enviarFotoDepois", () => {
     mockJornadaFindUnique.mockReset();
     mockJornadaUpsert.mockReset();
     mockUploadFotoJornada.mockReset();
-    mockDeletarFotoJornada.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -528,8 +634,82 @@ describe("enviarFotoDepois", () => {
     const arquivo = new File(["x"], "foto.png", { type: "image/png" });
     await enviarFotoDepois(buildFormDataComArquivo("foto", arquivo));
 
-    expect(mockDeletarFotoJornada).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "jornada-desafio/cliente-1/antiga.webp",
+      expect.any(String),
+    );
+  });
+});
+
+describe.each([
+  ["enviarFotoAntes", enviarFotoAntes, "fotoAntesChave"],
+  ["enviarFotoDepois", enviarFotoDepois, "fotoDepoisChave"],
+] as const)("%s — consistência banco/R2", (_nome, acao, campo) => {
+  beforeEach(() => {
+    mockRequererPapel.mockReset().mockResolvedValue({ user: { id: "cliente-1" } });
+    mockDesafioFindFirst.mockReset().mockResolvedValue({ id: "d1" });
+    mockJornadaFindUnique.mockReset().mockResolvedValue({
+      [campo]: "jornada-desafio/cliente-1/antiga.webp",
+    });
+    mockJornadaUpsert.mockReset();
+    mockUploadFotoJornada
+      .mockReset()
+      .mockResolvedValue("jornada-desafio/cliente-1/nova.webp");
+    mockRevalidatePath.mockReset();
+  });
+
+  const arquivo = () => new File(["x"], "foto.png", { type: "image/png" });
+
+  it("faz upload, atualiza o banco e só então apaga a foto antiga", async () => {
+    const ordem: string[] = [];
+    mockUploadFotoJornada.mockImplementation(async () => {
+      ordem.push("upload");
+      return "jornada-desafio/cliente-1/nova.webp";
+    });
+    mockJornadaUpsert.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("apagar-antiga");
+    });
+
+    await acao(buildFormDataComArquivo("foto", arquivo()));
+
+    expect(ordem).toEqual(["upload", "banco", "apagar-antiga"]);
+  });
+
+  it("se o banco falhar, apaga a foto NOVA, mantém a antiga e relança o erro original", async () => {
+    mockJornadaUpsert.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      acao(buildFormDataComArquivo("foto", arquivo())),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "jornada-desafio/cliente-1/nova.webp",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
+    );
+  });
+
+  it("primeira foto (sem antiga) e falha no banco: apaga só a nova", async () => {
+    mockJornadaFindUnique.mockResolvedValue(null);
+    mockJornadaUpsert.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      acao(buildFormDataComArquivo("foto", arquivo())),
+    ).rejects.toThrow();
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "jornada-desafio/cliente-1/nova.webp",
+      expect.any(String),
     );
   });
 });

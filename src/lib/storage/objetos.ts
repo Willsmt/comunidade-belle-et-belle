@@ -53,3 +53,20 @@ export async function deletarObjeto(chave: string): Promise<void> {
     new DeleteObjectCommand({ Bucket: obterNomeBucket(), Key: chave }),
   );
 }
+
+// O banco é a fonte da verdade: depois que o registro foi atualizado, falhar
+// ao limpar o R2 deixa só um objeto órfão (logado) em vez de quebrar a ação.
+export async function apagarObjetoEmMelhorEsforco(
+  chave: string,
+  contexto: string,
+): Promise<void> {
+  try {
+    await deletarObjeto(chave);
+  } catch (erro) {
+    console.error(
+      `Falha ao apagar objeto no R2 (${contexto}):`,
+      chave,
+      erro,
+    );
+  }
+}

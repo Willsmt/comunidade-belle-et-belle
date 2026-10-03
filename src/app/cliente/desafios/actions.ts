@@ -6,7 +6,8 @@ import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { uploadComprovante } from "@/lib/storage/comprovantes-surpresa";
 import { uploadComprovanteItem } from "@/lib/storage/comprovantes-item-desafio";
-import { uploadFotoJornada, deletarFotoJornada } from "@/lib/storage/jornada-desafio";
+import { uploadFotoJornada } from "@/lib/storage/jornada-desafio";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import {
   verificarConquistasBonus,
   verificarConquistasRankingSemanal,
@@ -80,9 +81,14 @@ export async function marcarItemComFoto(itemId: string, formData: FormData) {
 
     const fotoChave = await uploadComprovanteItem(arquivo, clienteId);
 
-    await prisma.marcacaoItem.create({
-      data: { itemId, clienteId, data: hoje, fotoChave, validado: false },
-    });
+    try {
+      await prisma.marcacaoItem.create({
+        data: { itemId, clienteId, data: hoje, fotoChave, validado: false },
+      });
+    } catch (erro) {
+      await apagarObjetoEmMelhorEsforco(fotoChave, "marcarItemComFoto: falha ao gravar no banco");
+      throw erro;
+    }
 
     revalidatePath("/cliente/desafios");
   });
@@ -118,9 +124,16 @@ export async function participarDesafioSurpresa(
       fotoChave = await uploadComprovante(arquivo, clienteId);
     }
 
-    await prisma.participacaoSurpresa.create({
-      data: { desafioSurpresaId, clienteId, fotoChave },
-    });
+    try {
+      await prisma.participacaoSurpresa.create({
+        data: { desafioSurpresaId, clienteId, fotoChave },
+      });
+    } catch (erro) {
+      if (fotoChave) {
+        await apagarObjetoEmMelhorEsforco(fotoChave, "participarDesafioSurpresa: falha ao gravar no banco");
+      }
+      throw erro;
+    }
 
     revalidatePath("/cliente/desafios");
   });
@@ -157,16 +170,21 @@ async function enviarFotoJornada(
 
   const novaChave = await uploadFotoJornada(arquivo, clienteId);
 
-  const chaveAntiga = existente?.[campo];
-  if (chaveAntiga) {
-    await deletarFotoJornada(chaveAntiga);
+  try {
+    await prisma.jornadaDesafio.upsert({
+      where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
+      create: { desafioId: desafio.id, clienteId, [campo]: novaChave },
+      update: { [campo]: novaChave },
+    });
+  } catch (erro) {
+    await apagarObjetoEmMelhorEsforco(novaChave, "enviarFotoJornada: falha ao gravar no banco");
+    throw erro;
   }
 
-  await prisma.jornadaDesafio.upsert({
-    where: { desafioId_clienteId: { desafioId: desafio.id, clienteId } },
-    create: { desafioId: desafio.id, clienteId, [campo]: novaChave },
-    update: { [campo]: novaChave },
-  });
+  const chaveAntiga = existente?.[campo];
+  if (chaveAntiga) {
+    await apagarObjetoEmMelhorEsforco(chaveAntiga, "enviarFotoJornada: foto substituída");
+  }
 
   revalidatePath("/cliente/desafios");
 }

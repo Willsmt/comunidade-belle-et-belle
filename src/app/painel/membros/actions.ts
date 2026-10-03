@@ -5,13 +5,7 @@ import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
-import { deletarFoto } from "@/lib/storage/fotos";
-import { deletarFotoPerfil } from "@/lib/storage/perfil";
-import { deletarFotoParceria } from "@/lib/storage/parcerias";
-import { deletarFotoJornada } from "@/lib/storage/jornada-desafio";
-import { deletarComprovante } from "@/lib/storage/comprovantes-surpresa";
-import { deletarImagemPost } from "@/lib/storage/posts";
-import { deletarPlano } from "@/lib/storage/planos";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 const PAPEIS_COM_ACESSO_AO_PAINEL: readonly Papel[] = ["ADMIN", "GESTORA"];
@@ -74,7 +68,7 @@ export async function reativarMembro(userId: string) {
   });
 }
 
-async function excluirArquivosDoUsuario(userId: string) {
+async function listarChavesDoUsuario(userId: string): Promise<string[]> {
   const [perfil, perfilParceria, fotos, jornadas, participacoes, posts, planos] =
     await Promise.all([
       prisma.perfil.findUnique({ where: { userId } }),
@@ -88,40 +82,40 @@ async function excluirArquivosDoUsuario(userId: string) {
       }),
     ]);
 
-  const exclusoes: Promise<void>[] = [];
+  const chaves = new Set<string>();
 
   if (perfil?.fotoChave) {
-    exclusoes.push(deletarFotoPerfil(perfil.fotoChave));
+    chaves.add(perfil.fotoChave);
   }
   if (perfilParceria?.fotoChave) {
-    exclusoes.push(deletarFotoParceria(perfilParceria.fotoChave));
+    chaves.add(perfilParceria.fotoChave);
   }
   for (const foto of fotos) {
-    exclusoes.push(deletarFoto(foto.chave));
+    chaves.add(foto.chave);
   }
   for (const jornada of jornadas) {
     if (jornada.fotoAntesChave) {
-      exclusoes.push(deletarFotoJornada(jornada.fotoAntesChave));
+      chaves.add(jornada.fotoAntesChave);
     }
     if (jornada.fotoDepoisChave) {
-      exclusoes.push(deletarFotoJornada(jornada.fotoDepoisChave));
+      chaves.add(jornada.fotoDepoisChave);
     }
   }
   for (const participacao of participacoes) {
     if (participacao.fotoChave) {
-      exclusoes.push(deletarComprovante(participacao.fotoChave));
+      chaves.add(participacao.fotoChave);
     }
   }
   for (const post of posts) {
     if (post.imagemChave) {
-      exclusoes.push(deletarImagemPost(post.imagemChave));
+      chaves.add(post.imagemChave);
     }
   }
   for (const plano of planos) {
-    exclusoes.push(deletarPlano(plano.arquivoChave));
+    chaves.add(plano.arquivoChave);
   }
 
-  await Promise.all(exclusoes);
+  return [...chaves];
 }
 
 export async function deletarMembro(userId: string) {
@@ -137,8 +131,15 @@ export async function deletarMembro(userId: string) {
       "Não é possível deletar: não sobraria nenhuma conta ADMIN ou GESTORA ativa.",
     );
 
-    await excluirArquivosDoUsuario(userId);
+    // Lista as chaves antes (o delete em cascata apaga os registros), mas só
+    // apaga do R2 depois que o banco confirmou a exclusão.
+    const chaves = await listarChavesDoUsuario(userId);
     await prisma.user.delete({ where: { id: userId } });
+    await Promise.all(
+      chaves.map((chave) =>
+        apagarObjetoEmMelhorEsforco(chave, "deletarMembro"),
+      ),
+    );
 
     revalidatePath("/painel/membros");
   });

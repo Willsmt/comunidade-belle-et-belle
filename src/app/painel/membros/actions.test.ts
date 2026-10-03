@@ -17,13 +17,7 @@ const {
   mockFindManyParticipacaoSurpresa,
   mockFindManyPost,
   mockFindManyPlanoRecebido,
-  mockDeletarFoto,
-  mockDeletarFotoPerfil,
-  mockDeletarFotoParceria,
-  mockDeletarFotoJornada,
-  mockDeletarComprovante,
-  mockDeletarImagemPost,
-  mockDeletarPlano,
+  mockApagarObjeto,
 } = vi.hoisted(() => ({
   mockRequererAcesso: vi.fn(),
   mockUpdate: vi.fn(),
@@ -41,13 +35,7 @@ const {
   mockFindManyParticipacaoSurpresa: vi.fn(),
   mockFindManyPost: vi.fn(),
   mockFindManyPlanoRecebido: vi.fn(),
-  mockDeletarFoto: vi.fn(),
-  mockDeletarFotoPerfil: vi.fn(),
-  mockDeletarFotoParceria: vi.fn(),
-  mockDeletarFotoJornada: vi.fn(),
-  mockDeletarComprovante: vi.fn(),
-  mockDeletarImagemPost: vi.fn(),
-  mockDeletarPlano: vi.fn(),
+  mockApagarObjeto: vi.fn(),
 }));
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
   requererAcessoPainel: mockRequererAcesso,
@@ -68,23 +56,9 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
-vi.mock("@/lib/storage/fotos", () => ({ deletarFoto: mockDeletarFoto }));
-vi.mock("@/lib/storage/perfil", () => ({
-  deletarFotoPerfil: mockDeletarFotoPerfil,
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
-vi.mock("@/lib/storage/parcerias", () => ({
-  deletarFotoParceria: mockDeletarFotoParceria,
-}));
-vi.mock("@/lib/storage/jornada-desafio", () => ({
-  deletarFotoJornada: mockDeletarFotoJornada,
-}));
-vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
-  deletarComprovante: mockDeletarComprovante,
-}));
-vi.mock("@/lib/storage/posts", () => ({
-  deletarImagemPost: mockDeletarImagemPost,
-}));
-vi.mock("@/lib/storage/planos", () => ({ deletarPlano: mockDeletarPlano }));
 import {
   suspenderMembro,
   reativarMembro,
@@ -111,13 +85,7 @@ beforeEach(() => {
   mockFindManyParticipacaoSurpresa.mockReset().mockResolvedValue([]);
   mockFindManyPost.mockReset().mockResolvedValue([]);
   mockFindManyPlanoRecebido.mockReset().mockResolvedValue([]);
-  mockDeletarFoto.mockReset().mockResolvedValue(undefined);
-  mockDeletarFotoPerfil.mockReset().mockResolvedValue(undefined);
-  mockDeletarFotoParceria.mockReset().mockResolvedValue(undefined);
-  mockDeletarFotoJornada.mockReset().mockResolvedValue(undefined);
-  mockDeletarComprovante.mockReset().mockResolvedValue(undefined);
-  mockDeletarImagemPost.mockReset().mockResolvedValue(undefined);
-  mockDeletarPlano.mockReset().mockResolvedValue(undefined);
+  mockApagarObjeto.mockReset().mockResolvedValue(undefined);
   mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
   mockCount.mockResolvedValue(1);
   mockTransaction.mockImplementation((ops: Promise<unknown>[]) =>
@@ -212,7 +180,7 @@ describe("deletarMembro", () => {
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it("purga do R2 a foto de perfil própria e a de parceria, antes de deletar o registro", async () => {
+  it("purga do R2 a foto de perfil própria e a de parceria, depois de deletar o registro", async () => {
     mockFindUniquePerfil.mockResolvedValue({ fotoChave: "perfis-cliente/u1/foto.webp" });
     mockFindUniquePerfilParceria.mockResolvedValue({
       fotoChave: "perfis-parceria/u1/foto.webp",
@@ -221,8 +189,8 @@ describe("deletarMembro", () => {
 
     await deletarMembro("u1");
 
-    expect(mockDeletarFotoPerfil).toHaveBeenCalledWith("perfis-cliente/u1/foto.webp");
-    expect(mockDeletarFotoParceria).toHaveBeenCalledWith("perfis-parceria/u1/foto.webp");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("perfis-cliente/u1/foto.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("perfis-parceria/u1/foto.webp", "deletarMembro");
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: "u1" } });
   });
 
@@ -233,8 +201,7 @@ describe("deletarMembro", () => {
 
     await deletarMembro("u1");
 
-    expect(mockDeletarFotoPerfil).not.toHaveBeenCalled();
-    expect(mockDeletarFotoParceria).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("purga todas as fotos de evolução do cliente", async () => {
@@ -249,8 +216,8 @@ describe("deletarMembro", () => {
     expect(mockFindManyFotoEvolucao).toHaveBeenCalledWith({
       where: { clienteId: "u1" },
     });
-    expect(mockDeletarFoto).toHaveBeenCalledWith("fotos-evolucao/u1/a.webp");
-    expect(mockDeletarFoto).toHaveBeenCalledWith("fotos-evolucao/u1/b.webp");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("fotos-evolucao/u1/a.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("fotos-evolucao/u1/b.webp", "deletarMembro");
   });
 
   it("purga fotos de antes/depois das jornadas de desafio, só as que existem", async () => {
@@ -265,9 +232,9 @@ describe("deletarMembro", () => {
 
     await deletarMembro("u1");
 
-    expect(mockDeletarFotoJornada).toHaveBeenCalledWith("jornada-desafio/u1/antes.webp");
-    expect(mockDeletarFotoJornada).toHaveBeenCalledWith("jornada-desafio/u1/depois.webp");
-    expect(mockDeletarFotoJornada).toHaveBeenCalledTimes(2);
+    expect(mockApagarObjeto).toHaveBeenCalledWith("jornada-desafio/u1/antes.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("jornada-desafio/u1/depois.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(2);
   });
 
   it("purga comprovantes de desafio surpresa só quando têm foto", async () => {
@@ -279,10 +246,8 @@ describe("deletarMembro", () => {
 
     await deletarMembro("u1");
 
-    expect(mockDeletarComprovante).toHaveBeenCalledWith(
-      "comprovantes-surpresa/u1/x.webp",
-    );
-    expect(mockDeletarComprovante).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-surpresa/u1/x.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
   });
 
   it("purga imagens de post do autor só quando têm imagem", async () => {
@@ -295,8 +260,45 @@ describe("deletarMembro", () => {
     await deletarMembro("u1");
 
     expect(mockFindManyPost).toHaveBeenCalledWith({ where: { autorId: "u1" } });
-    expect(mockDeletarImagemPost).toHaveBeenCalledWith("posts/u1/x.webp");
-    expect(mockDeletarImagemPost).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith("posts/u1/x.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+  });
+
+  it("deleta o usuário no banco antes de apagar qualquer objeto no R2", async () => {
+    mockFindUniquePerfil.mockResolvedValue({ fotoChave: "perfis-cliente/u1/foto.webp" });
+    mockFindManyFotoEvolucao.mockResolvedValue([{ chave: "fotos-evolucao/u1/a.webp" }]);
+    const ordem: string[] = [];
+    mockDelete.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await deletarMembro("u1");
+
+    expect(ordem).toEqual(["banco", "r2", "r2"]);
+  });
+
+  it("se o delete no banco falhar, não apaga nada no R2", async () => {
+    mockFindUniquePerfil.mockResolvedValue({ fotoChave: "perfis-cliente/u1/foto.webp" });
+    mockFindManyFotoEvolucao.mockResolvedValue([{ chave: "fotos-evolucao/u1/a.webp" }]);
+    mockDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(deletarMembro("u1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
+  it("não repete o mesmo objeto (foto de evolução usada em post)", async () => {
+    mockFindManyFotoEvolucao.mockResolvedValue([{ chave: "fotos-evolucao/u1/a.webp" }]);
+    mockFindManyPost.mockResolvedValue([{ imagemChave: "fotos-evolucao/u1/a.webp" }]);
+    mockDelete.mockResolvedValue({});
+
+    await deletarMembro("u1");
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
   });
 
   it("purga planos recebidos como cliente e enviados como parceria", async () => {
@@ -311,8 +313,8 @@ describe("deletarMembro", () => {
     expect(mockFindManyPlanoRecebido).toHaveBeenCalledWith({
       where: { OR: [{ clienteId: "u1" }, { parceriaId: "u1" }] },
     });
-    expect(mockDeletarPlano).toHaveBeenCalledWith("planos/x/a.pdf");
-    expect(mockDeletarPlano).toHaveBeenCalledWith("planos/x/b.pdf");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("planos/x/a.pdf", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("planos/x/b.pdf", "deletarMembro");
   });
 });
 describe("promoverAParceria", () => {

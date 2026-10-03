@@ -2,15 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 
-const { mockAuth, mockDeletarFoto } = vi.hoisted(() => ({
+const { mockAuth, mockApagarObjeto } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
-  mockDeletarFoto: vi.fn(),
+  mockApagarObjeto: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
-vi.mock("@/lib/storage/fotos", () => ({
-  uploadFoto: vi.fn(),
-  deletarFoto: mockDeletarFoto,
+vi.mock("@/lib/storage/fotos", () => ({ uploadFoto: vi.fn() }));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -18,7 +18,7 @@ import { alternarVisibilidadeFoto, excluirFoto } from "./actions";
 
 afterEach(async () => {
   await limparBanco();
-  mockDeletarFoto.mockReset();
+  mockApagarObjeto.mockReset();
 });
 
 function formDataFoto(fotoId: string) {
@@ -76,7 +76,7 @@ describe("alternarVisibilidadeFoto (Postgres real)", () => {
     ]);
     expect(await prisma.like.count()).toBe(0);
     expect(await prisma.comentario.count()).toBe(0);
-    expect(mockDeletarFoto).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("privada -> pública não apaga nada", async () => {
@@ -96,7 +96,7 @@ describe("alternarVisibilidadeFoto (Postgres real)", () => {
 describe("excluirFoto (Postgres real)", () => {
   it("apaga os posts e a foto, preserva posts de outra foto e chama o R2", async () => {
     const { foto, outraFoto, postOutraFoto } = await cenario();
-    mockDeletarFoto.mockResolvedValue(undefined);
+    mockApagarObjeto.mockResolvedValue(undefined);
 
     await excluirFoto(formDataFoto(foto.id));
 
@@ -107,16 +107,6 @@ describe("excluirFoto (Postgres real)", () => {
     ]);
     expect(await prisma.like.count()).toBe(0);
     expect(await prisma.comentario.count()).toBe(0);
-    expect(mockDeletarFoto).toHaveBeenCalledWith(foto.chave);
-  });
-
-  it("falha no R2 não desfaz o banco", async () => {
-    const { foto } = await cenario();
-    mockDeletarFoto.mockRejectedValue(new Error("R2 fora do ar"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await excluirFoto(formDataFoto(foto.id));
-
-    expect(await prisma.fotoEvolucao.findUnique({ where: { id: foto.id } })).toBeNull();
+    expect(mockApagarObjeto).toHaveBeenCalledWith(foto.chave, "excluirFoto");
   });
 });

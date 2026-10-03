@@ -20,7 +20,7 @@ const {
   mockComentarioDelete,
   mockRevalidatePath,
   mockUploadImagemPost,
-  mockDeletarImagemPost,
+  mockApagarObjeto,
   mockRedirect,
   mockGarantirCotaPostsComImagem,
 } = vi.hoisted(() => ({
@@ -42,7 +42,7 @@ const {
   mockComentarioDelete: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadImagemPost: vi.fn(),
-  mockDeletarImagemPost: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockRedirect: vi.fn(() => {
     throw new Error("NEXT_REDIRECT");
   }),
@@ -95,7 +95,9 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/storage/posts", () => ({
   uploadImagemPost: mockUploadImagemPost,
-  deletarImagemPost: mockDeletarImagemPost,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 
 import {
@@ -181,7 +183,7 @@ beforeEach(() => {
   mockComentarioDelete.mockReset();
   mockRevalidatePath.mockReset();
   mockUploadImagemPost.mockReset();
-  mockDeletarImagemPost.mockReset();
+  mockApagarObjeto.mockReset().mockResolvedValue(undefined);
   mockRedirect.mockClear();
   mockGarantirCotaPostsComImagem.mockReset().mockResolvedValue(undefined);
 });
@@ -283,6 +285,72 @@ describe("criarPost", () => {
       },
     });
     expect(mockRedirect).toHaveBeenCalledWith("/feed");
+  });
+
+  it("se a criação no banco falhar após upload próprio, apaga o objeto e relança o erro original", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockUploadImagemPost.mockResolvedValue("posts/cliente-1/abc.webp");
+    mockPostCreate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      criarPost(buildFormDataCriar({ arquivo: buildArquivo() })),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "posts/cliente-1/abc.webp",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
+    );
+    expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it("se o destaque for negado após o upload, apaga o objeto recém-enviado", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockUploadImagemPost.mockResolvedValue("posts/cliente-1/abc.webp");
+    mockRequererAcessoPainel.mockRejectedValue(new AppError("Acesso negado"));
+
+    await expect(
+      criarPost(buildFormDataCriar({ arquivo: buildArquivo(), destaque: true })),
+    ).rejects.toThrow("Acesso negado");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "posts/cliente-1/abc.webp",
+      expect.any(String),
+    );
+  });
+
+  it("falha no banco com foto de evolução reaproveitada não apaga nada no R2", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockFindUniqueFotoEvolucao.mockResolvedValue({
+      id: "foto-x",
+      clienteId: "cliente-1",
+      chave: "fotos-evolucao/cliente-1/x.webp",
+      publica: true,
+    });
+    mockPostCreate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      criarPost(buildFormDataCriar({ fotoEvolucaoId: "foto-x" })),
+    ).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
+  it("sucesso com upload próprio não apaga nada", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockUploadImagemPost.mockResolvedValue("posts/cliente-1/abc.webp");
+    mockPostCreate.mockResolvedValue({});
+
+    await expect(
+      criarPost(buildFormDataCriar({ arquivo: buildArquivo() })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("rejeita fotoEvolucaoId que não pertence ao usuário", async () => {
@@ -469,7 +537,7 @@ describe("editarPost", () => {
       buildFormDataEditar({ postId: "post-1", texto: "atualizado" }),
     );
 
-    expect(mockDeletarImagemPost).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUploadImagemPost).not.toHaveBeenCalled();
     expect(mockPostUpdate).toHaveBeenCalledWith({
       where: { id: "post-1" },
@@ -502,8 +570,9 @@ describe("editarPost", () => {
       }),
     );
 
-    expect(mockDeletarImagemPost).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "posts/cliente-1/antiga.webp",
+      expect.any(String),
     );
     expect(mockPostUpdate).toHaveBeenCalledWith({
       where: { id: "post-1" },
@@ -535,7 +604,7 @@ describe("editarPost", () => {
       }),
     );
 
-    expect(mockDeletarImagemPost).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockPostUpdate).toHaveBeenCalledWith({
       where: { id: "post-1" },
       data: {
@@ -544,6 +613,117 @@ describe("editarPost", () => {
         fotoEvolucaoId: null,
       },
     });
+  });
+
+  it("troca a imagem: faz upload, atualiza o banco e só então apaga a antiga", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostFindUnique.mockResolvedValue({
+      id: "post-1",
+      autorId: "cliente-1",
+      texto: "original",
+      imagemChave: "posts/cliente-1/antiga.webp",
+      fotoEvolucaoId: null,
+    });
+    const ordem: string[] = [];
+    mockUploadImagemPost.mockImplementation(async () => {
+      ordem.push("upload");
+      return "posts/cliente-1/nova.webp";
+    });
+    mockPostUpdate.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("apagar-antiga");
+    });
+
+    await editarPost(
+      buildFormDataEditar({
+        postId: "post-1",
+        texto: "original",
+        arquivo: buildArquivo(),
+      }),
+    );
+
+    expect(ordem).toEqual(["upload", "banco", "apagar-antiga"]);
+  });
+
+  it("se o update falhar, apaga o objeto NOVO, mantém o antigo e relança o erro original", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostFindUnique.mockResolvedValue({
+      id: "post-1",
+      autorId: "cliente-1",
+      texto: "original",
+      imagemChave: "posts/cliente-1/antiga.webp",
+      fotoEvolucaoId: null,
+    });
+    mockUploadImagemPost.mockResolvedValue("posts/cliente-1/nova.webp");
+    mockPostUpdate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      editarPost(
+        buildFormDataEditar({
+          postId: "post-1",
+          texto: "original",
+          arquivo: buildArquivo(),
+        }),
+      ),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "posts/cliente-1/nova.webp",
+      expect.any(String),
+    );
+    expect(mockApagarObjeto).not.toHaveBeenCalledWith(
+      "posts/cliente-1/antiga.webp",
+      expect.anything(),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
+    );
+  });
+
+  it("antiga é foto de evolução: se o update falhar, só apaga o novo; no sucesso, não apaga a antiga", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostFindUnique.mockResolvedValue({
+      id: "post-1",
+      autorId: "cliente-1",
+      texto: "original",
+      imagemChave: "fotos-evolucao/cliente-1/x.webp",
+      fotoEvolucaoId: "foto-x",
+    });
+    mockUploadImagemPost.mockResolvedValue("posts/cliente-1/nova.webp");
+    mockPostUpdate.mockRejectedValueOnce(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      editarPost(
+        buildFormDataEditar({
+          postId: "post-1",
+          texto: "original",
+          arquivo: buildArquivo(),
+        }),
+      ),
+    ).rejects.toThrow();
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "posts/cliente-1/nova.webp",
+      expect.any(String),
+    );
+
+    mockApagarObjeto.mockClear();
+    mockPostUpdate.mockResolvedValue({});
+
+    await editarPost(
+      buildFormDataEditar({
+        postId: "post-1",
+        texto: "original",
+        arquivo: buildArquivo(),
+      }),
+    );
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("rejeita se o resultado final não teria nem texto nem imagem", async () => {
@@ -610,11 +790,49 @@ describe("apagarPost", () => {
 
     await apagarPost(buildFormDataPostId("post-1"));
 
-    expect(mockDeletarImagemPost).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "posts/cliente-1/abc.webp",
+      expect.any(String),
     );
     expect(mockPostDelete).toHaveBeenCalledWith({ where: { id: "post-1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+  });
+
+  it("apaga o registro no banco antes do objeto no R2", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostFindUnique.mockResolvedValue({
+      id: "post-1",
+      autorId: "cliente-1",
+      imagemChave: "posts/cliente-1/abc.webp",
+      fotoEvolucaoId: null,
+    });
+    const ordem: string[] = [];
+    mockPostDelete.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await apagarPost(buildFormDataPostId("post-1"));
+
+    expect(ordem).toEqual(["banco", "r2"]);
+  });
+
+  it("se o delete no banco falhar, não apaga o objeto no R2", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostFindUnique.mockResolvedValue({
+      id: "post-1",
+      autorId: "cliente-1",
+      imagemChave: "posts/cliente-1/abc.webp",
+      fotoEvolucaoId: null,
+    });
+    mockPostDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(apagarPost(buildFormDataPostId("post-1"))).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("moderador apaga post de outra pessoa", async () => {
@@ -646,7 +864,7 @@ describe("apagarPost", () => {
 
     await apagarPost(buildFormDataPostId("post-1"));
 
-    expect(mockDeletarImagemPost).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockPostDelete).toHaveBeenCalledWith({ where: { id: "post-1" } });
   });
 });

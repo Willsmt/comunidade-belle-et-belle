@@ -6,7 +6,8 @@ import type { Papel } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel, requererSessao } from "@/lib/auth/requerer-acesso-painel";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
-import { uploadImagemPost, deletarImagemPost } from "@/lib/storage/posts";
+import { uploadImagemPost } from "@/lib/storage/posts";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { garantirCotaPostsComImagem } from "@/lib/storage/cotas";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
@@ -26,10 +27,12 @@ export async function criarPost(formData: FormData) {
 
     let imagemChave: string | null = null;
     let fotoEvolucaoIdValido: string | null = null;
+    let uploadProprio = false;
 
     if (arquivo instanceof File && arquivo.size > 0) {
       await garantirCotaPostsComImagem(session.user.id);
       imagemChave = await uploadImagemPost(arquivo, session.user.id);
+      uploadProprio = true;
     } else if (typeof fotoEvolucaoId === "string" && fotoEvolucaoId !== "") {
       const foto = await prisma.fotoEvolucao.findUnique({
         where: { id: fotoEvolucaoId },
@@ -46,37 +49,46 @@ export async function criarPost(formData: FormData) {
       fotoEvolucaoIdValido = foto.id;
     }
 
-    if (!textoValido && !imagemChave) {
-      throw new AppError("O post precisa de um texto ou uma imagem");
-    }
+    try {
+      if (!textoValido && !imagemChave) {
+        throw new AppError("O post precisa de um texto ou uma imagem");
+      }
 
-    if (destacarSolicitado) {
-      await requererAcessoPainel();
+      if (destacarSolicitado) {
+        await requererAcessoPainel();
 
-      await prisma.$transaction([
-        prisma.post.updateMany({
-          where: { destaque: true },
-          data: { destaque: false },
-        }),
-        prisma.post.create({
+        await prisma.$transaction([
+          prisma.post.updateMany({
+            where: { destaque: true },
+            data: { destaque: false },
+          }),
+          prisma.post.create({
+            data: {
+              autorId: session.user.id,
+              texto: textoValido,
+              imagemChave,
+              fotoEvolucaoId: fotoEvolucaoIdValido,
+              destaque: true,
+            },
+          }),
+        ]);
+      } else {
+        await prisma.post.create({
           data: {
             autorId: session.user.id,
             texto: textoValido,
             imagemChave,
             fotoEvolucaoId: fotoEvolucaoIdValido,
-            destaque: true,
           },
-        }),
-      ]);
-    } else {
-      await prisma.post.create({
-        data: {
-          autorId: session.user.id,
-          texto: textoValido,
-          imagemChave,
-          fotoEvolucaoId: fotoEvolucaoIdValido,
-        },
-      });
+        });
+      }
+    } catch (erro) {
+      // Só o upload próprio é compensado: a chave de uma foto de evolução
+      // pertence à FotoEvolucao e nunca pode ser apagada aqui.
+      if (uploadProprio && imagemChave) {
+        await apagarObjetoEmMelhorEsforco(imagemChave, "criarPost: falha ao gravar no banco");
+      }
+      throw erro;
     }
 
     revalidatePath("/feed");
@@ -157,25 +169,40 @@ export async function editarPost(formData: FormData) {
     const textoValido =
       typeof texto === "string" && texto.trim() !== "" ? texto.trim() : null;
 
-    let imagemChave = post.imagemChave;
-    let fotoEvolucaoId = post.fotoEvolucaoId;
+    const novoArquivo =
+      arquivo instanceof File && arquivo.size > 0 ? arquivo : null;
 
-    if (arquivo instanceof File && arquivo.size > 0) {
-      if (post.imagemChave && !post.fotoEvolucaoId) {
-        await deletarImagemPost(post.imagemChave);
-      }
-      imagemChave = await uploadImagemPost(arquivo, session.user.id);
-      fotoEvolucaoId = null;
-    }
-
-    if (!textoValido && !imagemChave) {
+    if (!textoValido && !novoArquivo && !post.imagemChave) {
       throw new AppError("O post precisa de um texto ou uma imagem");
     }
 
-    await prisma.post.update({
-      where: { id: postId },
-      data: { texto: textoValido, imagemChave, fotoEvolucaoId },
-    });
+    let imagemChave = post.imagemChave;
+    let fotoEvolucaoId = post.fotoEvolucaoId;
+    let novaChave: string | null = null;
+
+    if (novoArquivo) {
+      novaChave = await uploadImagemPost(novoArquivo, session.user.id);
+      imagemChave = novaChave;
+      fotoEvolucaoId = null;
+    }
+
+    try {
+      await prisma.post.update({
+        where: { id: postId },
+        data: { texto: textoValido, imagemChave, fotoEvolucaoId },
+      });
+    } catch (erro) {
+      if (novaChave) {
+        await apagarObjetoEmMelhorEsforco(novaChave, "editarPost: falha ao gravar no banco");
+      }
+      throw erro;
+    }
+
+    // Só depois do update: a chave antiga de uma foto de evolução pertence à
+    // FotoEvolucao e não é apagada.
+    if (novaChave && post.imagemChave && !post.fotoEvolucaoId) {
+      await apagarObjetoEmMelhorEsforco(post.imagemChave, "editarPost: imagem substituída");
+    }
 
     revalidatePath("/feed");
   });
@@ -192,11 +219,11 @@ export async function apagarPost(formData: FormData) {
 
     const post = await obterPostAutorizado(postId, session);
 
-    if (post.imagemChave && !post.fotoEvolucaoId) {
-      await deletarImagemPost(post.imagemChave);
-    }
-
     await prisma.post.delete({ where: { id: postId } });
+
+    if (post.imagemChave && !post.fotoEvolucaoId) {
+      await apagarObjetoEmMelhorEsforco(post.imagemChave, "apagarPost");
+    }
 
     revalidatePath("/feed");
   });

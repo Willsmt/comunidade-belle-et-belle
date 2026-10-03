@@ -9,7 +9,7 @@ const {
   mockDelete,
   mockRevalidatePath,
   mockUploadFoto,
-  mockDeletarFoto,
+  mockApagarObjeto,
   mockTransaction,
   mockPostDeleteMany,
   mockGarantirCotaFotosEvolucao,
@@ -21,7 +21,7 @@ const {
   mockDelete: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadFoto: vi.fn(),
-  mockDeletarFoto: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockTransaction: vi.fn(),
   mockPostDeleteMany: vi.fn(),
   mockGarantirCotaFotosEvolucao: vi.fn(),
@@ -48,7 +48,9 @@ vi.mock("@/lib/storage/cotas", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/fotos", () => ({
   uploadFoto: mockUploadFoto,
-  deletarFoto: mockDeletarFoto,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 
 import { enviarFoto, alternarVisibilidadeFoto, excluirFoto } from "./actions";
@@ -75,6 +77,7 @@ describe("enviarFoto", () => {
     mockCreate.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadFoto.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
     mockGarantirCotaFotosEvolucao.mockReset().mockResolvedValue(undefined);
   });
 
@@ -123,6 +126,28 @@ describe("enviarFoto", () => {
       data: { clienteId: "cliente-1", chave: "fotos-evolucao/cliente-1/abc.webp" },
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/fotos");
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
+  it("se a escrita no banco falhar, apaga o objeto recém-enviado e relança o erro original", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockUploadFoto.mockResolvedValue("fotos-evolucao/cliente-1/abc.webp");
+    mockCreate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      enviarFoto(buildFormDataComArquivo(buildArquivo())),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "fotos-evolucao/cliente-1/abc.webp",
+      expect.any(String),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
 
@@ -134,7 +159,7 @@ describe("alternarVisibilidadeFoto", () => {
     mockRevalidatePath.mockReset();
     mockTransaction.mockReset();
     mockPostDeleteMany.mockReset();
-    mockDeletarFoto.mockReset();
+    mockApagarObjeto.mockReset();
   });
 
   it("rejeita se a foto não existe", async () => {
@@ -206,7 +231,7 @@ describe("alternarVisibilidadeFoto", () => {
       "op-delete-posts",
       "op-update-foto",
     ]);
-    expect(mockDeletarFoto).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/perfil/cliente-1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/fotos");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
@@ -218,7 +243,7 @@ describe("excluirFoto", () => {
     mockRequererPapel.mockReset();
     mockFindUnique.mockReset();
     mockDelete.mockReset();
-    mockDeletarFoto.mockReset();
+    mockApagarObjeto.mockReset();
     mockRevalidatePath.mockReset();
     mockTransaction.mockReset();
     mockPostDeleteMany.mockReset();
@@ -235,7 +260,7 @@ describe("excluirFoto", () => {
     await expect(excluirFoto(buildFormDataComId("foto-x"))).rejects.toThrow(
       "Foto não encontrada",
     );
-    expect(mockDeletarFoto).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
@@ -252,7 +277,7 @@ describe("excluirFoto", () => {
     mockTransaction.mockImplementation(async () => {
       ordem.push("transacao");
     });
-    mockDeletarFoto.mockImplementation(async () => {
+    mockApagarObjeto.mockImplementation(async () => {
       ordem.push("r2");
     });
 
@@ -266,37 +291,14 @@ describe("excluirFoto", () => {
       "op-delete-posts",
       "op-delete-foto",
     ]);
-    expect(mockDeletarFoto).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "fotos-evolucao/cliente-1/abc.webp",
+      "excluirFoto",
     );
     expect(ordem).toEqual(["transacao", "r2"]);
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/fotos");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/perfil/cliente-1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
-  });
-
-  it("falha no R2 não quebra a action nem reverte o banco, e é logada", async () => {
-    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
-    mockFindUnique.mockResolvedValue({
-      id: "foto-x",
-      clienteId: "cliente-1",
-      chave: "fotos-evolucao/cliente-1/abc.webp",
-    });
-    mockTransaction.mockResolvedValue([]);
-    const erroR2 = new Error("R2 fora do ar");
-    mockDeletarFoto.mockRejectedValue(erroR2);
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await expect(excluirFoto(buildFormDataComId("foto-x"))).resolves.not.toThrow();
-
-    expect(mockTransaction).toHaveBeenCalledTimes(1);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("R2"),
-      "fotos-evolucao/cliente-1/abc.webp",
-      erroR2,
-    );
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
-    consoleSpy.mockRestore();
   });
 
   it("se a transação falhar, não apaga o objeto no R2", async () => {
@@ -310,6 +312,6 @@ describe("excluirFoto", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(excluirFoto(buildFormDataComId("foto-x"))).rejects.toThrow();
-    expect(mockDeletarFoto).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 });

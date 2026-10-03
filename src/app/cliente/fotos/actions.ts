@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
-import { uploadFoto, deletarFoto } from "@/lib/storage/fotos";
+import { uploadFoto } from "@/lib/storage/fotos";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { garantirCotaFotosEvolucao } from "@/lib/storage/cotas";
 
 export async function enviarFoto(formData: FormData) {
@@ -20,9 +21,14 @@ export async function enviarFoto(formData: FormData) {
 
     const chave = await uploadFoto(arquivo, session.user.id);
 
-    await prisma.fotoEvolucao.create({
-      data: { clienteId: session.user.id, chave },
-    });
+    try {
+      await prisma.fotoEvolucao.create({
+        data: { clienteId: session.user.id, chave },
+      });
+    } catch (erro) {
+      await apagarObjetoEmMelhorEsforco(chave, "enviarFoto: falha ao gravar no banco");
+      throw erro;
+    }
 
     revalidatePath("/cliente/fotos");
   });
@@ -89,11 +95,7 @@ export async function excluirFoto(formData: FormData) {
 
     // Só depois do commit: objeto órfão no R2 é preferível a registro
     // apontando para arquivo inexistente.
-    try {
-      await deletarFoto(foto.chave);
-    } catch (erro) {
-      console.error("Falha ao apagar objeto da foto no R2:", foto.chave, erro);
-    }
+    await apagarObjetoEmMelhorEsforco(foto.chave, "excluirFoto");
 
     revalidatePath("/feed");
     revalidatePath("/cliente/fotos");

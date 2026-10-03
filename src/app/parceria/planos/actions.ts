@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { uploadPlano } from "@/lib/storage/planos";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { garantirCotaPlanos } from "@/lib/storage/cotas";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
@@ -49,15 +50,20 @@ export async function enviarPlano(formData: FormData) {
 
     const arquivoChave = await uploadPlano(arquivo, clienteId);
 
-    await prisma.planoRecebido.create({
-      data: {
-        clienteId,
-        parceriaId: session.user.id,
-        tipo: tipo as (typeof TIPOS_VALIDOS)[number],
-        titulo,
-        arquivoChave,
-      },
-    });
+    try {
+      await prisma.planoRecebido.create({
+        data: {
+          clienteId,
+          parceriaId: session.user.id,
+          tipo: tipo as (typeof TIPOS_VALIDOS)[number],
+          titulo,
+          arquivoChave,
+        },
+      });
+    } catch (erro) {
+      await apagarObjetoEmMelhorEsforco(arquivoChave, "enviarPlano: falha ao gravar no banco");
+      throw erro;
+    }
 
     revalidatePath("/parceria/planos");
   });

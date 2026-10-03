@@ -7,14 +7,14 @@ const {
   mockFindUnique,
   mockRevalidatePath,
   mockUploadFotoParceria,
-  mockDeletarFotoParceria,
+  mockApagarObjeto,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockUpsert: vi.fn(),
   mockFindUnique: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadFotoParceria: vi.fn(),
-  mockDeletarFotoParceria: vi.fn(),
+  mockApagarObjeto: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -28,7 +28,9 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/parcerias", () => ({
   uploadFotoParceria: mockUploadFotoParceria,
-  deletarFotoParceria: mockDeletarFotoParceria,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 
 import { atualizarPerfilParceria } from "./actions";
@@ -54,7 +56,7 @@ describe("atualizarPerfilParceria", () => {
     mockFindUnique.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadFotoParceria.mockReset();
-    mockDeletarFotoParceria.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
   });
 
   it("exige o papel PARCERIA e não salva nada se o acesso for negado", async () => {
@@ -78,7 +80,7 @@ describe("atualizarPerfilParceria", () => {
     );
 
     expect(mockUploadFotoParceria).not.toHaveBeenCalled();
-    expect(mockDeletarFotoParceria).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUpsert).toHaveBeenCalledWith({
       where: { usuarioId: "parceria-1" },
       create: {
@@ -128,7 +130,7 @@ describe("atualizarPerfilParceria", () => {
       expect.any(File),
       "parceria-1",
     );
-    expect(mockDeletarFotoParceria).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
@@ -153,8 +155,57 @@ describe("atualizarPerfilParceria", () => {
 
     await atualizarPerfilParceria(buildFormData({ foto: buildArquivo() }));
 
-    expect(mockDeletarFotoParceria).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "perfis-parceria/parceria-1/antiga.webp",
+      expect.any(String),
+    );
+  });
+
+  it("com foto nova: o upsert acontece antes de apagar a foto antiga", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "parceria-1" } });
+    mockFindUnique.mockResolvedValue({
+      fotoChave: "perfis-parceria/parceria-1/antiga.webp",
+    });
+    mockUploadFotoParceria.mockResolvedValue(
+      "perfis-parceria/parceria-1/nova.webp",
+    );
+    const ordem: string[] = [];
+    mockUpsert.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("apagar-antiga");
+    });
+
+    await atualizarPerfilParceria(buildFormData({ foto: buildArquivo() }));
+
+    expect(ordem).toEqual(["banco", "apagar-antiga"]);
+  });
+
+  it("se o upsert falhar, apaga a foto NOVA, mantém a antiga e relança o erro original", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "parceria-1" } });
+    mockFindUnique.mockResolvedValue({
+      fotoChave: "perfis-parceria/parceria-1/antiga.webp",
+    });
+    mockUploadFotoParceria.mockResolvedValue(
+      "perfis-parceria/parceria-1/nova.webp",
+    );
+    mockUpsert.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      atualizarPerfilParceria(buildFormData({ foto: buildArquivo() })),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "perfis-parceria/parceria-1/nova.webp",
+      expect.any(String),
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
     );
   });
 
@@ -170,7 +221,7 @@ describe("atualizarPerfilParceria", () => {
     );
 
     expect(mockUploadFotoParceria).not.toHaveBeenCalled();
-    expect(mockDeletarFotoParceria).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: { especialidade: null, bio: "atualizando só a bio" },

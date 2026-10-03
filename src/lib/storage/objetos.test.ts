@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 const { mockObterR2Client, mockObterNomeBucket } = vi.hoisted(() => ({
   mockObterR2Client: vi.fn(),
@@ -11,7 +11,11 @@ vi.mock("./r2", () => ({
   obterNomeBucket: mockObterNomeBucket,
 }));
 
-import { gerarUrlAssinada, gerarUrlAssinadaCacheavel } from "./objetos";
+import {
+  apagarObjetoEmMelhorEsforco,
+  gerarUrlAssinada,
+  gerarUrlAssinadaCacheavel,
+} from "./objetos";
 
 describe("gerarUrlAssinadaCacheavel", () => {
   beforeEach(() => {
@@ -68,5 +72,61 @@ describe("gerarUrlAssinadaCacheavel", () => {
     const url = await gerarUrlAssinada("fotos/a.webp");
 
     expect(url).toContain("X-Amz-Expires=300");
+  });
+});
+
+describe("apagarObjetoEmMelhorEsforco", () => {
+  const mockSend = vi.fn();
+
+  beforeEach(() => {
+    mockSend.mockReset();
+    mockObterR2Client.mockReset().mockReturnValue({ send: mockSend });
+    mockObterNomeBucket.mockReset().mockReturnValue("bucket-falso");
+  });
+
+  it("apaga o objeto no bucket e não loga nada em caso de sucesso", async () => {
+    mockSend.mockResolvedValue({});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await apagarObjetoEmMelhorEsforco("fotos/a.webp", "teste");
+
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    const comando = mockSend.mock.calls[0][0];
+    expect(comando).toBeInstanceOf(DeleteObjectCommand);
+    expect(comando.input).toEqual({ Bucket: "bucket-falso", Key: "fotos/a.webp" });
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("em caso de falha só loga contexto e chave, sem relançar", async () => {
+    const erro = new Error("R2 fora do ar");
+    mockSend.mockRejectedValue(erro);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      apagarObjetoEmMelhorEsforco("fotos/a.webp", "meuContexto"),
+    ).resolves.toBeUndefined();
+
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("meuContexto"),
+      "fotos/a.webp",
+      erro,
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it("também não relança se o client do R2 não puder ser criado (ex.: variável ausente)", async () => {
+    mockObterR2Client.mockImplementation(() => {
+      throw new Error("R2_BUCKET_NAME ausente");
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      apagarObjetoEmMelhorEsforco("fotos/a.webp", "ctx"),
+    ).resolves.toBeUndefined();
+
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    consoleSpy.mockRestore();
   });
 });

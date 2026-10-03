@@ -7,7 +7,7 @@ const {
   mockUpdateUser,
   mockRevalidatePath,
   mockUploadFotoPerfil,
-  mockDeletarFotoPerfil,
+  mockApagarObjeto,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockUpsert: vi.fn(),
@@ -15,7 +15,7 @@ const {
   mockUpdateUser: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadFotoPerfil: vi.fn(),
-  mockDeletarFotoPerfil: vi.fn(),
+  mockApagarObjeto: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -30,7 +30,9 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/perfil", () => ({
   uploadFotoPerfil: mockUploadFotoPerfil,
-  deletarFotoPerfil: mockDeletarFotoPerfil,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 
 import { atualizarPerfil } from "./actions";
@@ -57,7 +59,7 @@ describe("atualizarPerfil", () => {
     mockUpdateUser.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadFotoPerfil.mockReset();
-    mockDeletarFotoPerfil.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
   });
 
   it("exige o papel CLIENTE e não salva nada se o acesso for negado", async () => {
@@ -162,7 +164,7 @@ describe("atualizarPerfil", () => {
       expect.any(File),
       "cliente-1",
     );
-    expect(mockDeletarFotoPerfil).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
@@ -185,8 +187,53 @@ describe("atualizarPerfil", () => {
 
     await atualizarPerfil(buildFormData({ foto: buildArquivo() }));
 
-    expect(mockDeletarFotoPerfil).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "perfis-cliente/cliente-1/antiga.webp",
+      expect.any(String),
+    );
+  });
+
+  it("com foto nova: o upsert acontece antes de apagar a foto antiga", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({
+      fotoChave: "perfis-cliente/cliente-1/antiga.webp",
+    });
+    mockUploadFotoPerfil.mockResolvedValue("perfis-cliente/cliente-1/nova.webp");
+    const ordem: string[] = [];
+    mockUpsert.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("apagar-antiga");
+    });
+
+    await atualizarPerfil(buildFormData({ foto: buildArquivo() }));
+
+    expect(ordem).toEqual(["banco", "apagar-antiga"]);
+  });
+
+  it("se o upsert falhar, apaga a foto NOVA, mantém a antiga e relança o erro original", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({
+      fotoChave: "perfis-cliente/cliente-1/antiga.webp",
+    });
+    mockUploadFotoPerfil.mockResolvedValue("perfis-cliente/cliente-1/nova.webp");
+    mockUpsert.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      atualizarPerfil(buildFormData({ foto: buildArquivo() })),
+    ).rejects.toThrow("Não foi possível concluir a ação.");
+
+    expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
+      "perfis-cliente/cliente-1/nova.webp",
+      expect.any(String),
+    );
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: "falha no banco" }),
     );
   });
 
@@ -200,7 +247,7 @@ describe("atualizarPerfil", () => {
     await atualizarPerfil(buildFormData({ bio: "atualizando só a bio" }));
 
     expect(mockUploadFotoPerfil).not.toHaveBeenCalled();
-    expect(mockDeletarFotoPerfil).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: {

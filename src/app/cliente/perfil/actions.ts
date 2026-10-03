@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { executarAction } from "@/lib/actions/executar-action";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
-import { uploadFotoPerfil, deletarFotoPerfil } from "@/lib/storage/perfil";
+import { uploadFotoPerfil } from "@/lib/storage/perfil";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 
 function parseBooleano(formData: FormData, campo: string): boolean {
   return formData.get(campo) === "on";
@@ -33,32 +34,40 @@ export async function atualizarPerfil(formData: FormData) {
       novaChave = await uploadFotoPerfil(arquivo, session.user.id);
     }
 
-    const perfilAtual = await prisma.perfil.findUnique({
-      where: { userId: session.user.id },
-    });
+    let perfilAtual;
+    try {
+      perfilAtual = await prisma.perfil.findUnique({
+        where: { userId: session.user.id },
+      });
 
-    if (novaChave && perfilAtual?.fotoChave) {
-      await deletarFotoPerfil(perfilAtual.fotoChave);
+      await prisma.perfil.upsert({
+        where: { userId: session.user.id },
+        create: {
+          userId: session.user.id,
+          bio,
+          bioPublica,
+          emblemasPublicos,
+          medidasPublicas,
+          fotoChave: novaChave ?? null,
+        },
+        update: {
+          bio,
+          bioPublica,
+          emblemasPublicos,
+          medidasPublicas,
+          ...(novaChave ? { fotoChave: novaChave } : {}),
+        },
+      });
+    } catch (erro) {
+      if (novaChave) {
+        await apagarObjetoEmMelhorEsforco(novaChave, "atualizarPerfil: falha ao gravar no banco");
+      }
+      throw erro;
     }
 
-    await prisma.perfil.upsert({
-      where: { userId: session.user.id },
-      create: {
-        userId: session.user.id,
-        bio,
-        bioPublica,
-        emblemasPublicos,
-        medidasPublicas,
-        fotoChave: novaChave ?? null,
-      },
-      update: {
-        bio,
-        bioPublica,
-        emblemasPublicos,
-        medidasPublicas,
-        ...(novaChave ? { fotoChave: novaChave } : {}),
-      },
-    });
+    if (novaChave && perfilAtual?.fotoChave) {
+      await apagarObjetoEmMelhorEsforco(perfilAtual.fotoChave, "atualizarPerfil: foto substituída");
+    }
 
     if (nome) {
       await prisma.user.update({

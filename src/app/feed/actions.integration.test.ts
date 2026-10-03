@@ -5,13 +5,13 @@ import { limparBanco } from "@/test-utils/db";
 const {
   mockAuth,
   mockUploadImagemPost,
-  mockDeletarImagemPost,
+  mockApagarObjeto,
   mockGerarUrlAssinada,
   mockGerarUrlAssinadaCacheavel,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockUploadImagemPost: vi.fn(),
-  mockDeletarImagemPost: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
   mockGerarUrlAssinadaCacheavel: vi.fn(),
 }));
@@ -19,9 +19,9 @@ const {
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("@/lib/storage/posts", () => ({
   uploadImagemPost: mockUploadImagemPost,
-  deletarImagemPost: mockDeletarImagemPost,
 }));
 vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
   gerarUrlAssinada: mockGerarUrlAssinada,
   gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaCacheavel,
 }));
