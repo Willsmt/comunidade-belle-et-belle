@@ -9,6 +9,8 @@ const {
   mockRevalidatePath,
   mockUploadFoto,
   mockDeletarFoto,
+  mockTransaction,
+  mockPostDeleteMany,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockCreate: vi.fn(),
@@ -18,6 +20,8 @@ const {
   mockRevalidatePath: vi.fn(),
   mockUploadFoto: vi.fn(),
   mockDeletarFoto: vi.fn(),
+  mockTransaction: vi.fn(),
+  mockPostDeleteMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -31,6 +35,8 @@ vi.mock("@/lib/prisma", () => ({
       update: mockUpdate,
       delete: mockDelete,
     },
+    post: { deleteMany: mockPostDeleteMany },
+    $transaction: mockTransaction,
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
@@ -104,6 +110,9 @@ describe("alternarVisibilidadeFoto", () => {
     mockFindUnique.mockReset();
     mockUpdate.mockReset();
     mockRevalidatePath.mockReset();
+    mockTransaction.mockReset();
+    mockPostDeleteMany.mockReset();
+    mockDeletarFoto.mockReset();
   });
 
   it("rejeita se a foto não existe", async () => {
@@ -130,7 +139,7 @@ describe("alternarVisibilidadeFoto", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("inverte o valor de publica da própria foto", async () => {
+  it("privada -> pública: só atualiza publica, sem apagar posts", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindUnique.mockResolvedValue({
       id: "foto-x",
@@ -145,7 +154,40 @@ describe("alternarVisibilidadeFoto", () => {
       where: { id: "foto-x" },
       data: { publica: true },
     });
+    expect(mockPostDeleteMany).not.toHaveBeenCalled();
+    expect(mockTransaction).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/perfil/cliente-1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+  });
+
+  it("pública -> privada: apaga os posts da foto e atualiza publica na mesma transação, sem tocar no R2", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({
+      id: "foto-x",
+      clienteId: "cliente-1",
+      publica: true,
+    });
+    mockPostDeleteMany.mockReturnValue("op-delete-posts");
+    mockUpdate.mockReturnValue("op-update-foto");
+    mockTransaction.mockResolvedValue([]);
+
+    await alternarVisibilidadeFoto(buildFormDataComId("foto-x"));
+
+    expect(mockPostDeleteMany).toHaveBeenCalledWith({
+      where: { fotoEvolucaoId: "foto-x" },
+    });
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "foto-x" },
+      data: { publica: false },
+    });
+    expect(mockTransaction).toHaveBeenCalledWith([
+      "op-delete-posts",
+      "op-update-foto",
+    ]);
+    expect(mockDeletarFoto).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/perfil/cliente-1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/fotos");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
   });
 });
 
@@ -156,6 +198,8 @@ describe("excluirFoto", () => {
     mockDelete.mockReset();
     mockDeletarFoto.mockReset();
     mockRevalidatePath.mockReset();
+    mockTransaction.mockReset();
+    mockPostDeleteMany.mockReset();
   });
 
   it("rejeita se a foto pertence a outro cliente, sem apagar nada", async () => {
@@ -173,21 +217,77 @@ describe("excluirFoto", () => {
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it("apaga do R2 e do banco a própria foto", async () => {
+  it("apaga posts e foto numa transação e só depois apaga o objeto no R2", async () => {
     mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindUnique.mockResolvedValue({
       id: "foto-x",
       clienteId: "cliente-1",
       chave: "fotos-evolucao/cliente-1/abc.webp",
     });
-    mockDeletarFoto.mockResolvedValue(undefined);
-    mockDelete.mockResolvedValue({});
+    const ordem: string[] = [];
+    mockPostDeleteMany.mockReturnValue("op-delete-posts");
+    mockDelete.mockReturnValue("op-delete-foto");
+    mockTransaction.mockImplementation(async () => {
+      ordem.push("transacao");
+    });
+    mockDeletarFoto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
 
     await excluirFoto(buildFormDataComId("foto-x"));
 
+    expect(mockPostDeleteMany).toHaveBeenCalledWith({
+      where: { fotoEvolucaoId: "foto-x" },
+    });
+    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "foto-x" } });
+    expect(mockTransaction).toHaveBeenCalledWith([
+      "op-delete-posts",
+      "op-delete-foto",
+    ]);
     expect(mockDeletarFoto).toHaveBeenCalledWith(
       "fotos-evolucao/cliente-1/abc.webp",
     );
-    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "foto-x" } });
+    expect(ordem).toEqual(["transacao", "r2"]);
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/fotos");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/perfil/cliente-1");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+  });
+
+  it("falha no R2 não quebra a action nem reverte o banco, e é logada", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({
+      id: "foto-x",
+      clienteId: "cliente-1",
+      chave: "fotos-evolucao/cliente-1/abc.webp",
+    });
+    mockTransaction.mockResolvedValue([]);
+    const erroR2 = new Error("R2 fora do ar");
+    mockDeletarFoto.mockRejectedValue(erroR2);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(excluirFoto(buildFormDataComId("foto-x"))).resolves.not.toThrow();
+
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("R2"),
+      "fotos-evolucao/cliente-1/abc.webp",
+      erroR2,
+    );
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+    consoleSpy.mockRestore();
+  });
+
+  it("se a transação falhar, não apaga o objeto no R2", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindUnique.mockResolvedValue({
+      id: "foto-x",
+      clienteId: "cliente-1",
+      chave: "fotos-evolucao/cliente-1/abc.webp",
+    });
+    mockTransaction.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(excluirFoto(buildFormDataComId("foto-x"))).rejects.toThrow();
+    expect(mockDeletarFoto).not.toHaveBeenCalled();
   });
 });

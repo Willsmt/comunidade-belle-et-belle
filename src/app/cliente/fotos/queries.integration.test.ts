@@ -53,4 +53,31 @@ describe("listarFotos (Postgres real)", () => {
 
     expect(resultado.map((f) => f.id)).toEqual([recente.id, antiga.id]);
   });
+
+  it("conta quantos posts usam cada foto", async () => {
+    const cliente = await prisma.user.create({
+      data: { email: "cliente@x.com", status: "ATIVO", name: "Cliente X" },
+    });
+    const comPosts = await prisma.fotoEvolucao.create({
+      data: { clienteId: cliente.id, chave: "chave-a", publica: true },
+    });
+    const semPosts = await prisma.fotoEvolucao.create({
+      data: { clienteId: cliente.id, chave: "chave-b", publica: true },
+    });
+    await prisma.post.createMany({
+      data: [
+        { autorId: cliente.id, fotoEvolucaoId: comPosts.id, imagemChave: "chave-a" },
+        { autorId: cliente.id, fotoEvolucaoId: comPosts.id, imagemChave: "chave-a" },
+      ],
+    });
+
+    mockAuth.mockResolvedValue({ user: { id: cliente.id } });
+    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+
+    const resultado = await listarFotos();
+
+    const porId = Object.fromEntries(resultado.map((f) => [f.id, f.totalPosts]));
+    expect(porId[comPosts.id]).toBe(2);
+    expect(porId[semPosts.id]).toBe(0);
+  });
 });

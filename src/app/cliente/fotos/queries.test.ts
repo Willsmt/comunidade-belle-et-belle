@@ -33,8 +33,8 @@ describe("listarFotos", () => {
   it("busca as fotos do usuário logado e gera signed URL pra cada uma", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindMany.mockResolvedValue([
-      { id: "foto-1", chave: "chave-1", publica: false },
-      { id: "foto-2", chave: "chave-2", publica: true },
+      { id: "foto-1", chave: "chave-1", publica: false, _count: { posts: 0 } },
+      { id: "foto-2", chave: "chave-2", publica: true, _count: { posts: 2 } },
     ]);
     mockGerarUrlAssinada.mockImplementation(async (chave: string) => `url-${chave}`);
 
@@ -43,10 +43,11 @@ describe("listarFotos", () => {
     expect(mockFindMany).toHaveBeenCalledWith({
       where: { clienteId: "cliente-1" },
       orderBy: { data: "desc" },
+      include: { _count: { select: { posts: true } } },
     });
     expect(resultado).toEqual([
-      { id: "foto-1", chave: "chave-1", publica: false, urlAssinada: "url-chave-1" },
-      { id: "foto-2", chave: "chave-2", publica: true, urlAssinada: "url-chave-2" },
+      { id: "foto-1", chave: "chave-1", publica: false, totalPosts: 0, urlAssinada: "url-chave-1" },
+      { id: "foto-2", chave: "chave-2", publica: true, totalPosts: 2, urlAssinada: "url-chave-2" },
     ]);
   });
 });

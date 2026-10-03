@@ -37,6 +37,7 @@ export default async function FotosPage() {
               urlAssinada={foto.urlAssinada}
               data={foto.data.toLocaleDateString("pt-BR")}
               publica={foto.publica}
+              totalPosts={foto.totalPosts}
             />
           ))}
         </ul>

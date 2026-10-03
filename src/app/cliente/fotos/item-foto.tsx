@@ -14,16 +14,35 @@ function construirFormDataFoto(fotoId: string) {
   return formData;
 }
 
+function descreverPosts(total: number) {
+  return total === 1 ? "1 post" : `${total} posts`;
+}
+
+function mensagemTornarPrivada(totalPosts: number) {
+  const esses = totalPosts === 1 ? "esse post será apagado" : "esses posts serão apagados";
+  return `Esta foto está em ${descreverPosts(totalPosts)} no feed. Ao torná-la privada, ${esses}. Deseja continuar?`;
+}
+
+function mensagemExcluir(totalPosts: number) {
+  if (totalPosts === 0) {
+    return "Excluir essa foto de evolução? Essa ação não pode ser desfeita.";
+  }
+  const apagados = totalPosts === 1 ? "que também será apagado" : "que também serão apagados";
+  return `Esta foto está em ${descreverPosts(totalPosts)} no feed, ${apagados}. Deseja excluir?`;
+}
+
 export function ItemFoto({
   fotoId,
   urlAssinada,
   data,
   publica,
+  totalPosts,
 }: {
   fotoId: string;
   urlAssinada: string;
   data: string;
   publica: boolean;
+  totalPosts: number;
 }) {
   const { isPending, erro, executar } = useAcaoComErro();
 
@@ -48,20 +67,28 @@ export function ItemFoto({
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isPending}
-              onClick={() =>
-                executar(() => alternarVisibilidadeFoto(construirFormDataFoto(fotoId)))
-              }
-            >
-              {publica ? "Tornar privada" : "Tornar pública"}
-            </Button>
+            {publica && totalPosts > 0 ? (
+              <BotaoComConfirmacao
+                label="Tornar privada"
+                mensagemConfirmacao={mensagemTornarPrivada(totalPosts)}
+                action={() => alternarVisibilidadeFoto(construirFormDataFoto(fotoId))}
+              />
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isPending}
+                onClick={() =>
+                  executar(() => alternarVisibilidadeFoto(construirFormDataFoto(fotoId)))
+                }
+              >
+                {publica ? "Tornar privada" : "Tornar pública"}
+              </Button>
+            )}
             <BotaoComConfirmacao
               label="Excluir"
-              mensagemConfirmacao="Excluir essa foto de evolução? Essa ação não pode ser desfeita."
+              mensagemConfirmacao={mensagemExcluir(totalPosts)}
               action={() => excluirFoto(construirFormDataFoto(fotoId))}
             />
           </div>

@@ -50,9 +50,8 @@ export function FormularioUpload() {
         />
       </label>
       <p className="text-xs text-muted-foreground">
-        Ao enviar, você autoriza o uso desta foto na comunidade Belle et
-        Belle. Ela fica privada por padrão — você escolhe se quer torná-la
-        pública no seu perfil.
+        Sua foto fica privada por padrão: só você vê. Se quiser, você pode
+        torná-la pública no seu perfil ou compartilhá-la em um post no feed.
       </p>
       <Button type="submit" disabled={isPending}>
         {isPending ? "Enviando..." : "Enviar foto"}

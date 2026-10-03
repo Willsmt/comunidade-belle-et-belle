@@ -44,10 +44,24 @@ export async function alternarVisibilidadeFoto(formData: FormData) {
 
     const foto = await obterFotoDoUsuario(fotoId, session.user.id);
 
-    await prisma.fotoEvolucao.update({
-      where: { id: fotoId },
-      data: { publica: !foto.publica },
-    });
+    if (foto.publica) {
+      // Post só pode usar foto pública: ao torná-la privada, os posts que a
+      // usam saem do feed na mesma transação. O objeto no R2 não é apagado.
+      await prisma.$transaction([
+        prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId } }),
+        prisma.fotoEvolucao.update({
+          where: { id: fotoId },
+          data: { publica: false },
+        }),
+      ]);
+    } else {
+      await prisma.fotoEvolucao.update({
+        where: { id: fotoId },
+        data: { publica: true },
+      });
+    }
+
+    revalidatePath("/feed");
 
     revalidatePath("/cliente/fotos");
     revalidatePath(`/perfil/${session.user.id}`);
@@ -65,9 +79,20 @@ export async function excluirFoto(formData: FormData) {
 
     const foto = await obterFotoDoUsuario(fotoId, session.user.id);
 
-    await deletarFoto(foto.chave);
-    await prisma.fotoEvolucao.delete({ where: { id: fotoId } });
+    await prisma.$transaction([
+      prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId } }),
+      prisma.fotoEvolucao.delete({ where: { id: fotoId } }),
+    ]);
 
+    // Só depois do commit: objeto órfão no R2 é preferível a registro
+    // apontando para arquivo inexistente.
+    try {
+      await deletarFoto(foto.chave);
+    } catch (erro) {
+      console.error("Falha ao apagar objeto da foto no R2:", foto.chave, erro);
+    }
+
+    revalidatePath("/feed");
     revalidatePath("/cliente/fotos");
     revalidatePath(`/perfil/${session.user.id}`);
   });
