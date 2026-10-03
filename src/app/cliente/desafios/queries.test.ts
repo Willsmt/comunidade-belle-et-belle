@@ -33,7 +33,7 @@ vi.mock("@/lib/storage/jornada-desafio", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
 vi.mock("@/lib/storage/perfil", () => ({
-  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaPerfil,
 }));
 
 import { obterDesafioAtivoParaCliente, obterFluxoEncerramento } from "./queries";

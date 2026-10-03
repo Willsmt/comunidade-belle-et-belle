@@ -7,11 +7,13 @@ const {
   mockUploadImagemPost,
   mockDeletarImagemPost,
   mockGerarUrlAssinada,
+  mockGerarUrlAssinadaCacheavel,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockUploadImagemPost: vi.fn(),
   mockDeletarImagemPost: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
+  mockGerarUrlAssinadaCacheavel: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
@@ -21,6 +23,7 @@ vi.mock("@/lib/storage/posts", () => ({
 }));
 vi.mock("@/lib/storage/objetos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaCacheavel,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
@@ -416,7 +419,7 @@ describe("listarPosts (Postgres real)", () => {
         criadoEm: new Date("2026-02-01"),
       },
     });
-    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://url-assinada.exemplo");
 
     const { posts } = await listarPosts(cliente.id);
 

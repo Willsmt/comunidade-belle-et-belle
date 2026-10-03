@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PerfilParceriaPage from "./page";
 import { obterPerfilParceriaProprio } from "./queries";
 import { atualizarPerfilParceria } from "./actions";
-import { gerarUrlAssinada } from "@/lib/storage/parcerias";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/parcerias";
 
 const mockRefresh = vi.fn();
 
@@ -21,7 +21,7 @@ vi.mock("./actions", () => ({
 }));
 
 vi.mock("@/lib/storage/parcerias", () => ({
-  gerarUrlAssinada: vi.fn(),
+  gerarUrlAssinadaCacheavel: vi.fn(),
 }));
 
 describe("PerfilParceriaPage", () => {
@@ -29,7 +29,7 @@ describe("PerfilParceriaPage", () => {
     mockRefresh.mockClear();
     vi.mocked(obterPerfilParceriaProprio).mockReset();
     vi.mocked(atualizarPerfilParceria).mockReset();
-    vi.mocked(gerarUrlAssinada).mockReset();
+    vi.mocked(gerarUrlAssinadaCacheavel).mockReset();
   });
 
   it("renderiza o formulário sem foto quando o perfil ainda não tem uma", async () => {
@@ -44,7 +44,7 @@ describe("PerfilParceriaPage", () => {
     expect(
       screen.queryByAltText(/foto de perfil atual/i),
     ).not.toBeInTheDocument();
-    expect(gerarUrlAssinada).not.toHaveBeenCalled();
+    expect(gerarUrlAssinadaCacheavel).not.toHaveBeenCalled();
   });
 
   it("mostra a foto atual quando o perfil já tem fotoChave", async () => {
@@ -57,11 +57,11 @@ describe("PerfilParceriaPage", () => {
       criadoEm: new Date(),
       atualizadoEm: new Date(),
     });
-    vi.mocked(gerarUrlAssinada).mockResolvedValue("https://url-assinada.exemplo");
+    vi.mocked(gerarUrlAssinadaCacheavel).mockResolvedValue("https://url-assinada.exemplo");
 
     render(await PerfilParceriaPage());
 
-    expect(gerarUrlAssinada).toHaveBeenCalledWith(
+    expect(gerarUrlAssinadaCacheavel).toHaveBeenCalledWith(
       "perfis-parceria/parceria-1/foto.webp",
     );
     expect(screen.getByAltText(/foto de perfil atual/i)).toBeInTheDocument();

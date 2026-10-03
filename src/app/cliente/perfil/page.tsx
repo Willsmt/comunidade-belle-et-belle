@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { podeAcessarAreaCliente } from "@/lib/auth/pode-acessar-painel";
 import { obterPerfilProprio } from "./queries";
 import { FormularioPerfil } from "./formulario-perfil";
-import { gerarUrlAssinada } from "@/lib/storage/perfil";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/perfil";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PerfilPage() {
@@ -14,7 +14,7 @@ export default async function PerfilPage() {
 
   const perfil = await obterPerfilProprio();
   const fotoUrl = perfil?.fotoChave
-    ? await gerarUrlAssinada(perfil.fotoChave)
+    ? await gerarUrlAssinadaCacheavel(perfil.fotoChave)
     : null;
 
   return (

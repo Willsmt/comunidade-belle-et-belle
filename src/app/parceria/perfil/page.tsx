@@ -1,12 +1,12 @@
 import { obterPerfilParceriaProprio } from "./queries";
 import { FormularioPerfilParceria } from "./formulario-perfil-parceria";
-import { gerarUrlAssinada } from "@/lib/storage/parcerias";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/parcerias";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PerfilParceriaPage() {
   const perfil = await obterPerfilParceriaProprio();
   const fotoUrl = perfil?.fotoChave
-    ? await gerarUrlAssinada(perfil.fotoChave)
+    ? await gerarUrlAssinadaCacheavel(perfil.fotoChave)
     : null;
 
   return (

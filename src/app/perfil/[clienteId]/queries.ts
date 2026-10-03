@@ -1,7 +1,8 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/fotos";
-import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
+import { gerarUrlAssinadaCacheavel as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/objetos";
 
 export async function obterPerfilPublico(clienteId: string) {
   const session = await auth();
@@ -67,7 +68,9 @@ export async function obterPerfilPublico(clienteId: string) {
       criadoEm: post.criadoEm,
       fotoEvolucaoId: post.fotoEvolucaoId,
       urlImagem: post.imagemChave
-        ? await gerarUrlAssinada(post.imagemChave)
+        ? post.fotoEvolucaoId
+          ? await gerarUrlAssinada(post.imagemChave)
+          : await gerarUrlAssinadaCacheavel(post.imagemChave)
         : null,
     })),
   );

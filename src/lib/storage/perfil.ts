@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "@/lib/actions/executar-action";
-import { uploadObjeto, deletarObjeto, gerarUrlAssinada } from "./objetos";
+import {
+  uploadObjeto,
+  deletarObjeto,
+  gerarUrlAssinada,
+  gerarUrlAssinadaCacheavel,
+} from "./objetos";
 import { comprimirImagem } from "./comprimir-imagem";
 
 const TIPOS_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
@@ -29,7 +34,7 @@ export async function uploadFotoPerfil(
   return chave;
 }
 
-export { gerarUrlAssinada };
+export { gerarUrlAssinada, gerarUrlAssinadaCacheavel };
 
 export async function deletarFotoPerfil(chave: string): Promise<void> {
   await deletarObjeto(chave);

@@ -9,6 +9,7 @@ const {
   mockFindManyPost,
   mockGerarUrlAssinada,
   mockGerarUrlAssinadaPerfil,
+  mockGerarUrlAssinadaCacheavel,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockFindUniqueUser: vi.fn(),
@@ -18,6 +19,7 @@ const {
   mockFindManyPost: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
   mockGerarUrlAssinadaPerfil: vi.fn(),
+  mockGerarUrlAssinadaCacheavel: vi.fn(),
 }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
@@ -33,8 +35,11 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/storage/fotos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
+vi.mock("@/lib/storage/objetos", () => ({
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaCacheavel,
+}));
 vi.mock("@/lib/storage/perfil", () => ({
-  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaPerfil,
 }));
 
 import { obterPerfilPublico } from "./queries";
@@ -49,6 +54,7 @@ describe("obterPerfilPublico", () => {
     mockFindManyPost.mockReset().mockResolvedValue([]);
     mockGerarUrlAssinada.mockReset();
     mockGerarUrlAssinadaPerfil.mockReset();
+    mockGerarUrlAssinadaCacheavel.mockReset();
   });
 
   it("lança erro se não houver sessão", async () => {
@@ -285,5 +291,37 @@ describe("obterPerfilPublico", () => {
         urlImagem: null,
       },
     ]);
+  });
+
+  it("post sem fotoEvolucaoId usa a URL cacheável; com fotoEvolucaoId usa a efêmera", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "viewer-1" } });
+    mockFindUniqueUser.mockResolvedValue({ name: "Cliente 1", perfil: null });
+    mockFindManyPost.mockResolvedValue([
+      {
+        id: "post-1",
+        texto: "a",
+        imagemChave: "posts/x.webp",
+        fotoEvolucaoId: null,
+        criadoEm: new Date("2026-02-01"),
+      },
+      {
+        id: "post-2",
+        texto: "b",
+        imagemChave: "fotos-evolucao/y.webp",
+        fotoEvolucaoId: "foto-1",
+        criadoEm: new Date("2026-01-01"),
+      },
+    ]);
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://cacheavel.exemplo");
+    mockGerarUrlAssinada.mockResolvedValue("https://efemera.exemplo");
+
+    const resultado = await obterPerfilPublico("cliente-1");
+
+    expect(resultado?.posts.map((p) => p.urlImagem)).toEqual([
+      "https://cacheavel.exemplo",
+      "https://efemera.exemplo",
+    ]);
+    expect(mockGerarUrlAssinadaCacheavel).toHaveBeenCalledWith("posts/x.webp");
+    expect(mockGerarUrlAssinada).toHaveBeenCalledWith("fotos-evolucao/y.webp");
   });
 });

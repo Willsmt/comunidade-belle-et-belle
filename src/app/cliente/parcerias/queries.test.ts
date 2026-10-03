@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { vinculoParceria: { findMany: mockFindMany } },
 }));
 vi.mock("@/lib/storage/parcerias", () => ({
-  gerarUrlAssinada: mockGerarUrlAssinada,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinada,
 }));
 import { listarParceriasVinculadas } from "./queries";
 

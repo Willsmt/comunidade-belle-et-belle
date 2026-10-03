@@ -2,17 +2,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 
-const { mockAuth, mockGerarUrlAssinada, mockGerarUrlAssinadaPerfil } = vi.hoisted(() => ({
+const {
+  mockAuth,
+  mockGerarUrlAssinada,
+  mockGerarUrlAssinadaPerfil,
+  mockGerarUrlAssinadaCacheavel,
+} = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
   mockGerarUrlAssinadaPerfil: vi.fn(),
+  mockGerarUrlAssinadaCacheavel: vi.fn(),
 }));
 vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("@/lib/storage/fotos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
 }));
+vi.mock("@/lib/storage/objetos", () => ({
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaCacheavel,
+}));
 vi.mock("@/lib/storage/perfil", () => ({
-  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaPerfil,
 }));
 
 import { obterPerfilPublico } from "./queries";
@@ -21,6 +30,7 @@ afterEach(async () => {
   await limparBanco();
   mockGerarUrlAssinada.mockReset();
   mockGerarUrlAssinadaPerfil.mockReset();
+  mockGerarUrlAssinadaCacheavel.mockReset();
 });
 
 describe("obterPerfilPublico (Postgres real)", () => {
@@ -170,6 +180,7 @@ describe("obterPerfilPublico — posts (Postgres real)", () => {
 
     mockAuth.mockResolvedValue({ user: { id: viewer.id } });
     mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://url-assinada.exemplo");
 
     const resultado = await obterPerfilPublico(cliente.id);
 

@@ -1,7 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { gerarUrlAssinada } from "@/lib/storage/objetos";
-import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
+import {
+  gerarUrlAssinada,
+  gerarUrlAssinadaCacheavel,
+} from "@/lib/storage/objetos";
+import { gerarUrlAssinadaCacheavel as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
 
 const TAMANHO_PAGINA = 10;
 
@@ -43,7 +46,9 @@ async function mapearPostParaExibicao(post: PostComInclude) {
   return {
     ...post,
     urlImagem: post.imagemChave
-      ? await gerarUrlAssinada(post.imagemChave)
+      ? post.fotoEvolucaoId
+        ? await gerarUrlAssinada(post.imagemChave)
+        : await gerarUrlAssinadaCacheavel(post.imagemChave)
       : null,
     curtidoPeloUsuario: post.likes.length > 0,
     totalCurtidas: post._count.likes,

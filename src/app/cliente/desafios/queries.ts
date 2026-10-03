@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
-import { gerarUrlAssinada as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
+import { gerarUrlAssinadaCacheavel as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
 
 function calcularSemanaAtual(dataInicio: Date, hoje: Date) {
   const diffDias = Math.floor(

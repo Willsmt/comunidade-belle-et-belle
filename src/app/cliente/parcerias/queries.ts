@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { gerarUrlAssinada } from "@/lib/storage/parcerias";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/parcerias";
 
 export async function listarParceriasVinculadas() {
   const session = await auth();
@@ -23,7 +23,7 @@ export async function listarParceriasVinculadas() {
       especialidade: vinculo.parceria.perfilParceria?.especialidade ?? null,
       bio: vinculo.parceria.perfilParceria?.bio ?? null,
       fotoUrl: vinculo.parceria.perfilParceria?.fotoChave
-        ? await gerarUrlAssinada(vinculo.parceria.perfilParceria.fotoChave)
+        ? await gerarUrlAssinadaCacheavel(vinculo.parceria.perfilParceria.fotoChave)
         : null,
     })),
   );

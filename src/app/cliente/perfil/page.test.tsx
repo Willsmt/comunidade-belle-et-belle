@@ -5,7 +5,7 @@ import PerfilPage from "./page";
 import { redirect } from "next/navigation";
 import { obterPerfilProprio } from "./queries";
 import { atualizarPerfil } from "./actions";
-import { gerarUrlAssinada } from "@/lib/storage/perfil";
+import { gerarUrlAssinadaCacheavel } from "@/lib/storage/perfil";
 
 const { mockRefresh, mockAuth } = vi.hoisted(() => ({
   mockRefresh: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock("./actions", () => ({
 }));
 
 vi.mock("@/lib/storage/perfil", () => ({
-  gerarUrlAssinada: vi.fn(),
+  gerarUrlAssinadaCacheavel: vi.fn(),
 }));
 
 describe("PerfilPage", () => {
@@ -40,7 +40,7 @@ describe("PerfilPage", () => {
     vi.mocked(atualizarPerfil).mockReset();
     mockAuth.mockReset();
     mockAuth.mockResolvedValue({ user: { papeis: ["CLIENTE"], name: "Cliente Teste" } });
-    vi.mocked(gerarUrlAssinada).mockReset();
+    vi.mocked(gerarUrlAssinadaCacheavel).mockReset();
   });
 
   it("renderiza o formulário de edição de perfil", async () => {
@@ -76,11 +76,11 @@ describe("PerfilPage", () => {
       criadoEm: new Date(),
       atualizadoEm: new Date(),
     });
-    vi.mocked(gerarUrlAssinada).mockResolvedValue("https://url-assinada.exemplo");
+    vi.mocked(gerarUrlAssinadaCacheavel).mockResolvedValue("https://url-assinada.exemplo");
 
     render(await PerfilPage());
 
-    expect(gerarUrlAssinada).toHaveBeenCalledWith(
+    expect(gerarUrlAssinadaCacheavel).toHaveBeenCalledWith(
       "perfis-cliente/cliente-1/foto.webp",
     );
     expect(screen.getByAltText(/foto de perfil atual/i)).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("PerfilPage", () => {
 
     render(await PerfilPage());
 
-    expect(gerarUrlAssinada).not.toHaveBeenCalled();
+    expect(gerarUrlAssinadaCacheavel).not.toHaveBeenCalled();
     expect(
       screen.queryByAltText(/foto de perfil atual/i),
     ).not.toBeInTheDocument();

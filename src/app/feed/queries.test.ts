@@ -8,6 +8,7 @@ const {
   mockFindFirstDesafio,
   mockGerarUrlAssinada,
   mockGerarUrlAssinadaPerfil,
+  mockGerarUrlAssinadaCacheavel,
 } = vi.hoisted(() => ({
   mockFindManyPost: vi.fn(),
   mockFindUniquePost: vi.fn(),
@@ -16,6 +17,7 @@ const {
   mockFindFirstDesafio: vi.fn(),
   mockGerarUrlAssinada: vi.fn(),
   mockGerarUrlAssinadaPerfil: vi.fn(),
+  mockGerarUrlAssinadaCacheavel: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -31,9 +33,10 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/storage/objetos", () => ({
   gerarUrlAssinada: mockGerarUrlAssinada,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaCacheavel,
 }));
 vi.mock("@/lib/storage/perfil", () => ({
-  gerarUrlAssinada: mockGerarUrlAssinadaPerfil,
+  gerarUrlAssinadaCacheavel: mockGerarUrlAssinadaPerfil,
 }));
 
 import {
@@ -69,6 +72,7 @@ beforeEach(() => {
   mockFindFirstDesafio.mockReset();
   mockGerarUrlAssinada.mockReset();
   mockGerarUrlAssinadaPerfil.mockReset();
+  mockGerarUrlAssinadaCacheavel.mockReset();
 });
 
 describe("listarPosts", () => {
@@ -156,13 +160,33 @@ describe("listarPosts", () => {
       { ...buildPost("post-1"), imagemChave: "posts/x.webp" },
       { ...buildPost("post-2"), imagemChave: null },
     ]);
-    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://url-assinada.exemplo");
 
     const resultado = await listarPosts("usuario-1");
 
     expect(resultado.posts[0].urlImagem).toBe("https://url-assinada.exemplo");
     expect(resultado.posts[1].urlImagem).toBeNull();
-    expect(mockGerarUrlAssinada).toHaveBeenCalledTimes(1);
+    expect(mockGerarUrlAssinadaCacheavel).toHaveBeenCalledTimes(1);
+  });
+
+  it("post sem fotoEvolucaoId usa a URL cacheável; com fotoEvolucaoId usa a efêmera", async () => {
+    mockFindManyPost.mockResolvedValue([
+      { ...buildPost("post-1"), imagemChave: "posts/x.webp", fotoEvolucaoId: null },
+      {
+        ...buildPost("post-2"),
+        imagemChave: "fotos-evolucao/y.webp",
+        fotoEvolucaoId: "foto-1",
+      },
+    ]);
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://cacheavel.exemplo");
+    mockGerarUrlAssinada.mockResolvedValue("https://efemera.exemplo");
+
+    const resultado = await listarPosts("usuario-1");
+
+    expect(resultado.posts[0].urlImagem).toBe("https://cacheavel.exemplo");
+    expect(resultado.posts[1].urlImagem).toBe("https://efemera.exemplo");
+    expect(mockGerarUrlAssinadaCacheavel).toHaveBeenCalledWith("posts/x.webp");
+    expect(mockGerarUrlAssinada).toHaveBeenCalledWith("fotos-evolucao/y.webp");
   });
 
   it("resolve a foto do autor do comentário: usa a foto própria quando o Perfil tem fotoChave", async () => {
@@ -277,7 +301,7 @@ describe("obterPostDestaque", () => {
       likes: [{ id: "like-1" }],
       _count: { likes: 5 },
     });
-    mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo/destaque");
+    mockGerarUrlAssinadaCacheavel.mockResolvedValue("https://url-assinada.exemplo/destaque");
 
     const resultado = await obterPostDestaque("usuario-1");
 
