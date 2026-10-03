@@ -14,6 +14,7 @@ const {
   mockLikeFindUnique,
   mockLikeCreate,
   mockLikeDelete,
+  mockLikeCount,
   mockComentarioCreate,
   mockComentarioFindUnique,
   mockComentarioDelete,
@@ -34,6 +35,7 @@ const {
   mockLikeFindUnique: vi.fn(),
   mockLikeCreate: vi.fn(),
   mockLikeDelete: vi.fn(),
+  mockLikeCount: vi.fn(),
   mockComentarioCreate: vi.fn(),
   mockComentarioFindUnique: vi.fn(),
   mockComentarioDelete: vi.fn(),
@@ -65,6 +67,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mockLikeFindUnique,
       create: mockLikeCreate,
       delete: mockLikeDelete,
+      count: mockLikeCount,
     },
     comentario: {
       create: mockComentarioCreate,
@@ -167,6 +170,7 @@ beforeEach(() => {
   mockLikeFindUnique.mockReset();
   mockLikeCreate.mockReset();
   mockLikeDelete.mockReset();
+  mockLikeCount.mockReset();
   mockComentarioCreate.mockReset();
   mockComentarioFindUnique.mockReset();
   mockComentarioDelete.mockReset();
@@ -620,25 +624,31 @@ describe("alternarCurtida", () => {
     mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
     mockLikeFindUnique.mockResolvedValue(null);
     mockLikeCreate.mockResolvedValue({});
+    mockLikeCount.mockResolvedValue(3);
 
-    await alternarCurtida(buildFormDataPostId("post-1"));
+    const resultado = await alternarCurtida(buildFormDataPostId("post-1"));
 
     expect(mockLikeCreate).toHaveBeenCalledWith({
       data: { postId: "post-1", usuarioId: "cliente-1" },
     });
     expect(mockLikeDelete).not.toHaveBeenCalled();
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/feed");
+    expect(mockLikeCount).toHaveBeenCalledWith({ where: { postId: "post-1" } });
+    expect(resultado).toEqual({ curtiu: true, total: 3 });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
   it("remove o like quando já existe (toggle)", async () => {
     mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
     mockLikeFindUnique.mockResolvedValue({ id: "like-1" });
     mockLikeDelete.mockResolvedValue({});
+    mockLikeCount.mockResolvedValue(0);
 
-    await alternarCurtida(buildFormDataPostId("post-1"));
+    const resultado = await alternarCurtida(buildFormDataPostId("post-1"));
 
     expect(mockLikeDelete).toHaveBeenCalledWith({ where: { id: "like-1" } });
     expect(mockLikeCreate).not.toHaveBeenCalled();
+    expect(resultado).toEqual({ curtiu: false, total: 0 });
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
 

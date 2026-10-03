@@ -221,7 +221,10 @@ export async function alternarCurtida(formData: FormData) {
       });
     }
 
-    revalidatePath("/feed");
+    // Sem revalidatePath: o botão reconcilia com este retorno, evitando
+    // re-renderizar o feed inteiro (e re-assinar as URLs) a cada curtida.
+    const total = await prisma.like.count({ where: { postId } });
+    return { curtiu: !existente, total };
   });
 }
 
