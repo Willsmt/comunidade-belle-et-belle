@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { uploadPlano } from "@/lib/storage/planos";
+import { garantirCotaPlanos } from "@/lib/storage/cotas";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 const TIPOS_VALIDOS = ["TREINO", "DIETA"] as const;
@@ -43,6 +44,8 @@ export async function enviarPlano(formData: FormData) {
       typeof tituloValor === "string" && tituloValor.trim() !== ""
         ? tituloValor.trim()
         : null;
+
+    await garantirCotaPlanos(session.user.id);
 
     const arquivoChave = await uploadPlano(arquivo, clienteId);
 

@@ -28,13 +28,16 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 
 import { validarArquivoPdf, uploadPlano, deletarPlano } from "./planos";
 
-function buildArquivo(overrides: Partial<{ type: string; size: number }> = {}) {
+function buildArquivo(
+  overrides: Partial<{ type: string; size: number; conteudo: string }> = {},
+) {
   const type = overrides.type ?? "application/pdf";
   const size = overrides.size ?? 1024;
+  const conteudo = overrides.conteudo ?? "%PDF-1.7\n";
   return {
     type,
     size,
-    arrayBuffer: async () => new ArrayBuffer(size),
+    arrayBuffer: async () => new TextEncoder().encode(conteudo).buffer,
   } as File;
 }
 
@@ -49,10 +52,16 @@ describe("validarArquivoPdf", () => {
     ).toThrow("Formato inválido");
   });
 
-  it("rejeita arquivo maior que 10MB", () => {
+  it("aceita PDF de exatamente 5MB", () => {
     expect(() =>
-      validarArquivoPdf(buildArquivo({ size: 10 * 1024 * 1024 + 1 })),
-    ).toThrow("Arquivo muito grande");
+      validarArquivoPdf(buildArquivo({ size: 5 * 1024 * 1024 })),
+    ).not.toThrow();
+  });
+
+  it("rejeita arquivo maior que 5MB", () => {
+    expect(() =>
+      validarArquivoPdf(buildArquivo({ size: 5 * 1024 * 1024 + 1 })),
+    ).toThrow("Tamanho máximo: 5MB");
   });
 });
 
@@ -76,6 +85,30 @@ describe("uploadPlano", () => {
     await expect(
       uploadPlano(buildArquivo({ type: "image/png" }), "cliente-1"),
     ).rejects.toThrow("Formato inválido");
+
+    expect(mockUploadObjeto).not.toHaveBeenCalled();
+  });
+
+  it("rejeita type application/pdf sem a assinatura %PDF- sem chamar upload", async () => {
+    await expect(
+      uploadPlano(buildArquivo({ conteudo: "<html>não sou pdf</html>" }), "cliente-1"),
+    ).rejects.toThrow("Arquivo não é um PDF válido.");
+
+    expect(mockUploadObjeto).not.toHaveBeenCalled();
+  });
+
+  it("rejeita arquivo vazio sem chamar upload", async () => {
+    await expect(
+      uploadPlano(buildArquivo({ conteudo: "" }), "cliente-1"),
+    ).rejects.toThrow("Arquivo não é um PDF válido.");
+
+    expect(mockUploadObjeto).not.toHaveBeenCalled();
+  });
+
+  it("rejeita PDF acima de 5MB sem chamar upload", async () => {
+    await expect(
+      uploadPlano(buildArquivo({ size: 5 * 1024 * 1024 + 1 }), "cliente-1"),
+    ).rejects.toThrow("Arquivo muito grande");
 
     expect(mockUploadObjeto).not.toHaveBeenCalled();
   });

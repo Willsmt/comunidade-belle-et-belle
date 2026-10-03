@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 import { requererPapel } from "@/lib/auth/requerer-acesso-painel";
 import { uploadFoto, deletarFoto } from "@/lib/storage/fotos";
+import { garantirCotaFotosEvolucao } from "@/lib/storage/cotas";
 
 export async function enviarFoto(formData: FormData) {
   return executarAction(async () => {
@@ -14,6 +15,8 @@ export async function enviarFoto(formData: FormData) {
     if (!(arquivo instanceof File) || arquivo.size === 0) {
       throw new AppError("Selecione uma imagem");
     }
+
+    await garantirCotaFotosEvolucao(session.user.id);
 
     const chave = await uploadFoto(arquivo, session.user.id);
 

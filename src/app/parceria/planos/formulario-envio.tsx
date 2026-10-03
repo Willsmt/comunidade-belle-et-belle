@@ -22,9 +22,11 @@ export function FormularioEnvio({ clientes }: { clientes: Cliente[] }) {
         await enviarPlano(formData);
         formRef.current?.reset();
         router.refresh();
-      } catch {
+      } catch (error) {
         setErro(
-          "Não foi possível enviar o plano. Confira os campos e o arquivo (PDF, até 10MB).",
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível enviar o plano. Confira os campos e o arquivo (PDF, até 5MB).",
         );
       }
     });

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "@/lib/actions/executar-action";
 
 const {
   mockRequererPapel,
@@ -11,6 +12,7 @@ const {
   mockDeletarFoto,
   mockTransaction,
   mockPostDeleteMany,
+  mockGarantirCotaFotosEvolucao,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockCreate: vi.fn(),
@@ -22,6 +24,7 @@ const {
   mockDeletarFoto: vi.fn(),
   mockTransaction: vi.fn(),
   mockPostDeleteMany: vi.fn(),
+  mockGarantirCotaFotosEvolucao: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -38,6 +41,9 @@ vi.mock("@/lib/prisma", () => ({
     post: { deleteMany: mockPostDeleteMany },
     $transaction: mockTransaction,
   },
+}));
+vi.mock("@/lib/storage/cotas", () => ({
+  garantirCotaFotosEvolucao: mockGarantirCotaFotosEvolucao,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/fotos", () => ({
@@ -69,6 +75,7 @@ describe("enviarFoto", () => {
     mockCreate.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadFoto.mockReset();
+    mockGarantirCotaFotosEvolucao.mockReset().mockResolvedValue(undefined);
   });
 
   it("exige o papel CLIENTE", async () => {
@@ -87,6 +94,21 @@ describe("enviarFoto", () => {
       "Selecione uma imagem",
     );
     expect(mockUploadFoto).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem chamar upload nem criar registro quando a cota estoura", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockGarantirCotaFotosEvolucao.mockRejectedValue(
+      new AppError("Você atingiu o limite de 100 fotos. Exclua fotos antigas para enviar novas."),
+    );
+
+    await expect(
+      enviarFoto(buildFormDataComArquivo(buildArquivo())),
+    ).rejects.toThrow("Você atingiu o limite de 100 fotos");
+
+    expect(mockGarantirCotaFotosEvolucao).toHaveBeenCalledWith("cliente-1");
+    expect(mockUploadFoto).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("faz upload e cria o registro com a chave retornada, usando clienteId da sessão", async () => {

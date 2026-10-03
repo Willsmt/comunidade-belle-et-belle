@@ -19,9 +19,11 @@ export function FormularioUpload() {
         await enviarFoto(formData);
         formRef.current?.reset();
         router.refresh();
-      } catch {
+      } catch (error) {
         setErro(
-          "Não foi possível enviar a foto. Confira o formato (JPEG, PNG ou WebP) e o tamanho (até 5MB).",
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível enviar a foto. Confira o formato (JPEG, PNG ou WebP) e o tamanho (até 5MB).",
         );
       }
     });

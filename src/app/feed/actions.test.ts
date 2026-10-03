@@ -22,6 +22,7 @@ const {
   mockUploadImagemPost,
   mockDeletarImagemPost,
   mockRedirect,
+  mockGarantirCotaPostsComImagem,
 } = vi.hoisted(() => ({
   mockRequererSessao: vi.fn(),
   mockRequererAcessoPainel: vi.fn(),
@@ -45,6 +46,7 @@ const {
   mockRedirect: vi.fn(() => {
     throw new Error("NEXT_REDIRECT");
   }),
+  mockGarantirCotaPostsComImagem: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -76,6 +78,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: mockTransaction,
   },
+}));
+vi.mock("@/lib/storage/cotas", () => ({
+  garantirCotaPostsComImagem: mockGarantirCotaPostsComImagem,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("next/navigation", () => ({
@@ -178,6 +183,7 @@ beforeEach(() => {
   mockUploadImagemPost.mockReset();
   mockDeletarImagemPost.mockReset();
   mockRedirect.mockClear();
+  mockGarantirCotaPostsComImagem.mockReset().mockResolvedValue(undefined);
 });
 
 describe("criarPost", () => {
@@ -197,6 +203,41 @@ describe("criarPost", () => {
       "O post precisa de um texto ou uma imagem",
     );
     expect(mockPostCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem chamar upload nem criar post quando a cota de imagens estoura", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockGarantirCotaPostsComImagem.mockRejectedValue(
+      new AppError("Você atingiu o limite de 10 posts com imagem nas últimas 24 horas. Tente novamente mais tarde."),
+    );
+
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "oi", arquivo: buildArquivo() })),
+    ).rejects.toThrow("Você atingiu o limite de 10 posts com imagem");
+
+    expect(mockGarantirCotaPostsComImagem).toHaveBeenCalledWith("cliente-1");
+    expect(mockUploadImagemPost).not.toHaveBeenCalled();
+    expect(mockPostCreate).not.toHaveBeenCalled();
+  });
+
+  it("não consulta a cota de imagens para post só com texto nem com foto de evolução", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockPostCreate.mockResolvedValue({});
+    mockFindUniqueFotoEvolucao.mockResolvedValue({
+      id: "f1",
+      clienteId: "cliente-1",
+      publica: true,
+      chave: "fotos-evolucao/cliente-1/a.webp",
+    });
+
+    await expect(
+      criarPost(buildFormDataCriar({ texto: "oi" })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    await expect(
+      criarPost(buildFormDataCriar({ fotoEvolucaoId: "f1" })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mockGarantirCotaPostsComImagem).not.toHaveBeenCalled();
   });
 
   it("cria post só com texto e redireciona pro feed", async () => {

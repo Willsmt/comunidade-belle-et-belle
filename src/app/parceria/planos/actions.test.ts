@@ -7,12 +7,14 @@ const {
   mockCreate,
   mockRevalidatePath,
   mockUploadPlano,
+  mockGarantirCotaPlanos,
 } = vi.hoisted(() => ({
   mockRequererPapel: vi.fn(),
   mockFindUniqueVinculo: vi.fn(),
   mockCreate: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockUploadPlano: vi.fn(),
+  mockGarantirCotaPlanos: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
@@ -23,6 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     vinculoParceria: { findUnique: mockFindUniqueVinculo },
     planoRecebido: { create: mockCreate },
   },
+}));
+vi.mock("@/lib/storage/cotas", () => ({
+  garantirCotaPlanos: mockGarantirCotaPlanos,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/storage/planos", () => ({ uploadPlano: mockUploadPlano }));
@@ -51,6 +56,7 @@ describe("enviarPlano", () => {
     mockCreate.mockReset();
     mockRevalidatePath.mockReset();
     mockUploadPlano.mockReset();
+    mockGarantirCotaPlanos.mockReset().mockResolvedValue(undefined);
   });
 
   it("exige o papel PARCERIA", async () => {
@@ -112,6 +118,24 @@ describe("enviarPlano", () => {
       ),
     ).rejects.toThrow("Cliente não vinculada a você");
     expect(mockUploadPlano).not.toHaveBeenCalled();
+  });
+
+  it("rejeita sem chamar upload nem criar registro quando a cota estoura", async () => {
+    mockRequererPapel.mockResolvedValue({ user: { id: "parceria-1" } });
+    mockFindUniqueVinculo.mockResolvedValue({ ativo: true });
+    mockGarantirCotaPlanos.mockRejectedValue(
+      new AppError("Você atingiu o limite de 5 planos enviados nas últimas 24 horas. Tente novamente mais tarde."),
+    );
+
+    await expect(
+      enviarPlano(
+        buildFormData({ clienteId: "c1", tipo: "TREINO" }, buildArquivo()),
+      ),
+    ).rejects.toThrow("Você atingiu o limite de 5 planos");
+
+    expect(mockGarantirCotaPlanos).toHaveBeenCalledWith("parceria-1");
+    expect(mockUploadPlano).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("envia e cria o registro com parceriaId da sessão e título null quando vazio", async () => {

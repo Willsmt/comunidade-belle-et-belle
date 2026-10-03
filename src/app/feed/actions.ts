@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel, requererSessao } from "@/lib/auth/requerer-acesso-painel";
 import { temAlgumPapel } from "@/lib/auth/pode-acessar-painel";
 import { uploadImagemPost, deletarImagemPost } from "@/lib/storage/posts";
+import { garantirCotaPostsComImagem } from "@/lib/storage/cotas";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
 
 const PAPEIS_MODERACAO: readonly Papel[] = ["GESTORA", "ADMIN"];
@@ -27,6 +28,7 @@ export async function criarPost(formData: FormData) {
     let fotoEvolucaoIdValido: string | null = null;
 
     if (arquivo instanceof File && arquivo.size > 0) {
+      await garantirCotaPostsComImagem(session.user.id);
       imagemChave = await uploadImagemPost(arquivo, session.user.id);
     } else if (typeof fotoEvolucaoId === "string" && fotoEvolucaoId !== "") {
       const foto = await prisma.fotoEvolucao.findUnique({
