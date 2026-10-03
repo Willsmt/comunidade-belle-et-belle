@@ -3,8 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
-import { deletarComprovante } from "@/lib/storage/comprovantes-surpresa";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import { AppError, executarAction } from "@/lib/actions/executar-action";
+
+// Só chamar depois que o banco confirmou a remoção dos registros.
+async function apagarComprovantes(chaves: string[], contexto: string) {
+  await Promise.all(
+    chaves.map((chave) => apagarObjetoEmMelhorEsforco(chave, contexto)),
+  );
+}
+
+function chavesNaoNulas(registros: { fotoChave: string | null }[]): string[] {
+  return registros.flatMap((r) => (r.fotoChave ? [r.fotoChave] : []));
+}
 
 export async function criarCategoria(desafioId: string, formData: FormData) {
   return executarAction(async () => {
@@ -32,9 +43,17 @@ export async function removerCategoria(categoriaId: string) {
   return executarAction(async () => {
     await requererAcessoPainel();
 
+    // O delete em cascata leva itens e marcações: lista os comprovantes antes.
+    const marcacoes = await prisma.marcacaoItem.findMany({
+      where: { item: { categoriaId }, fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+
     const categoria = await prisma.categoriaDesafio.delete({
       where: { id: categoriaId },
     });
+
+    await apagarComprovantes(chavesNaoNulas(marcacoes), "removerCategoria");
 
     revalidatePath(`/painel/desafios/${categoria.desafioId}`);
   });
@@ -78,10 +97,17 @@ export async function removerItem(itemId: string) {
   return executarAction(async () => {
     await requererAcessoPainel();
 
+    const marcacoes = await prisma.marcacaoItem.findMany({
+      where: { itemId, fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+
     const item = await prisma.itemDesafio.delete({
       where: { id: itemId },
       include: { categoria: true },
     });
+
+    await apagarComprovantes(chavesNaoNulas(marcacoes), "removerItem");
 
     revalidatePath(`/painel/desafios/${item.categoria.desafioId}`);
   });
@@ -240,9 +266,19 @@ export async function removerDesafioSurpresa(desafioSurpresaId: string) {
   return executarAction(async () => {
     await requererAcessoPainel();
 
+    const participacoes = await prisma.participacaoSurpresa.findMany({
+      where: { desafioSurpresaId, fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+
     const desafioSurpresa = await prisma.desafioSurpresa.delete({
       where: { id: desafioSurpresaId },
     });
+
+    await apagarComprovantes(
+      chavesNaoNulas(participacoes),
+      "removerDesafioSurpresa",
+    );
 
     revalidatePath(`/painel/desafios/${desafioSurpresa.desafioId}`);
   });
@@ -252,18 +288,28 @@ export async function aprovarParticipacao(participacaoId: string) {
   return executarAction(async () => {
     const session = await requererAcessoPainel();
 
+    // O comprovante só serve para a análise: ao aprovar, a chave sai do
+    // registro na mesma escrita e o objeto é apagado depois.
+    const anterior = await prisma.participacaoSurpresa.findUniqueOrThrow({
+      where: { id: participacaoId },
+    });
+
     const participacao = await prisma.participacaoSurpresa.update({
       where: { id: participacaoId },
       data: {
         validado: true,
         validadoPor: session.user.id,
         validadoEm: new Date(),
+        fotoChave: null,
       },
       include: { desafioSurpresa: true },
     });
 
-    if (participacao.fotoChave) {
-      await deletarComprovante(participacao.fotoChave);
+    if (anterior.fotoChave) {
+      await apagarObjetoEmMelhorEsforco(
+        anterior.fotoChave,
+        "aprovarParticipacao",
+      );
     }
 
     revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);
@@ -281,7 +327,10 @@ export async function rejeitarParticipacao(participacaoId: string) {
     });
 
     if (participacao.fotoChave) {
-      await deletarComprovante(participacao.fotoChave);
+      await apagarObjetoEmMelhorEsforco(
+        participacao.fotoChave,
+        "rejeitarParticipacao",
+      );
     }
 
     revalidatePath(`/painel/desafios/${participacao.desafioSurpresa.desafioId}`);

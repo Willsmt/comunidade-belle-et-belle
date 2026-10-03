@@ -15,6 +15,7 @@ const {
   mockFindManyFotoEvolucao,
   mockFindManyJornadaDesafio,
   mockFindManyParticipacaoSurpresa,
+  mockFindManyMarcacaoItem,
   mockFindManyPost,
   mockFindManyPlanoRecebido,
   mockApagarObjeto,
@@ -33,6 +34,7 @@ const {
   mockFindManyFotoEvolucao: vi.fn(),
   mockFindManyJornadaDesafio: vi.fn(),
   mockFindManyParticipacaoSurpresa: vi.fn(),
+  mockFindManyMarcacaoItem: vi.fn(),
   mockFindManyPost: vi.fn(),
   mockFindManyPlanoRecebido: vi.fn(),
   mockApagarObjeto: vi.fn(),
@@ -50,6 +52,7 @@ vi.mock("@/lib/prisma", () => ({
     fotoEvolucao: { findMany: mockFindManyFotoEvolucao },
     jornadaDesafio: { findMany: mockFindManyJornadaDesafio },
     participacaoSurpresa: { findMany: mockFindManyParticipacaoSurpresa },
+    marcacaoItem: { findMany: mockFindManyMarcacaoItem },
     post: { findMany: mockFindManyPost },
     planoRecebido: { findMany: mockFindManyPlanoRecebido },
     $transaction: mockTransaction,
@@ -83,6 +86,7 @@ beforeEach(() => {
   mockFindManyFotoEvolucao.mockReset().mockResolvedValue([]);
   mockFindManyJornadaDesafio.mockReset().mockResolvedValue([]);
   mockFindManyParticipacaoSurpresa.mockReset().mockResolvedValue([]);
+  mockFindManyMarcacaoItem.mockReset().mockResolvedValue([]);
   mockFindManyPost.mockReset().mockResolvedValue([]);
   mockFindManyPlanoRecebido.mockReset().mockResolvedValue([]);
   mockApagarObjeto.mockReset().mockResolvedValue(undefined);
@@ -248,6 +252,29 @@ describe("deletarMembro", () => {
 
     expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-surpresa/u1/x.webp", "deletarMembro");
     expect(mockApagarObjeto).toHaveBeenCalledTimes(1);
+  });
+
+  it("purga os comprovantes de marcação de item da usuária, só depois de deletar o registro", async () => {
+    mockFindManyMarcacaoItem.mockResolvedValue([
+      { fotoChave: "comprovantes-item/u1/a.webp" },
+      { fotoChave: "comprovantes-item/u1/b.webp" },
+    ]);
+    const ordem: string[] = [];
+    mockDelete.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await deletarMembro("u1");
+
+    expect(mockFindManyMarcacaoItem).toHaveBeenCalledWith({
+      where: { clienteId: "u1", fotoChave: { not: null } },
+    });
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-item/u1/a.webp", "deletarMembro");
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-item/u1/b.webp", "deletarMembro");
+    expect(ordem).toEqual(["banco", "r2", "r2"]);
   });
 
   it("purga imagens de post do autor só quando têm imagem", async () => {

@@ -5,12 +5,12 @@ import { limparBanco } from "@/test-utils/db";
 const {
   mockAuth,
   mockUploadComprovanteItem,
-  mockDeletarComprovanteItem,
+  mockApagarObjeto,
   mockGerarUrlAssinadaItem,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockUploadComprovanteItem: vi.fn(),
-  mockDeletarComprovanteItem: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockGerarUrlAssinadaItem: vi.fn(),
 }));
 
@@ -18,8 +18,10 @@ vi.mock("@/auth", () => ({ auth: mockAuth }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/storage/comprovantes-item-desafio", () => ({
   uploadComprovanteItem: mockUploadComprovanteItem,
-  deletarComprovanteItem: mockDeletarComprovanteItem,
   gerarUrlAssinada: mockGerarUrlAssinadaItem,
+}));
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
   gerarUrlAssinada: vi.fn().mockResolvedValue(null),
@@ -112,8 +114,9 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
     });
     expect(marcacaoAprovada.validado).toBe(true);
     expect(marcacaoAprovada.fotoChave).toBeNull();
-    expect(mockDeletarComprovanteItem).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-item/cliente-x/abc.webp",
+      "aprovarMarcacaoItem",
     );
 
     mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
@@ -146,8 +149,9 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
     expect(
       await prisma.marcacaoItem.findUnique({ where: { id: marcacaoParaRejeitar.id } }),
     ).toBeNull();
-    expect(mockDeletarComprovanteItem).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-item/cliente-x/def.webp",
+      "rejeitarMarcacaoItem",
     );
 
     mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });

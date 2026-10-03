@@ -16,7 +16,10 @@ const {
   mockSurpresaDelete,
   mockParticipacaoUpdate,
   mockParticipacaoDelete,
-  mockDeletarComprovante,
+  mockParticipacaoFindMany,
+  mockParticipacaoFindUniqueOrThrow,
+  mockMarcacaoFindMany,
+  mockApagarObjeto,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequererAcessoPainel: vi.fn(),
@@ -33,7 +36,10 @@ const {
   mockSurpresaDelete: vi.fn(),
   mockParticipacaoUpdate: vi.fn(),
   mockParticipacaoDelete: vi.fn(),
-  mockDeletarComprovante: vi.fn(),
+  mockParticipacaoFindMany: vi.fn(),
+  mockParticipacaoFindUniqueOrThrow: vi.fn(),
+  mockMarcacaoFindMany: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -55,11 +61,17 @@ vi.mock("@/lib/prisma", () => ({
     },
     regraBonus: { create: mockRegraCreate, delete: mockRegraDelete },
     desafioSurpresa: { create: mockSurpresaCreate, delete: mockSurpresaDelete },
-    participacaoSurpresa: { update: mockParticipacaoUpdate, delete: mockParticipacaoDelete },
+    participacaoSurpresa: {
+      update: mockParticipacaoUpdate,
+      delete: mockParticipacaoDelete,
+      findMany: mockParticipacaoFindMany,
+      findUniqueOrThrow: mockParticipacaoFindUniqueOrThrow,
+    },
+    marcacaoItem: { findMany: mockMarcacaoFindMany },
   },
 }));
-vi.mock("@/lib/storage/comprovantes-surpresa", () => ({
-  deletarComprovante: mockDeletarComprovante,
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 
@@ -78,6 +90,13 @@ import {
   aprovarParticipacao,
   rejeitarParticipacao,
 } from "./actions";
+
+beforeEach(() => {
+  mockApagarObjeto.mockReset().mockResolvedValue(undefined);
+  mockMarcacaoFindMany.mockReset().mockResolvedValue([]);
+  mockParticipacaoFindMany.mockReset().mockResolvedValue([]);
+});
+
 
 function buildFormData(campos: Record<string, string | string[]>) {
   const formData = new FormData();
@@ -163,6 +182,44 @@ describe("removerCategoria", () => {
     expect(mockCategoriaDelete).toHaveBeenCalledWith({ where: { id: "c1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
   });
+
+  it("lista os comprovantes da categoria, deleta no banco e só depois apaga os objetos", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindMany.mockResolvedValue([
+      { fotoChave: "comprovantes-item/c1/a.webp" },
+      { fotoChave: "comprovantes-item/c2/b.webp" },
+    ]);
+    const ordem: string[] = [];
+    mockCategoriaDelete.mockImplementation(async () => {
+      ordem.push("banco");
+      return { id: "c1", desafioId: "d1" };
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await removerCategoria("c1");
+
+    expect(mockMarcacaoFindMany).toHaveBeenCalledWith({
+      where: { item: { categoriaId: "c1" }, fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-item/c1/a.webp", expect.any(String));
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-item/c2/b.webp", expect.any(String));
+    expect(ordem).toEqual(["banco", "r2", "r2"]);
+  });
+
+  it("se o delete no banco falhar, nenhum objeto é apagado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindMany.mockResolvedValue([{ fotoChave: "comprovantes-item/c1/a.webp" }]);
+    mockCategoriaDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(removerCategoria("c1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
 });
 
 describe("criarItem", () => {
@@ -290,6 +347,40 @@ describe("removerItem", () => {
     });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
   });
+
+  it("lista os comprovantes do item, deleta no banco e só depois apaga os objetos", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindMany.mockResolvedValue([{ fotoChave: "comprovantes-item/c1/a.webp" }]);
+    const ordem: string[] = [];
+    mockItemDelete.mockImplementation(async () => {
+      ordem.push("banco");
+      return { id: "i1", categoria: { desafioId: "d1" } };
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await removerItem("i1");
+
+    expect(mockMarcacaoFindMany).toHaveBeenCalledWith({
+      where: { itemId: "i1", fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+    expect(mockApagarObjeto).toHaveBeenCalledWith("comprovantes-item/c1/a.webp", expect.any(String));
+    expect(ordem).toEqual(["banco", "r2"]);
+  });
+
+  it("se o delete no banco falhar, nenhum objeto é apagado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindMany.mockResolvedValue([{ fotoChave: "comprovantes-item/c1/a.webp" }]);
+    mockItemDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(removerItem("i1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
 });
 
 describe("alternarExigeFoto", () => {
@@ -682,13 +773,49 @@ describe("removerDesafioSurpresa", () => {
     expect(mockSurpresaDelete).toHaveBeenCalledWith({ where: { id: "s1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
   });
+
+  it("lista os comprovantes das participações, deleta no banco e só depois apaga os objetos", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoFindMany.mockResolvedValue([
+      { fotoChave: "comprovantes-surpresa/c1/a.webp" },
+      { fotoChave: "comprovantes-surpresa/c2/b.webp" },
+    ]);
+    const ordem: string[] = [];
+    mockSurpresaDelete.mockImplementation(async () => {
+      ordem.push("banco");
+      return { id: "s1", desafioId: "d1" };
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await removerDesafioSurpresa("s1");
+
+    expect(mockParticipacaoFindMany).toHaveBeenCalledWith({
+      where: { desafioSurpresaId: "s1", fotoChave: { not: null } },
+      select: { fotoChave: true },
+    });
+    expect(ordem).toEqual(["banco", "r2", "r2"]);
+  });
+
+  it("se o delete no banco falhar, nenhum objeto é apagado", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoFindMany.mockResolvedValue([{ fotoChave: "comprovantes-surpresa/c1/a.webp" }]);
+    mockSurpresaDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(removerDesafioSurpresa("s1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
+  });
+
 });
 
 describe("aprovarParticipacao", () => {
   beforeEach(() => {
     mockRequererAcessoPainel.mockReset();
     mockParticipacaoUpdate.mockReset();
-    mockDeletarComprovante.mockReset();
+    mockParticipacaoFindUniqueOrThrow.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -699,8 +826,9 @@ describe("aprovarParticipacao", () => {
     expect(mockParticipacaoUpdate).not.toHaveBeenCalled();
   });
 
-  it("marca a participação como validada com quem aprovou e quando, e revalida as duas rotas", async () => {
+  it("marca a participação como validada, zera fotoChave e revalida as duas rotas", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoFindUniqueOrThrow.mockResolvedValue({ id: "p1", fotoChave: null });
     mockParticipacaoUpdate.mockResolvedValue({
       id: "p1",
       fotoChave: null,
@@ -715,27 +843,51 @@ describe("aprovarParticipacao", () => {
         validado: true,
         validadoPor: "patty-1",
         validadoEm: expect.any(Date),
+        fotoChave: null,
       },
       include: { desafioSurpresa: true },
     });
-    expect(mockDeletarComprovante).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
   });
 
-  it("apaga a foto do R2 quando a participação tinha comprovação", async () => {
+  it("apaga o objeto da chave anterior só depois da escrita no banco", async () => {
     mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
-    mockParticipacaoUpdate.mockResolvedValue({
+    mockParticipacaoFindUniqueOrThrow.mockResolvedValue({
       id: "p1",
       fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
-      desafioSurpresa: { desafioId: "d1" },
+    });
+    const ordem: string[] = [];
+    mockParticipacaoUpdate.mockImplementation(async () => {
+      ordem.push("banco");
+      return { id: "p1", fotoChave: null, desafioSurpresa: { desafioId: "d1" } };
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
     });
 
     await aprovarParticipacao("p1");
 
-    expect(mockDeletarComprovante).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-surpresa/cliente-1/abc.webp",
+      expect.any(String),
     );
+    expect(ordem).toEqual(["banco", "r2"]);
+  });
+
+  it("se a escrita no banco falhar, não apaga o objeto", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoFindUniqueOrThrow.mockResolvedValue({
+      id: "p1",
+      fotoChave: "comprovantes-surpresa/cliente-1/abc.webp",
+    });
+    mockParticipacaoUpdate.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(aprovarParticipacao("p1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 });
 
@@ -743,7 +895,6 @@ describe("rejeitarParticipacao", () => {
   beforeEach(() => {
     mockRequererAcessoPainel.mockReset();
     mockParticipacaoDelete.mockReset();
-    mockDeletarComprovante.mockReset();
     mockRevalidatePath.mockReset();
   });
 
@@ -768,7 +919,7 @@ describe("rejeitarParticipacao", () => {
       where: { id: "p1" },
       include: { desafioSurpresa: true },
     });
-    expect(mockDeletarComprovante).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/desafios/d1");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
   });
@@ -783,8 +934,19 @@ describe("rejeitarParticipacao", () => {
 
     await rejeitarParticipacao("p1");
 
-    expect(mockDeletarComprovante).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-surpresa/cliente-1/abc.webp",
+      expect.any(String),
     );
+  });
+
+  it("se o delete no banco falhar, não apaga o objeto", async () => {
+    mockRequererAcessoPainel.mockResolvedValue({ user: { id: "patty-1" } });
+    mockParticipacaoDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(rejeitarParticipacao("p1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 });

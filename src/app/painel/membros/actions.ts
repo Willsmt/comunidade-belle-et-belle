@@ -69,18 +69,29 @@ export async function reativarMembro(userId: string) {
 }
 
 async function listarChavesDoUsuario(userId: string): Promise<string[]> {
-  const [perfil, perfilParceria, fotos, jornadas, participacoes, posts, planos] =
-    await Promise.all([
-      prisma.perfil.findUnique({ where: { userId } }),
-      prisma.perfilParceria.findUnique({ where: { usuarioId: userId } }),
-      prisma.fotoEvolucao.findMany({ where: { clienteId: userId } }),
-      prisma.jornadaDesafio.findMany({ where: { clienteId: userId } }),
-      prisma.participacaoSurpresa.findMany({ where: { clienteId: userId } }),
-      prisma.post.findMany({ where: { autorId: userId } }),
-      prisma.planoRecebido.findMany({
-        where: { OR: [{ clienteId: userId }, { parceriaId: userId }] },
-      }),
-    ]);
+  const [
+    perfil,
+    perfilParceria,
+    fotos,
+    jornadas,
+    participacoes,
+    marcacoes,
+    posts,
+    planos,
+  ] = await Promise.all([
+    prisma.perfil.findUnique({ where: { userId } }),
+    prisma.perfilParceria.findUnique({ where: { usuarioId: userId } }),
+    prisma.fotoEvolucao.findMany({ where: { clienteId: userId } }),
+    prisma.jornadaDesafio.findMany({ where: { clienteId: userId } }),
+    prisma.participacaoSurpresa.findMany({ where: { clienteId: userId } }),
+    prisma.marcacaoItem.findMany({
+      where: { clienteId: userId, fotoChave: { not: null } },
+    }),
+    prisma.post.findMany({ where: { autorId: userId } }),
+    prisma.planoRecebido.findMany({
+      where: { OR: [{ clienteId: userId }, { parceriaId: userId }] },
+    }),
+  ]);
 
   const chaves = new Set<string>();
 
@@ -104,6 +115,11 @@ async function listarChavesDoUsuario(userId: string): Promise<string[]> {
   for (const participacao of participacoes) {
     if (participacao.fotoChave) {
       chaves.add(participacao.fotoChave);
+    }
+  }
+  for (const marcacao of marcacoes) {
+    if (marcacao.fotoChave) {
+      chaves.add(marcacao.fotoChave);
     }
   }
   for (const post of posts) {

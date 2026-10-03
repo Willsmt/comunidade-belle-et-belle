@@ -10,7 +10,7 @@ const {
   mockMarcacaoFindUniqueOrThrow,
   mockMarcacaoUpdate,
   mockMarcacaoDelete,
-  mockDeletarComprovanteItem,
+  mockApagarObjeto,
   mockVerificarConquistasBonus,
   mockVerificarConquistasRankingSemanal,
   mockRevalidatePath,
@@ -23,7 +23,7 @@ const {
   mockMarcacaoFindUniqueOrThrow: vi.fn(),
   mockMarcacaoUpdate: vi.fn(),
   mockMarcacaoDelete: vi.fn(),
-  mockDeletarComprovanteItem: vi.fn(),
+  mockApagarObjeto: vi.fn(),
   mockVerificarConquistasBonus: vi.fn(),
   mockVerificarConquistasRankingSemanal: vi.fn(),
   mockRevalidatePath: vi.fn(),
@@ -44,8 +44,8 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: mockTransaction,
   },
 }));
-vi.mock("@/lib/storage/comprovantes-item-desafio", () => ({
-  deletarComprovanteItem: mockDeletarComprovanteItem,
+vi.mock("@/lib/storage/objetos", () => ({
+  apagarObjetoEmMelhorEsforco: mockApagarObjeto,
 }));
 vi.mock("@/lib/desafios/conquistas", () => ({
   verificarConquistasBonus: mockVerificarConquistasBonus,
@@ -140,7 +140,8 @@ describe("aprovarMarcacaoItem", () => {
     mockRequererAcesso.mockReset();
     mockMarcacaoFindUniqueOrThrow.mockReset();
     mockMarcacaoUpdate.mockReset();
-    mockDeletarComprovanteItem.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
+    mockApagarObjeto.mockReset();
     mockVerificarConquistasBonus.mockReset();
     mockVerificarConquistasRankingSemanal.mockReset();
     mockRevalidatePath.mockReset();
@@ -193,8 +194,9 @@ describe("aprovarMarcacaoItem", () => {
         fotoChave: null,
       },
     });
-    expect(mockDeletarComprovanteItem).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-item/cliente-1/abc.webp",
+      expect.any(String),
     );
     expect(mockVerificarConquistasBonus).toHaveBeenCalledWith(
       "cliente-1",
@@ -207,6 +209,34 @@ describe("aprovarMarcacaoItem", () => {
     );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
+  });
+
+  it("grava fotoChave null na escrita e só depois apaga o objeto", async () => {
+    mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindUniqueOrThrow.mockResolvedValue({
+      id: "m1",
+      validado: false,
+      clienteId: "cliente-1",
+      data: new Date("2026-09-05"),
+      fotoChave: "comprovantes-item/cliente-1/abc.webp",
+      item: { categoria: { desafioId: "d1" } },
+    });
+    const ordem: string[] = [];
+    mockMarcacaoUpdate.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await aprovarMarcacaoItem("m1");
+
+    expect(mockMarcacaoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ fotoChave: null }),
+      }),
+    );
+    expect(ordem).toEqual(["banco", "r2"]);
   });
 
   it("não apaga foto quando a marcação não tinha nenhuma", async () => {
@@ -223,7 +253,7 @@ describe("aprovarMarcacaoItem", () => {
 
     await aprovarMarcacaoItem("m1");
 
-    expect(mockDeletarComprovanteItem).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 });
 
@@ -232,7 +262,7 @@ describe("rejeitarMarcacaoItem", () => {
     mockRequererAcesso.mockReset();
     mockMarcacaoFindUniqueOrThrow.mockReset();
     mockMarcacaoDelete.mockReset();
-    mockDeletarComprovanteItem.mockReset();
+    mockApagarObjeto.mockReset().mockResolvedValue(undefined);
     mockRevalidatePath.mockReset();
   });
 
@@ -243,7 +273,7 @@ describe("rejeitarMarcacaoItem", () => {
     expect(mockMarcacaoDelete).not.toHaveBeenCalled();
   });
 
-  it("apaga a foto do R2 e remove a marcação, revalidando as duas rotas", async () => {
+  it("remove a marcação e depois apaga a foto do R2, revalidando as duas rotas", async () => {
     mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
     mockMarcacaoFindUniqueOrThrow.mockResolvedValue({
       id: "m1",
@@ -253,12 +283,46 @@ describe("rejeitarMarcacaoItem", () => {
 
     await rejeitarMarcacaoItem("m1");
 
-    expect(mockDeletarComprovanteItem).toHaveBeenCalledWith(
+    expect(mockApagarObjeto).toHaveBeenCalledWith(
       "comprovantes-item/cliente-1/abc.webp",
+      expect.any(String),
     );
     expect(mockMarcacaoDelete).toHaveBeenCalledWith({ where: { id: "m1" } });
     expect(mockRevalidatePath).toHaveBeenCalledWith("/painel/aprovacoes");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/cliente/desafios");
+  });
+
+  it("apaga no banco antes do R2", async () => {
+    mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindUniqueOrThrow.mockResolvedValue({
+      id: "m1",
+      fotoChave: "comprovantes-item/cliente-1/abc.webp",
+    });
+    const ordem: string[] = [];
+    mockMarcacaoDelete.mockImplementation(async () => {
+      ordem.push("banco");
+    });
+    mockApagarObjeto.mockImplementation(async () => {
+      ordem.push("r2");
+    });
+
+    await rejeitarMarcacaoItem("m1");
+
+    expect(ordem).toEqual(["banco", "r2"]);
+  });
+
+  it("se o delete no banco falhar, não apaga o objeto", async () => {
+    mockRequererAcesso.mockResolvedValue({ user: { id: "patty-1" } });
+    mockMarcacaoFindUniqueOrThrow.mockResolvedValue({
+      id: "m1",
+      fotoChave: "comprovantes-item/cliente-1/abc.webp",
+    });
+    mockMarcacaoDelete.mockRejectedValue(new Error("falha no banco"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(rejeitarMarcacaoItem("m1")).rejects.toThrow();
+
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 
   it("não apaga foto quando a marcação não tinha nenhuma", async () => {
@@ -268,6 +332,6 @@ describe("rejeitarMarcacaoItem", () => {
 
     await rejeitarMarcacaoItem("m1");
 
-    expect(mockDeletarComprovanteItem).not.toHaveBeenCalled();
+    expect(mockApagarObjeto).not.toHaveBeenCalled();
   });
 });

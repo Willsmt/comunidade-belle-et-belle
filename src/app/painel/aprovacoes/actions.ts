@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requererAcessoPainel } from "@/lib/auth/requerer-acesso-painel";
-import { deletarComprovanteItem } from "@/lib/storage/comprovantes-item-desafio";
+import { apagarObjetoEmMelhorEsforco } from "@/lib/storage/objetos";
 import {
   verificarConquistasBonus,
   verificarConquistasRankingSemanal,
@@ -68,7 +68,10 @@ export async function aprovarMarcacaoItem(marcacaoId: string) {
     });
 
     if (marcacao.fotoChave) {
-      await deletarComprovanteItem(marcacao.fotoChave);
+      await apagarObjetoEmMelhorEsforco(
+        marcacao.fotoChave,
+        "aprovarMarcacaoItem",
+      );
     }
 
     const desafioId = marcacao.item.categoria.desafioId;
@@ -88,11 +91,14 @@ export async function rejeitarMarcacaoItem(marcacaoId: string) {
       where: { id: marcacaoId },
     });
 
-    if (marcacao.fotoChave) {
-      await deletarComprovanteItem(marcacao.fotoChave);
-    }
-
     await prisma.marcacaoItem.delete({ where: { id: marcacaoId } });
+
+    if (marcacao.fotoChave) {
+      await apagarObjetoEmMelhorEsforco(
+        marcacao.fotoChave,
+        "rejeitarMarcacaoItem",
+      );
+    }
 
     revalidatePath("/painel/aprovacoes");
     revalidatePath("/cliente/desafios");
