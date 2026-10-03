@@ -129,7 +129,7 @@ sequenceDiagram
     R2-->>Page: URL idêntica durante a hora cheia (vale até 2h após o início dela)
 ```
 
-Cada feature que lida com arquivos tem seu próprio módulo fino em `src/lib/storage/` (ex.: `fotos.ts`, `perfil.ts`, `planos.ts`, `posts.ts`, `comprovantes-*.ts`, `jornada-desafio.ts`) — todos delegam para as funções genéricas de `objetos.ts` (`uploadObjeto`, `gerarUrlAssinada`, `gerarUrlAssinadaCacheavel`, `deletarObjeto`; ver [Dois tipos de URL assinada](#dois-tipos-de-url-assinada-efêmera-vs-cacheável)), e cada um decide suas próprias regras de validação (tipo de arquivo, tamanho máximo, compressão). A validação real de formato é feita lendo os bytes do arquivo (magic bytes, via `sharp`), não confiando no `Content-Type` declarado pelo client — decisão de segurança documentada no próprio código de `comprimir-imagem.ts`. Para o PDF de plano, o equivalente é `uploadPlano` (`planos.ts`), que exige a assinatura `%PDF-` nos primeiros bytes além do tipo declarado e do limite de 5MB (ver [`docs/features/parcerias.md`](./features/parcerias.md#validação-do-pdf)).
+Cada feature que lida com arquivos tem seu próprio módulo fino em `src/lib/storage/` (ex.: `fotos.ts`, `perfil.ts`, `planos.ts`, `posts.ts`, `comprovantes-*.ts`, `jornada-desafio.ts`) — todos delegam para as funções genéricas de `objetos.ts` (`uploadObjeto`, `gerarUrlAssinada`, `gerarUrlAssinadaCacheavel`, `deletarObjeto`, `apagarObjetoEmMelhorEsforco`; ver [Dois tipos de URL assinada](#dois-tipos-de-url-assinada-efêmera-vs-cacheável) e [Consistência entre banco e R2](#consistência-entre-banco-e-r2-o-banco-é-a-fonte-da-verdade)), e cada um decide suas próprias regras de validação (tipo de arquivo, tamanho máximo, compressão). A validação real de formato é feita lendo os bytes do arquivo (magic bytes, via `sharp`), não confiando no `Content-Type` declarado pelo client — decisão de segurança documentada no próprio código de `comprimir-imagem.ts`. Para o PDF de plano, o equivalente é `uploadPlano` (`planos.ts`), que exige a assinatura `%PDF-` nos primeiros bytes além do tipo declarado e do limite de 5MB (ver [`docs/features/parcerias.md`](./features/parcerias.md#validação-do-pdf)).
 
 Exclusão de arquivo é sempre real (`DeleteObjectCommand`), nunca uma flag de "apagado" no banco — condizente com a promessa de exclusão de dados feita no termo de consentimento (ver [`docs/features/identidade-acesso.md`](./features/identidade-acesso.md)).
 
@@ -192,6 +192,54 @@ sequenceDiagram
 ```
 
 Fora das cotas ficam: `editarPost` (a troca de imagem apaga do R2 a imagem antiga do post, então o total de objetos não cresce), foto de perfil (cliente e parceria, sempre substitui a anterior) e os uploads de desafios (comprovantes e jornada). O parâmetro opcional `agora` das funções com janela existe para os testes (`cotas.test.ts`, `cotas.integration.test.ts`) fixarem o relógio. Ao criar um novo caminho de upload que acumule arquivos por usuária, avalie adicionar uma função aqui seguindo o mesmo formato (contar, comparar com a constante, lançar `AppError` antes do upload).
+
+### Consistência entre banco e R2: o banco é a fonte da verdade
+
+**Em linguagem simples:** cada arquivo vive em dois lugares ao mesmo tempo — o arquivo em si fica no R2 e o "endereço" dele (a `chave`) fica numa linha do banco. Como são dois sistemas separados, não dá para gravar os dois "de uma vez só": um pode dar certo e o outro falhar. O app segue uma regra simples para esses casos: **o que vale é o banco**. Se for preciso escolher entre um arquivo sobrando no R2 sem ninguém apontar para ele (um "órfão", que só ocupa espaço e fica registrado no log) e uma linha do banco apontando para um arquivo que não existe (uma imagem quebrada na tela da cliente), o app sempre escolhe o órfão. É como trocar o quadro de uma parede: primeiro pendura o novo, confirma que ficou firme, e só então joga o velho fora; se o novo cair, o velho continua lá.
+
+**Detalhe técnico** — o helper `apagarObjetoEmMelhorEsforco(chave, contexto)` (`src/lib/storage/objetos.ts`) chama `deletarObjeto` dentro de um `try/catch`: se o R2 falhar, faz `console.error("Falha ao apagar objeto no R2 (<contexto>):", chave, erro)` e **não relança**. O `contexto` é uma string livre que identifica a action e o motivo (ex.: `"enviarFoto: falha ao gravar no banco"`, `"atualizarPerfil: foto substituída"`), para o log dizer de onde veio o órfão. Toda remoção de objeto feita pelas actions abaixo passa por esse helper — as funções `deletar*` específicas dos módulos de storage (`deletarFoto`, `deletarFotoPerfil`, etc.) não são mais chamadas por essas actions.
+
+As actions seguem três formatos:
+
+| Formato | Ordem | Se o banco falhar | Se o R2 falhar ao apagar | Actions |
+| --- | --- | --- | --- | --- |
+| **Upload novo com compensação** | Sobe o objeto → grava no banco (dentro de `try`) | `catch` apaga o objeto recém-enviado (helper) e **relança o erro original** (o client recebe a mensagem de `executarAction`) | Só log; o erro do banco continua sendo o que sobe | `enviarFoto` (`cliente/fotos`), `criarPost` (`feed`, só com upload próprio), `enviarPlano` (`parceria/planos`), `marcarItemComFoto` e `participarDesafioSurpresa` (`cliente/desafios`, esta só quando há `fotoChave`), `enviarFotoJornada` (`cliente/desafios`, função interna de `enviarFotoAntes`/`enviarFotoDepois`) |
+| **Substituição** | Sobe o novo → `update`/`upsert` no banco → só então apaga o antigo (helper) | Apaga o **novo** (helper) e relança; o antigo continua referenciado e intacto | Antigo vira órfão logado; a ação conclui com sucesso | `atualizarPerfil` (`cliente/perfil`), `atualizarPerfilParceria` (`parceria/perfil`), `enviarFotoJornada` (quando já existia foto antes/depois), `editarPost` (`feed`) |
+| **Exclusão** | Apaga do banco → depois apaga do R2 (helper) | Nada foi tocado no R2 | Órfão logado; a ação conclui com sucesso | `excluirFoto` (`cliente/fotos`), `apagarPost` (`feed`), `deletarMembro` (`painel/membros`), `aprovarMarcacaoItem`/`rejeitarMarcacaoItem` (`painel/aprovacoes`), `aprovarParticipacao`/`rejeitarParticipacao`, `removerCategoria`, `removerItem` e `removerDesafioSurpresa` (`painel/desafios/[desafioId]`) |
+
+```mermaid
+sequenceDiagram
+    participant A as Server Action
+    participant R2 as Cloudflare R2
+    participant DB as Banco
+    participant H as apagarObjetoEmMelhorEsforco
+
+    A->>R2: upload do objeto novo
+    A->>DB: create / update / upsert (dentro de try)
+    alt banco falhou
+        A->>H: apaga o objeto NOVO
+        H-->>A: (falha no R2 vira só console.error)
+        A-->>A: relança o erro original
+    else banco confirmou
+        opt havia objeto antigo (substituição)
+            A->>H: apaga o objeto ANTIGO
+            H-->>A: (falha no R2 vira só console.error)
+        end
+        A-->>A: revalidatePath e retorna sucesso
+    end
+```
+
+Casos particulares que vale conhecer:
+
+- **Chave de foto de evolução nunca é apagada por action de post.** Em `criarPost`, a compensação só roda quando a imagem veio de upload próprio (flag local `uploadProprio`); se o post reaproveitou uma `FotoEvolucao`, a `imagemChave` pertence à foto e fica intacta. Em `editarPost` e `apagarPost`, a imagem antiga só é apagada quando `post.fotoEvolucaoId` é nulo.
+- **Validações antes do upload.** `editarPost` confere "texto ou imagem" **antes** de subir o arquivo novo; `criarPost` faz essa checagem dentro do `try`, então um post recusado por estar vazio depois de um upload também dispara a compensação.
+- **`atualizarPerfil`/`atualizarPerfilParceria`** leem o perfil atual (para saber a chave antiga) dentro do mesmo `try` do `upsert`: qualquer falha de banco nessa etapa apaga a foto nova. O `update` de `User.name` em `atualizarPerfil` roda depois e fora desse `try`.
+- **`deletarMembro`** primeiro chama `listarChavesDoUsuario(userId)` — que junta, num `Set` (sem duplicatas), as chaves de `Perfil`, `PerfilParceria`, `FotoEvolucao`, `JornadaDesafio` (antes e depois), `ParticipacaoSurpresa`, `MarcacaoItem` (com `fotoChave` não nula), `Post` e `PlanoRecebido` — porque o `onDelete: Cascade` do `user.delete` apaga essas linhas. Só depois do `user.delete` confirmado é que as chaves são apagadas em paralelo (`Promise.all`) pelo helper. A deduplicação evita apagar duas vezes a mesma chave (ex.: um post que reaproveita uma foto de evolução tem a mesma `imagemChave` da foto).
+
+- **Aprovação de comprovante "esvazia" a chave.** `aprovarMarcacaoItem` e `aprovarParticipacao` gravam `validado: true` **e** `fotoChave: null` no mesmo `update`, e só depois apagam o objeto — o registro aprovado nunca fica apontando para uma foto que já saiu do bucket. As rejeições apagam o registro inteiro e depois a foto.
+- **Remoções em cascata da gestora.** `removerCategoria`, `removerItem` e `removerDesafioSurpresa` seguem o mesmo raciocínio de `deletarMembro`: um `findMany` com `fotoChave: { not: null }` lista os comprovantes que o cascade vai levar, o `delete` roda, e só então `apagarComprovantes` (helper interno de `src/app/painel/desafios/[desafioId]/actions.ts`) apaga os objetos em paralelo com `apagarObjetoEmMelhorEsforco`.
+
+**Regra para código novo:** todo caminho que suba um objeto ao R2 e grave a chave no banco deve seguir um desses três formatos — compensar o upload se o banco falhar, apagar o objeto antigo só depois do banco confirmar a troca, e apagar do R2 só depois de apagar do banco — sempre usando `apagarObjetoEmMelhorEsforco` com um `contexto` descritivo.
 
 ### Exibindo imagens sensíveis: `ImagemSensivel`
 

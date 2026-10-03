@@ -35,10 +35,10 @@ Ver [`docs/database.md`](../database.md#feed--ver-docsfeaturesfeedmd).
 
 | Action | O que faz | Gate | Models |
 | --- | --- | --- | --- |
-| `criarPost` | Cria post (texto e/ou imagem); se marcar destaque, exige moderação. Com arquivo novo, confere antes a cota de 24h da autora (`garantirCotaPostsComImagem`). Foto de evolução anexada precisa ser do próprio usuário **e** pública (`AppError("Só fotos de evolução públicas podem ser anexadas a um post")` caso contrário) | `requererSessao()`; `destaque=true` exige adicionalmente `requererAcessoPainel()` | `Post`, `FotoEvolucao` |
+| `criarPost` | Cria post (texto e/ou imagem); se marcar destaque, exige moderação. Com arquivo novo, confere antes a cota de 24h da autora (`garantirCotaPostsComImagem`). Foto de evolução anexada precisa ser do próprio usuário **e** pública (`AppError("Só fotos de evolução públicas podem ser anexadas a um post")` caso contrário). Se a gravação falhar depois de um upload próprio, apaga o objeto recém-enviado e relança o erro | `requererSessao()`; `destaque=true` exige adicionalmente `requererAcessoPainel()` | `Post`, `FotoEvolucao` |
 | `alternarDestaque(postId)` | Fixa/desafixa um post existente | `requererAcessoPainel()` (GESTORA/ADMIN) | `Post` |
-| `editarPost` | Troca texto e/ou imagem | `requererSessao()` + **só o autor** (moderador não pode editar conteúdo alheio) | `Post` |
-| `apagarPost` | Exclui post | `requererSessao()` + autor **ou** GESTORA/ADMIN | `Post` |
+| `editarPost` | Troca texto e/ou imagem; com imagem nova, sobe a nova → `update` → só então apaga a antiga (se era upload próprio) | `requererSessao()` + **só o autor** (moderador não pode editar conteúdo alheio) | `Post` |
+| `apagarPost` | Exclui o post no banco e só depois apaga a imagem do R2 (se era upload próprio) | `requererSessao()` + autor **ou** GESTORA/ADMIN | `Post` |
 | `alternarCurtida` | Curte/descurte e devolve `{ curtiu, total }` (estado novo + `like.count` do post). **Não** chama `revalidatePath` | `requererSessao()` | `Like` |
 | `comentar` | Adiciona comentário | `requererSessao()` | `Comentario` |
 | `apagarComentario` | Exclui comentário | `requererSessao()` + autor do comentário **ou** GESTORA/ADMIN | `Comentario` |
@@ -84,6 +84,18 @@ flowchart TD
 | `editarPost` trocando a imagem | Não | A troca apaga do R2 a imagem antiga do post (quando era upload próprio), então o número de objetos da autora não cresce |
 
 Apagar um post com imagem dentro da janela libera uma vaga, porque a contagem olha os posts que existem no banco. Visão geral de todas as cotas: [`docs/architecture.md`](../architecture.md#cotas-de-upload-por-usuária).
+
+### Imagem do post e banco sempre em sincronia
+
+**Em linguagem simples:** o post e a sua imagem são gravados em lugares diferentes (banco e R2). O feed nunca deve mostrar um post com imagem quebrada; por isso, se algo der errado no meio do caminho, o app desfaz a parte do R2 em vez de deixar o banco apontando para um arquivo inexistente. E a imagem de uma foto de evolução nunca é apagada por uma ação de post — ela pertence à galeria da cliente.
+
+| Action | Ordem | Se o banco falhar | Imagem que pode ser apagada |
+| --- | --- | --- | --- |
+| `criarPost` | Upload (só se veio arquivo) → validação "texto ou imagem" + `create` (ou `$transaction` de destaque), tudo no mesmo `try` | Apaga o objeto recém-enviado e relança | Só o upload próprio desta chamada (flag `uploadProprio`); com `fotoEvolucaoId`, nada é apagado |
+| `editarPost` | Validação "texto ou imagem" **antes** do upload → upload da nova → `update` (no `try`) → apaga a antiga | Apaga a imagem nova e relança; o post continua com a antiga | A antiga, só se `post.fotoEvolucaoId` era nulo |
+| `apagarPost` | `post.delete` → apaga a imagem | Nada é tocado no R2 | A imagem do post, só se `post.fotoEvolucaoId` é nulo |
+
+Toda remoção usa `apagarObjetoEmMelhorEsforco` (`src/lib/storage/objetos.ts`): se o R2 falhar ao apagar, a falha é logada e a action conclui normalmente. Regra geral em [`docs/architecture.md`](../architecture.md#consistência-entre-banco-e-r2-o-banco-é-a-fonte-da-verdade).
 
 ### Regra: só foto de evolução pública vai para o feed
 
@@ -166,7 +178,7 @@ O zoom (commit "adiciona zoom em fotos no feed, perfil, desafios e aprovações"
 ## Pegadinhas e dívidas técnicas
 
 - **Paginação é por cursor, não infinite scroll**: `listarPosts` usa `cursor`/`skip: 1`/`take: 11`, e a UI oferece um link "Carregar mais" que recarrega a página com `?cursor=` — não há scroll infinito nem fetch incremental no client.
-- **Editar post pode trocar a imagem**, não só o texto. Se a imagem antiga era um upload próprio do post (`imagemChave` sem `fotoEvolucaoId`), o arquivo antigo é apagado do R2 ao trocar. Se a imagem antiga era uma `FotoEvolucao` reaproveitada, ela **não** é apagada (correto — pertence à galeria pessoal, não ao post). A edição não permite trocar por uma foto de evolução da galeria — só por upload de arquivo novo ou manter a atual.
+- **Editar post pode trocar a imagem**, não só o texto. Se a imagem antiga era um upload próprio do post (`imagemChave` sem `fotoEvolucaoId`), o arquivo antigo é apagado do R2 ao trocar — sempre **depois** do `update` do post confirmar (ver [Imagem do post e banco sempre em sincronia](#imagem-do-post-e-banco-sempre-em-sincronia)). Se a imagem antiga era uma `FotoEvolucao` reaproveitada, ela **não** é apagada (correto — pertence à galeria pessoal, não ao post). A edição não permite trocar por uma foto de evolução da galeria — só por upload de arquivo novo ou manter a atual.
 - **Post com foto de evolução pode desaparecer sem ação no feed**: a cliente tornar a foto privada ou excluí-la em "Minhas fotos" apaga o post inteiro (texto, curtidas e comentários incluídos), não só a imagem. É intencional; a UI de "Minhas fotos" avisa quantos posts serão apagados antes de confirmar. O `deleteMany` filtra por `fotoEvolucaoId` **e** `autorId` da cliente; como `criarPost` só aceita foto de evolução da própria autora, isso cobre todos os posts daquela foto. Se um dia surgir outro caminho que anexe foto de evolução a post de outra pessoa, revise esse filtro junto.
 - **Curtida não revalida o feed**: o total exibido é o retornado pela action para aquele botão. Testes e telas novas não devem esperar `revalidatePath("/feed")` depois de `alternarCurtida`.
 - **`obterPostAutorizado` tem nome enganoso**: confirma só que a pessoa pode "acessar" o post (autor ou moderador) para fins de exclusão; `editarPost` precisa reforçar manualmente, depois, que só o autor pode editar. Quem reusar essa função deve tratar a permissão de edição separadamente.

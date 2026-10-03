@@ -42,7 +42,7 @@ Ver [`docs/database.md`](../database.md#perfil--ver-docsfeaturesperfilmd) para o
 | `GET /cliente/perfil` | Formulário de edição do próprio perfil | Checagem manual na própria page (`podeAcessarAreaCliente` + `redirect("/")`) — **não** usa `requererPapel` | `Perfil` |
 | `atualizarPerfil` | Upsert de `Perfil` (bio, toggles, foto) + `User.name` | `requererPapel(["CLIENTE"])` | `Perfil`, `User` |
 | `GET /cliente/fotos` | Upload + galeria de fotos próprias | Mesmo padrão manual de gate da page de perfil | `FotoEvolucao` |
-| `enviarFoto` | Confere o limite de 100 fotos da cliente (`garantirCotaFotosEvolucao`) e só então faz o upload de nova foto (privada por padrão) | `requererPapel(["CLIENTE"])` | `FotoEvolucao` |
+| `enviarFoto` | Confere o limite de 100 fotos da cliente (`garantirCotaFotosEvolucao`) e só então faz o upload de nova foto (privada por padrão); se o `create` no banco falhar, apaga o objeto recém-enviado e relança o erro | `requererPapel(["CLIENTE"])` | `FotoEvolucao` |
 | `alternarVisibilidadeFoto` | Inverte `FotoEvolucao.publica`; ao tornar **privada**, apaga na mesma `$transaction` os posts que usam a foto. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
 | `excluirFoto` | Apaga posts que usam a foto + a linha da foto numa `$transaction`, e só depois o arquivo no R2. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
 | `GET /perfil/[clienteId]` | Perfil público de qualquer usuário | Só `auth()` — qualquer sessão autenticada, sem checar papel ou vínculo | `User`, `Perfil`, `Conquista`, `FotoEvolucao`, `Post`, `RegistroMedida` |
@@ -61,15 +61,19 @@ sequenceDiagram
     F->>A: envia FormData
     alt veio arquivo novo
         A->>R2: comprime (WebP, máx. 1600x1600, qualidade 80) e sobe a nova foto
-        A->>DB: upsert Perfil com fotoChave nova
-        A->>R2: só então apaga a foto antiga
+        A->>DB: lê Perfil atual + upsert com fotoChave nova
+        alt banco falhou
+            A->>R2: apaga a foto NOVA (apagarObjetoEmMelhorEsforco) e relança o erro
+        else banco confirmou
+            A->>R2: só então apaga a foto antiga (apagarObjetoEmMelhorEsforco)
+        end
     else sem arquivo novo
         A->>DB: upsert Perfil mantendo fotoChave atual
     end
     A->>DB: update User.name
 ```
 
-A ordem "sobe a nova antes de apagar a antiga" é deliberada: se o upload falhar, a foto antiga continua servindo, nunca fica um perfil sem foto por causa de um erro de rede.
+A ordem "sobe a nova, grava no banco, só então apaga a antiga" é deliberada: se o upload falhar, a foto antiga continua servindo, nunca fica um perfil sem foto por causa de um erro de rede. Se a gravação no banco falhar (inclusive a leitura do perfil atual, que fica no mesmo `try`), a foto nova é apagada do R2 e o erro sobe — o perfil continua apontando para a foto antiga, intacta. Se apagar a foto antiga falhar no R2, a falha é só logada e a edição conclui com sucesso. O `update` de `User.name` roda depois, fora desse `try`. Regra geral em [`docs/architecture.md`](../architecture.md#consistência-entre-banco-e-r2-o-banco-é-a-fonte-da-verdade).
 
 ## Fluxo: fotos de evolução
 
@@ -81,7 +85,7 @@ Uma foto de evolução pública pode ser anexada a um post do feed (ver [`docs/f
 | --- | --- | --- | --- |
 | Tornar pública | `update publica = true` | — | `/feed`, `/cliente/fotos`, `/perfil/[id]` |
 | Tornar privada | `post.deleteMany({ fotoEvolucaoId, autorId })` + `update publica = false` | Nada é apagado (a foto continua na galeria privada) | idem |
-| Excluir | `post.deleteMany({ fotoEvolucaoId, autorId })` + `fotoEvolucao.delete` | `deletarFoto(chave)` **depois** do commit | idem |
+| Excluir | `post.deleteMany({ fotoEvolucaoId, autorId })` + `fotoEvolucao.delete` | `apagarObjetoEmMelhorEsforco(chave, "excluirFoto")` **depois** do commit | idem |
 
 O `autorId` do `deleteMany` é sempre o `session.user.id` da cliente logada (a mesma que `obterFotoDoUsuario` confirmou ser dona da foto), então a transação só apaga posts da própria cliente.
 
@@ -101,14 +105,14 @@ sequenceDiagram
     UI->>A: FormData(fotoId)
     A->>DB: confere dono da foto
     A->>DB: $transaction [deleteMany Post (fotoEvolucaoId + autorId), delete FotoEvolucao]
-    A->>R2: deletarFoto(chave)
+    A->>R2: apagarObjetoEmMelhorEsforco(chave, "excluirFoto")
     alt falha no R2
-        A-->>A: console.error (banco não é revertido)
+        A-->>A: console.error dentro do helper (banco não é revertido)
     end
     A-->>UI: revalidatePath(/feed, /cliente/fotos, /perfil/id)
 ```
 
-A exclusão continua real, não é uma flag: o arquivo é removido do bucket — coerente com a promessa do termo de consentimento em `bem-vinda/page.tsx` ("a exclusão remove o arquivo de verdade do armazenamento"). A ordem é **banco primeiro, R2 depois**: se o R2 falhar, o erro é só logado (`console.error`) e a ação conclui com sucesso para a cliente; o resultado possível é um objeto órfão no bucket, preferido a um registro apontando para arquivo inexistente.
+A exclusão continua real, não é uma flag: o arquivo é removido do bucket — coerente com a promessa do termo de consentimento em `bem-vinda/page.tsx` ("a exclusão remove o arquivo de verdade do armazenamento"). A ordem é **banco primeiro, R2 depois**: se o R2 falhar, o helper `apagarObjetoEmMelhorEsforco` só loga o erro (`console.error`) e a ação conclui com sucesso para a cliente; o resultado possível é um objeto órfão no bucket, preferido a um registro apontando para arquivo inexistente.
 
 **Confirmação na UI (`item-foto.tsx`)**: `listarFotos` devolve `totalPosts` (`_count.posts`), e o card usa `BotaoComConfirmacao` com mensagens no singular/plural:
 
@@ -123,7 +127,7 @@ A exclusão continua real, não é uma flag: o arquivo é removido do bucket —
 
 **Em linguagem simples:** cada cliente guarda no máximo 100 fotos de evolução. É um total, não um limite por dia: quando chega a 100, ela precisa excluir fotos antigas para enviar novas.
 
-`garantirCotaFotosEvolucao(clienteId)` (`src/lib/storage/cotas.ts`) conta todas as `FotoEvolucao` da cliente (públicas e privadas). Se o total já for `>= LIMITE_FOTOS_EVOLUCAO_POR_CLIENTE` (100), lança `AppError("Você atingiu o limite de 100 fotos. Exclua fotos antigas para enviar novas.")`. Em `enviarFoto` a checagem roda depois de confirmar que veio um arquivo e **antes** de `uploadFoto`, então, com o limite atingido, nada é enviado ao R2. Excluir uma foto (`excluirFoto`) libera a vaga imediatamente; tornar privada não libera, porque a foto continua existindo. Visão geral de todas as cotas: [`docs/architecture.md`](../architecture.md#cotas-de-upload-por-usuária).
+`garantirCotaFotosEvolucao(clienteId)` (`src/lib/storage/cotas.ts`) conta todas as `FotoEvolucao` da cliente (públicas e privadas). Se o total já for `>= LIMITE_FOTOS_EVOLUCAO_POR_CLIENTE` (100), lança `AppError("Você atingiu o limite de 100 fotos. Exclua fotos antigas para enviar novas.")`. Em `enviarFoto` a checagem roda depois de confirmar que veio um arquivo e **antes** de `uploadFoto`, então, com o limite atingido, nada é enviado ao R2. Se o upload passar mas o `fotoEvolucao.create` falhar, `enviarFoto` apaga o objeto recém-enviado (`apagarObjetoEmMelhorEsforco`) e relança o erro, então nenhuma foto fica no bucket sem linha correspondente por causa desse caminho. Excluir uma foto (`excluirFoto`) libera a vaga imediatamente; tornar privada não libera, porque a foto continua existindo. Visão geral de todas as cotas: [`docs/architecture.md`](../architecture.md#cotas-de-upload-por-usuária).
 
 ## Visibilidade: como os 3 toggles + a flag por-foto se combinam
 

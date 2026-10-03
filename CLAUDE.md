@@ -138,6 +138,18 @@ Três actions conferem uma cota por usuária **antes** de subir o arquivo ao R2;
 
 `editarPost` não confere cota porque a troca de imagem apaga a antiga. O PDF de plano tem limite de 5MB e precisa começar com `%PDF-` (`src/lib/storage/planos.ts`). Detalhes em `docs/architecture.md` ("Cotas de upload por usuária").
 
+### Consistência banco ↔ R2 (`apagarObjetoEmMelhorEsforco`)
+
+O banco é a fonte da verdade: na dúvida, o app prefere deixar um objeto órfão no R2 (logado) a deixar uma linha apontando para arquivo inexistente. Toda remoção de objeto feita por action passa por `apagarObjetoEmMelhorEsforco(chave, contexto)` (`src/lib/storage/objetos.ts`), que chama `deletarObjeto` num `try/catch` e só faz `console.error` em caso de falha, sem relançar. Três formatos:
+
+| Formato | Ordem | Actions |
+| --- | --- | --- |
+| Upload novo com compensação | Upload → escrita no banco em `try`; se o banco falhar, apaga o objeto novo e relança o erro | `enviarFoto`, `criarPost` (só upload próprio), `enviarPlano`, `marcarItemComFoto`, `participarDesafioSurpresa`, `enviarFotoJornada` |
+| Substituição | Upload do novo → `update`/`upsert` → só então apaga o antigo; se o banco falhar, apaga o novo e mantém o antigo | `atualizarPerfil`, `atualizarPerfilParceria`, `enviarFotoJornada`, `editarPost` (não apaga o antigo se for foto de evolução) |
+| Exclusão | Banco primeiro, R2 depois (quando há cascade, as chaves são listadas antes do `delete`) | `excluirFoto`, `apagarPost`, `deletarMembro` (lista as chaves, deleta o `User`, depois apaga os objetos deduplicados), aprovar/rejeitar comprovação (`painel/aprovacoes`, `painel/desafios/[desafioId]`; aprovar zera `fotoChave` no mesmo `update`), `removerCategoria`/`removerItem`/`removerDesafioSurpresa` |
+
+Ao criar um novo caminho que grave chave de arquivo no banco, siga um desses formatos. Detalhes em `docs/architecture.md` ("Consistência entre banco e R2").
+
 ### Foto de evolução ↔ post
 
 Só `FotoEvolucao` com `publica = true` pode ser anexada a um `Post` (`criarPost` rejeita a privada). Tornar a foto privada ou excluí-la apaga, numa `$transaction`, os posts com aquele `fotoEvolucaoId` da própria cliente (`deleteMany({ where: { fotoEvolucaoId, autorId: session.user.id } })`, em `src/app/cliente/fotos/actions.ts`). Ao criar um novo caminho que anexe ou exponha foto de evolução, mantenha essa regra. Detalhes em `docs/features/feed.md` e `docs/features/perfil.md`.

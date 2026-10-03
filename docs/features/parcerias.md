@@ -29,8 +29,8 @@ Ver [`docs/database.md`](../database.md#parcerias--ver-docsfeaturesparceriasmd).
 
 | Action | O que faz | Gate | Models |
 | --- | --- | --- | --- |
-| `atualizarPerfilParceria` | Upsert de `PerfilParceria`; troca de foto sobe a nova antes de apagar a antiga | `requererPapel(["PARCERIA"])` | `PerfilParceria` |
-| `enviarPlano` | Valida cliente + tipo + arquivo, confere vínculo ativo, confere a cota de 24h da parceria (`garantirCotaPlanos`), sobe o PDF, cria `PlanoRecebido` | `requererPapel(["PARCERIA"])` | `VinculoParceria`, `PlanoRecebido` |
+| `atualizarPerfilParceria` | Upsert de `PerfilParceria`; troca de foto sobe a nova → grava no banco → só então apaga a antiga. Se o banco falhar, apaga a nova e relança | `requererPapel(["PARCERIA"])` | `PerfilParceria` |
+| `enviarPlano` | Valida cliente + tipo + arquivo, confere vínculo ativo, confere a cota de 24h da parceria (`garantirCotaPlanos`), sobe o PDF, cria `PlanoRecebido` (se o `create` falhar, apaga o PDF recém-enviado e relança o erro) | `requererPapel(["PARCERIA"])` | `VinculoParceria`, `PlanoRecebido` |
 | `criarVinculo` | Cria o vínculo, ou reativa se já existir (mesmo par) | `requererAcessoPainel()` (GESTORA/ADMIN) | `VinculoParceria` |
 | `desativarVinculo` | `ativo: false` | `requererAcessoPainel()` | `VinculoParceria` |
 | `reativarVinculo` | `ativo: true` | `requererAcessoPainel()` | `VinculoParceria` |
@@ -67,6 +67,9 @@ sequenceDiagram
     end
     A->>R2: valida PDF (tipo + até 5MB + assinatura %PDF-) e sobe o arquivo
     A->>DB: cria PlanoRecebido
+    alt create falhou
+        A->>R2: apaga o PDF recém-enviado (apagarObjetoEmMelhorEsforco) e relança o erro
+    end
     Note over Pa,DB: cliente vê em /cliente/planos, baixa via URL assinada do R2 (expira em 300s)
 ```
 
@@ -105,6 +108,6 @@ A foto do `PerfilParceria` é assinada com `gerarUrlAssinadaCacheavel` (reexport
 
 ## Pegadinhas e dívidas técnicas
 
-- **Arquivo de foto pode ficar órfão no R2**: em `atualizarPerfilParceria`, se o upload da nova foto falhar antes do `upsert` do `PerfilParceria` chegar a rodar, o arquivo novo já pode ter sido gravado no R2 sem nunca ser referenciado por nenhum registro — não há limpeza automática desse órfão.
+- **Ordem da troca de foto em `atualizarPerfilParceria`**: sobe a foto nova, lê o perfil atual e faz o `upsert` (as duas operações de banco no mesmo `try`) e só então apaga a foto antiga. Se o banco falhar, a foto nova é apagada do R2 (`apagarObjetoEmMelhorEsforco`) e o erro sobe — o perfil continua com a foto antiga. Se apagar a antiga falhar no R2, a falha só é logada. Mesmo contrato de `atualizarPerfil` da cliente; regra geral em [`docs/architecture.md`](../architecture.md#consistência-entre-banco-e-r2-o-banco-é-a-fonte-da-verdade).
 - Todos os `queries.ts` deste contexto (`parceria/perfil`, `parceria/planos`, `cliente/parcerias`, `cliente/planos`) lançam `new Error("Sessão inválida")` **cru** (não `AppError`) — mesmo padrão inconsistente já visto em [`docs/features/medidas.md`](./medidas.md#pegadinhas-e-dívidas-técnicas). Inofensivo hoje porque o middleware bloqueia sessões ausentes antes, mas destoa do padrão do resto do projeto.
 - Não existe uma spec de spec-kit dedicada a "parcerias" isoladamente — o vínculo aparece documentado dentro de `specs/003-medidas-parcerias/data-model.md` como pré-condição reaproveitada, não como escopo próprio da feature.
