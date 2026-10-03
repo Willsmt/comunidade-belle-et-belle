@@ -250,12 +250,14 @@ describe("obterPerfilPublico", () => {
         id: "post-1",
         texto: "reflexão do dia",
         imagemChave: "posts/cliente-1/x.webp",
+        fotoEvolucaoId: "foto-1",
         criadoEm: new Date("2026-02-01"),
       },
       {
         id: "post-2",
         texto: "só texto",
         imagemChave: null,
+        fotoEvolucaoId: null,
         criadoEm: new Date("2026-01-01"),
       },
     ]);
@@ -272,12 +274,14 @@ describe("obterPerfilPublico", () => {
         id: "post-1",
         texto: "reflexão do dia",
         criadoEm: new Date("2026-02-01"),
+        fotoEvolucaoId: "foto-1",
         urlImagem: "https://url-assinada.exemplo",
       },
       {
         id: "post-2",
         texto: "só texto",
         criadoEm: new Date("2026-01-01"),
+        fotoEvolucaoId: null,
         urlImagem: null,
       },
     ]);

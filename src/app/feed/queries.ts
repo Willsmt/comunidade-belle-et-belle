@@ -95,7 +95,7 @@ export async function obterPost(postId: string) {
 
 export async function listarFotosEvolucaoDoUsuario(usuarioId: string) {
   const fotos = await prisma.fotoEvolucao.findMany({
-    where: { clienteId: usuarioId },
+    where: { clienteId: usuarioId, publica: true },
     orderBy: { data: "desc" },
   });
 

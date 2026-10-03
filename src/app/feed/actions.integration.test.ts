@@ -110,7 +110,11 @@ describe("criarPost (Postgres real)", () => {
   it("reaproveita uma FotoEvolucao real da própria cliente, sem novo upload", async () => {
     const cliente = await criarUsuario("cliente@x.com", "Cliente X");
     const foto = await prisma.fotoEvolucao.create({
-      data: { clienteId: cliente.id, chave: "fotos-evolucao/cliente/x.webp" },
+      data: {
+        clienteId: cliente.id,
+        chave: "fotos-evolucao/cliente/x.webp",
+        publica: true,
+      },
     });
     mockAuth.mockResolvedValue(sessaoDe(cliente.id));
 
@@ -124,6 +128,23 @@ describe("criarPost (Postgres real)", () => {
     expect(post.imagemChave).toBe("fotos-evolucao/cliente/x.webp");
     expect(post.fotoEvolucaoId).toBe(foto.id);
     expect(mockUploadImagemPost).not.toHaveBeenCalled();
+  });
+
+  it("rejeita FotoEvolucao real privada da própria cliente, sem criar o post", async () => {
+    const cliente = await criarUsuario("cliente@x.com", "Cliente X");
+    const foto = await prisma.fotoEvolucao.create({
+      data: {
+        clienteId: cliente.id,
+        chave: "fotos-evolucao/cliente/privada.webp",
+        publica: false,
+      },
+    });
+    mockAuth.mockResolvedValue(sessaoDe(cliente.id));
+
+    await expect(
+      criarPost(formDataFotoEvolucao(foto.id)),
+    ).rejects.toThrow("Só fotos de evolução públicas podem ser anexadas a um post");
+    expect(await prisma.post.count()).toBe(0);
   });
 
   it("rejeita FotoEvolucao real que pertence a outra cliente", async () => {

@@ -62,6 +62,13 @@ export function FormularioNovoPost({
         />
       </label>
 
+      {fotosEvolucao.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Para anexar uma foto de evolução ao post, torne uma foto pública em
+          Minhas fotos.
+        </p>
+      )}
+
       {fotosEvolucao.length > 0 && (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium text-foreground">

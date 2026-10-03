@@ -65,6 +65,7 @@ export async function obterPerfilPublico(clienteId: string) {
       id: post.id,
       texto: post.texto,
       criadoEm: post.criadoEm,
+      fotoEvolucaoId: post.fotoEvolucaoId,
       urlImagem: post.imagemChave
         ? await gerarUrlAssinada(post.imagemChave)
         : null,

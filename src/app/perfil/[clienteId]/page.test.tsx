@@ -128,6 +128,7 @@ describe("PerfilPublicoPage", () => {
           id: "post-1",
           texto: "reflexão do dia",
           criadoEm: new Date(),
+          fotoEvolucaoId: null,
           urlImagem: "https://exemplo/post-1",
         },
       ],
@@ -137,6 +138,29 @@ describe("PerfilPublicoPage", () => {
 
     expect(screen.getByText("reflexão do dia")).toBeInTheDocument();
     expect(screen.getByAltText("Imagem do post")).toBeInTheDocument();
+  });
+
+  it("renderiza a imagem do post sem otimizador só quando ele usa uma foto de evolução", async () => {
+    const url = "https://bucket.conta.r2.cloudflarestorage.com/x.webp?X-Amz-Signature=abc";
+    vi.mocked(obterPerfilPublico).mockResolvedValue({
+      nome: "Cliente 5",
+      fotoUrl: null,
+      bio: null,
+      emblemasPublicos: true,
+      conquistas: [],
+      ultimaMedida: null,
+      fotos: [],
+      posts: [
+        { id: "p1", texto: "a", criadoEm: new Date(), fotoEvolucaoId: "foto-1", urlImagem: url },
+        { id: "p2", texto: "b", criadoEm: new Date(), fotoEvolucaoId: null, urlImagem: url },
+      ],
+    });
+
+    render(await PerfilPublicoPage({ params: buildParams("cliente-5") }));
+
+    const [sensivel, comum] = screen.getAllByAltText("Imagem do post");
+    expect(sensivel).toHaveAttribute("src", url);
+    expect(comum.getAttribute("src")).toContain("/_next/image");
   });
 
   it("mostra o botão de editar perfil quando é a própria pessoa vendo o próprio perfil", async () => {

@@ -26,6 +26,14 @@ describe("FormularioNovoPost", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("orienta a tornar uma foto pública em Minhas fotos quando não há fotos disponíveis", () => {
+    render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
+
+    expect(
+      screen.getByText(/torne uma foto pública em minhas fotos/i),
+    ).toBeInTheDocument();
+  });
+
   it("mostra a caixa 'Marcar como destaque' só quando podeDestacar é true", async () => {
     render(<FormularioNovoPost fotosEvolucao={[]} podeDestacar={false} />);
     expect(

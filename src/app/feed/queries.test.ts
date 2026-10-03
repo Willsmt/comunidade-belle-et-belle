@@ -299,14 +299,14 @@ describe("obterPost", () => {
 });
 
 describe("listarFotosEvolucaoDoUsuario", () => {
-  it("busca as fotos do usuário, mais recentes primeiro, com signed URL cada uma", async () => {
+  it("busca só as fotos públicas do usuário, mais recentes primeiro, com signed URL cada uma", async () => {
     mockFindManyFoto.mockResolvedValue([{ id: "foto-1", chave: "chave-1" }]);
     mockGerarUrlAssinada.mockResolvedValue("https://url-assinada.exemplo");
 
     const resultado = await listarFotosEvolucaoDoUsuario("usuario-1");
 
     expect(mockFindManyFoto).toHaveBeenCalledWith({
-      where: { clienteId: "usuario-1" },
+      where: { clienteId: "usuario-1", publica: true },
       orderBy: { data: "desc" },
     });
     expect(resultado[0].urlAssinada).toBe("https://url-assinada.exemplo");

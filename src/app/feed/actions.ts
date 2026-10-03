@@ -35,6 +35,11 @@ export async function criarPost(formData: FormData) {
       if (!foto || foto.clienteId !== session.user.id) {
         throw new AppError("Foto de evolução inválida");
       }
+      if (!foto.publica) {
+        throw new AppError(
+          "Só fotos de evolução públicas podem ser anexadas a um post",
+        );
+      }
       imagemChave = foto.chave;
       fotoEvolucaoIdValido = foto.id;
     }

@@ -254,12 +254,28 @@ describe("criarPost", () => {
     expect(mockPostCreate).not.toHaveBeenCalled();
   });
 
+  it("rejeita fotoEvolucaoId de foto privada, mesmo sendo da própria cliente", async () => {
+    mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
+    mockFindUniqueFotoEvolucao.mockResolvedValue({
+      id: "foto-x",
+      clienteId: "cliente-1",
+      chave: "fotos-evolucao/cliente-1/x.webp",
+      publica: false,
+    });
+
+    await expect(
+      criarPost(buildFormDataCriar({ fotoEvolucaoId: "foto-x" })),
+    ).rejects.toThrow("Só fotos de evolução públicas podem ser anexadas a um post");
+    expect(mockPostCreate).not.toHaveBeenCalled();
+  });
+
   it("cria post reaproveitando uma FotoEvolucao existente, sem novo upload", async () => {
     mockRequererSessao.mockResolvedValue(buildSessao("cliente-1"));
     mockFindUniqueFotoEvolucao.mockResolvedValue({
       id: "foto-x",
       clienteId: "cliente-1",
       chave: "fotos-evolucao/cliente-1/x.webp",
+      publica: true,
     });
     mockPostCreate.mockResolvedValue({});
 

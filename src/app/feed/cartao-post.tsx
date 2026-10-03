@@ -9,6 +9,7 @@ import { FormularioComentario } from "./formulario-comentario";
 import { BotaoApagarComentario } from "./botao-apagar-comentario";
 import { AvatarPessoa } from "@/components/avatar-pessoa";
 import { FotoComZoom } from "@/components/foto-com-zoom";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,8 @@ export function CartaoPost({
 }) {
   const podeEditar = usuarioId === post.autorId;
   const podeApagarPost = podeEditar || podeModerar;
+  // Foto de evolução anexada é imagem sensível: não passa pelo otimizador.
+  const ImagemDoPost = post.fotoEvolucaoId ? ImagemSensivel : Image;
 
   return (
     <Card>
@@ -70,7 +73,7 @@ export function CartaoPost({
       <CardContent className="flex flex-col gap-3">
         {post.urlImagem && (
           <FotoComZoom src={post.urlImagem} alt="Imagem do post">
-            <Image
+            <ImagemDoPost
               src={post.urlImagem}
               alt="Imagem do post"
               width={1600}

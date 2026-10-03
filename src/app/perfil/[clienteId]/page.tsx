@@ -143,22 +143,26 @@ export default async function PerfilPublicoPage({
             <p className="text-sm text-muted-foreground">Nenhum post ainda</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {perfil.posts.map((post) => (
-                <li key={post.id} className="flex flex-col gap-2">
-                  {post.urlImagem && (
-                    <Image
-                      src={post.urlImagem}
-                      alt="Imagem do post"
-                      width={1600}
-                      height={1600}
-                      sizes="(min-width: 512px) 512px, 100vw"
-                      style={{ width: "100%", height: "auto" }}
-                      className="rounded-lg object-cover"
-                    />
-                  )}
-                  {post.texto && <p className="text-sm text-foreground">{post.texto}</p>}
-                </li>
-              ))}
+              {perfil.posts.map((post) => {
+                // Foto de evolução anexada é imagem sensível: não passa pelo otimizador.
+                const ImagemDoPost = post.fotoEvolucaoId ? ImagemSensivel : Image;
+                return (
+                  <li key={post.id} className="flex flex-col gap-2">
+                    {post.urlImagem && (
+                      <ImagemDoPost
+                        src={post.urlImagem}
+                        alt="Imagem do post"
+                        width={1600}
+                        height={1600}
+                        sizes="(min-width: 512px) 512px, 100vw"
+                        style={{ width: "100%", height: "auto" }}
+                        className="rounded-lg object-cover"
+                      />
+                    )}
+                    {post.texto && <p className="text-sm text-foreground">{post.texto}</p>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
