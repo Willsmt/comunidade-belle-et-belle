@@ -79,7 +79,9 @@ describe("FormularioNovoPost", () => {
     fireEvent.click(botao);
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
-    expect(botao).not.toBeDisabled();
+    // O alerta (setErro no catch) aparece antes de a transição terminar e
+    // liberar o isPending: em runner lento, checar o botão na hora é flaky.
+    await waitFor(() => expect(botao).not.toBeDisabled());
   });
 
   it("relança o redirect do Next em vez de mostrar como erro genérico", async () => {
