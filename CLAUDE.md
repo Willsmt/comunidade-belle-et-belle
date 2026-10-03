@@ -115,6 +115,14 @@ Três models usam o mesmo padrão — um booleano `ativo`/`destaque` que só pod
 
 Em nenhum dos três casos existe um índice único parcial no banco garantindo isso — é responsabilidade da lógica de aplicação (transação ou checagem antes de escrever). Ao adicionar um novo caminho de escrita para esses campos, replique o mesmo cuidado.
 
+### `ImagemSensivel` (`src/components/imagem-sensivel.tsx`)
+
+Wrapper de `next/image` que força `unoptimized`, para que fotos corporais e comprovantes sejam servidos direto pela signed URL do R2 (expira em 5 minutos), sem passar pelo otimizador `/_next/image`. Use-o em toda tela que exiba foto de evolução, foto de jornada (antes/depois) ou comprovante de desafio — inclusive imagem de post com `fotoEvolucaoId`. Imagens não sensíveis (foto de perfil, upload próprio de post) continuam com `next/image`. Lista de usos em `docs/architecture.md`.
+
+### Foto de evolução ↔ post
+
+Só `FotoEvolucao` com `publica = true` pode ser anexada a um `Post` (`criarPost` rejeita a privada). Tornar a foto privada ou excluí-la apaga, numa `$transaction`, os posts com aquele `fotoEvolucaoId` (`src/app/cliente/fotos/actions.ts`). Ao criar um novo caminho que anexe ou exponha foto de evolução, mantenha essa regra. Detalhes em `docs/features/feed.md` e `docs/features/perfil.md`.
+
 ## Sincronização da documentação
 
 Ao concluir uma mudança que altere o comportamento do sistema (model ou campo do Prisma, migration, rota, Server Action, gate de acesso, módulo de storage, variável de ambiente ou dependência) e antes de commitar, execute o agente `doc-sync-onboarding` para atualizar `CLAUDE.md` e `docs/`. Não execute para ajustes que não mudam comportamento (testes, estilo, textos, refatoração interna).

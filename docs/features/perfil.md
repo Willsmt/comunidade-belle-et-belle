@@ -16,11 +16,12 @@ Existem duas telas de edição (uma pra editar o próprio perfil, outra só pra 
 | `src/app/cliente/perfil/queries.ts` | `obterPerfilProprio` |
 | `src/app/cliente/fotos/page.tsx` | "Minhas fotos de evolução" — upload + galeria |
 | `src/app/cliente/fotos/actions.ts` | `enviarFoto`, `alternarVisibilidadeFoto`, `excluirFoto` |
-| `src/app/cliente/fotos/formulario-upload.tsx` | Formulário client de upload de nova foto |
-| `src/app/cliente/fotos/item-foto.tsx` | Card de cada foto (toggle público/privado + excluir com confirmação) |
-| `src/app/cliente/fotos/queries.ts` | `listarFotos` — fotos do usuário logado com URL assinada |
-| `src/app/perfil/[clienteId]/page.tsx` | Página pública de perfil de qualquer usuário |
-| `src/app/perfil/[clienteId]/queries.ts` | `obterPerfilPublico` — monta o payload condicional por toggle |
+| `src/app/cliente/fotos/formulario-upload.tsx` | Formulário client de upload de nova foto (texto explica que a foto nasce privada e pode ser tornada pública no perfil ou compartilhada em post) |
+| `src/app/cliente/fotos/item-foto.tsx` | Card de cada foto (imagem via `ImagemSensivel`; toggle público/privado + excluir, com confirmação que informa quantos posts serão apagados) |
+| `src/app/cliente/fotos/queries.ts` | `listarFotos` — fotos do usuário logado com URL assinada e `totalPosts` (quantos posts usam a foto) |
+| `src/app/perfil/[clienteId]/page.tsx` | Página pública de perfil de qualquer usuário (fotos de evolução e imagens de post com `fotoEvolucaoId` via `ImagemSensivel`) |
+| `src/app/perfil/[clienteId]/queries.ts` | `obterPerfilPublico` — monta o payload condicional por toggle; cada post traz `fotoEvolucaoId` |
+| `src/components/imagem-sensivel.tsx` | Wrapper de `next/image` sempre `unoptimized`, usado para fotos corporais (ver [`docs/architecture.md`](../architecture.md#exibindo-imagens-sensíveis-imagemsensivel)) |
 | `src/lib/storage/perfil.ts` | Upload/validação/delete da foto de perfil no R2 |
 | `src/lib/storage/fotos.ts` | Upload/validação/delete das fotos de evolução no R2 |
 | `src/lib/storage/comprimir-imagem.ts` | Validação real de formato (magic bytes) + resize/recompressão pra WebP |
@@ -41,8 +42,8 @@ Ver [`docs/database.md`](../database.md#perfil--ver-docsfeaturesperfilmd) para o
 | `atualizarPerfil` | Upsert de `Perfil` (bio, toggles, foto) + `User.name` | `requererPapel(["CLIENTE"])` | `Perfil`, `User` |
 | `GET /cliente/fotos` | Upload + galeria de fotos próprias | Mesmo padrão manual de gate da page de perfil | `FotoEvolucao` |
 | `enviarFoto` | Upload de nova foto (privada por padrão) | `requererPapel(["CLIENTE"])` | `FotoEvolucao` |
-| `alternarVisibilidadeFoto` | Inverte `FotoEvolucao.publica` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao` |
-| `excluirFoto` | Apaga o arquivo no R2 **e** a linha no banco | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao` |
+| `alternarVisibilidadeFoto` | Inverte `FotoEvolucao.publica`; ao tornar **privada**, apaga na mesma `$transaction` os posts que usam a foto. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
+| `excluirFoto` | Apaga posts que usam a foto + a linha da foto numa `$transaction`, e só depois o arquivo no R2. Revalida `/feed`, `/cliente/fotos` e `/perfil/[id]` | `requererPapel(["CLIENTE"])` + confere dono | `FotoEvolucao`, `Post` |
 | `GET /perfil/[clienteId]` | Perfil público de qualquer usuário | Só `auth()` — qualquer sessão autenticada, sem checar papel ou vínculo | `User`, `Perfil`, `Conquista`, `FotoEvolucao`, `Post`, `RegistroMedida` |
 
 ## Fluxo: editar perfil próprio
@@ -73,7 +74,47 @@ A ordem "sobe a nova antes de apagar a antiga" é deliberada: se o upload falhar
 
 Upload segue a mesma validação/compressão da foto de perfil (`comprimir-imagem.ts`, que decide o formato lendo os bytes reais do arquivo, não confiando no `Content-Type` enviado pelo navegador — esse é spoofável). Toda foto nasce **privada** (`publica: false` por default no schema); a cliente decide individualmente, foto a foto, quais tornar públicas.
 
-Exclusão é real, não é uma flag: `excluirFoto` chama `deletarObjeto` no R2 (removendo o arquivo do bucket) **antes** de apagar a linha no Postgres — coerente com a promessa do termo de consentimento em `bem-vinda/page.tsx` ("a exclusão remove o arquivo de verdade do armazenamento").
+Uma foto de evolução pública pode ser anexada a um post do feed (ver [`docs/features/feed.md`](./feed.md#regra-só-foto-de-evolução-pública-vai-para-o-feed)). Por isso, **tornar privada** ou **excluir** uma foto também tira do ar os posts que a usam — pense na foto como a "dona" do post: se ela sai de cena, o post sai junto.
+
+| Ação | Banco (numa `$transaction`) | R2 | Revalida |
+| --- | --- | --- | --- |
+| Tornar pública | `update publica = true` | — | `/feed`, `/cliente/fotos`, `/perfil/[id]` |
+| Tornar privada | `post.deleteMany({ fotoEvolucaoId })` + `update publica = false` | Nada é apagado (a foto continua na galeria privada) | idem |
+| Excluir | `post.deleteMany({ fotoEvolucaoId })` + `fotoEvolucao.delete` | `deletarFoto(chave)` **depois** do commit | idem |
+
+`Like` e `Comentario` dos posts apagados saem por `onDelete: Cascade`. O apagamento explícito é necessário porque a FK `Post.fotoEvolucaoId` é `ON DELETE SET NULL` — sem ele, o post sobreviveria com `imagemChave` apontando para a mesma foto (ver [`docs/database.md`](../database.md#ondelete-e-cascatas)).
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant UI as item-foto.tsx
+    participant A as excluirFoto
+    participant DB as Banco
+    participant R2 as Cloudflare R2
+
+    C->>UI: clica "Excluir"
+    UI->>C: confirmação (cita quantos posts serão apagados, via totalPosts)
+    C->>UI: confirma
+    UI->>A: FormData(fotoId)
+    A->>DB: confere dono da foto
+    A->>DB: $transaction [deleteMany Post, delete FotoEvolucao]
+    A->>R2: deletarFoto(chave)
+    alt falha no R2
+        A-->>A: console.error (banco não é revertido)
+    end
+    A-->>UI: revalidatePath(/feed, /cliente/fotos, /perfil/id)
+```
+
+A exclusão continua real, não é uma flag: o arquivo é removido do bucket — coerente com a promessa do termo de consentimento em `bem-vinda/page.tsx` ("a exclusão remove o arquivo de verdade do armazenamento"). A ordem é **banco primeiro, R2 depois**: se o R2 falhar, o erro é só logado (`console.error`) e a ação conclui com sucesso para a cliente; o resultado possível é um objeto órfão no bucket, preferido a um registro apontando para arquivo inexistente.
+
+**Confirmação na UI (`item-foto.tsx`)**: `listarFotos` devolve `totalPosts` (`_count.posts`), e o card usa `BotaoComConfirmacao` com mensagens no singular/plural:
+
+| Situação | Comportamento |
+| --- | --- |
+| Excluir, `totalPosts = 0` | "Excluir essa foto de evolução? Essa ação não pode ser desfeita." |
+| Excluir, `totalPosts > 0` | "Esta foto está em N post(s) no feed, que também será(ão) apagado(s). Deseja excluir?" |
+| Tornar privada, `totalPosts > 0` | Botão vira `BotaoComConfirmacao`: "Esta foto está em N post(s) no feed. Ao torná-la privada, esse(s) post(s) será(ão) apagado(s). Deseja continuar?" |
+| Tornar privada sem posts / tornar pública | Botão simples, sem confirmação |
 
 ## Visibilidade: como os 3 toggles + a flag por-foto se combinam
 
@@ -86,7 +127,7 @@ Exclusão é real, não é uma flag: `excluirFoto` chama `deletarObjeto` no R2 (
 
 Importante: nenhum desses controles depende de `VinculoParceria`. É visibilidade **pública geral** — qualquer usuário autenticado da comunidade vê o que estiver marcado como público, não é uma permissão específica de parceria. O acesso de uma parceria às medidas de uma cliente vinculada é um mecanismo **separado**, via `VinculoParceria.ativo`, coberto em [`docs/features/medidas.md`](./medidas.md) — não pelos toggles do `Perfil`.
 
-Todos os posts do autor aparecem na página pública, independente de qualquer visibilidade própria de post no feed (não há filtro de "post privado").
+Todos os posts do autor aparecem na página pública, independente de qualquer visibilidade própria de post no feed (não há filtro de "post privado"). Como um post só pode carregar foto de evolução pública — e é apagado quando ela deixa de ser — nenhuma foto privada aparece por meio de post. Posts com `fotoEvolucaoId` renderizam a imagem com `ImagemSensivel`; posts com upload próprio usam `next/image` comum.
 
 ## Fallback de avatar
 

@@ -129,6 +129,24 @@ Cada feature que lida com arquivos tem seu próprio módulo fino em `src/lib/sto
 
 Exclusão de arquivo é sempre real (`DeleteObjectCommand`), nunca uma flag de "apagado" no banco — condizente com a promessa de exclusão de dados feita no termo de consentimento (ver [`docs/features/identidade-acesso.md`](./features/identidade-acesso.md)).
 
+### Exibindo imagens sensíveis: `ImagemSensivel`
+
+**Em linguagem simples:** a foto de uma cliente só pode ser vista por quem recebeu o "link temporário" dela, e esse link vence em poucos minutos. Para que esse prazo valha de verdade, fotos do corpo e comprovantes são entregues ao navegador **direto do R2**, sem passar pela "copiadora" de imagens do Next (o otimizador `/_next/image`, que redimensiona e guarda cópias por horas).
+
+**Detalhe técnico:** `src/components/imagem-sensivel.tsx` é um wrapper fino de `next/image` que sempre passa `unoptimized` — a prop vem **depois** do spread de props, então quem usa o componente não consegue sobrescrevê-la. Com isso, o `<img>` renderizado aponta para a signed URL do R2 (expira em 300s) em vez de `/_next/image?url=...`.
+
+| Onde é usado | Imagem |
+| --- | --- |
+| `src/app/cliente/fotos/item-foto.tsx` | Fotos de evolução da própria cliente |
+| `src/app/perfil/[clienteId]/page.tsx` | Galeria de fotos de evolução públicas e imagem de post com `fotoEvolucaoId` |
+| `src/app/feed/cartao-post.tsx` | Imagem do post **só quando** `post.fotoEvolucaoId` está preenchido (upload comum do post continua com `next/image` otimizado) |
+| `src/app/feed/novo/formulario-novo-post.tsx` | Miniaturas do seletor de foto de evolução |
+| `src/app/cliente/desafios/fotos-jornada.tsx` | Fotos de "antes" e "depois" da jornada do desafio |
+| `src/app/painel/aprovacoes/page.tsx` | Fotos de comprovação de item e de desafio surpresa |
+| `src/app/painel/desafios/[desafioId]/page.tsx` | Fotos de comprovação de desafio surpresa |
+
+**Regra para código novo:** qualquer tela que exiba foto corporal, foto de evolução ou comprovante (imagem vinda de `src/lib/storage/fotos.ts`, `jornada-desafio.ts` ou `comprovantes-*.ts`) deve usar `ImagemSensivel`, não `next/image` direto. Imagens não sensíveis (foto de perfil, upload próprio de post, emblemas) continuam com `next/image` normal. Observação: em dev, `next.config.ts` já desliga a otimização para todas as imagens (`images.unoptimized` fora de produção, por causa do problema do `sharp` no WSL2), então a diferença entre os dois componentes só aparece em build de produção.
+
 ## Configuração por ambiente
 
 | Arquivo | Quando é lido | Propósito |

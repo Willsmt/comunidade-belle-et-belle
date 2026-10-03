@@ -59,3 +59,4 @@ skills-lock.json
 .claude/skills/prisma-*
 .claude/skills/load-testing-geral/
 graphify-out/
+.claude/agent-memory/
