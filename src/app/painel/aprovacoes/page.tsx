@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { listarPendentes, listarComprovacoesPendentes } from "./queries";
 import { rejeitarConta, rejeitarMarcacaoItem } from "./actions";
 import { rejeitarParticipacao } from "../desafios/[desafioId]/actions";
@@ -9,6 +8,7 @@ import { BotaoAprovarConta } from "./botao-aprovar-conta";
 import { BotaoAprovarMarcacaoItem } from "./botao-aprovar-marcacao-item";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 export default async function AprovacoesPage() {
   const [pendentes, { itens, participacoesSurpresa }] = await Promise.all([
@@ -85,7 +85,7 @@ export default async function AprovacoesPage() {
                         src={marcacao.fotoUrl}
                         alt="Comprovação enviada pela cliente"
                       >
-                        <Image
+                        <ImagemSensivel
                           src={marcacao.fotoUrl}
                           alt="Comprovação enviada pela cliente"
                           width={400}
@@ -134,7 +134,7 @@ export default async function AprovacoesPage() {
                         src={participacao.fotoUrl}
                         alt="Comprovação enviada pela cliente"
                       >
-                        <Image
+                        <ImagemSensivel
                           src={participacao.fotoUrl}
                           alt="Comprovação enviada pela cliente"
                           width={400}

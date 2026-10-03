@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { alternarVisibilidadeFoto, excluirFoto } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 function construirFormDataFoto(fotoId: string) {
   const formData = new FormData();
@@ -32,7 +32,7 @@ export function ItemFoto({
       <Card>
         <CardContent className="flex flex-col gap-2">
           <div className="relative aspect-square w-full">
-            <Image
+            <ImagemSensivel
               src={urlAssinada}
               alt="Foto de evolução"
               fill

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { Camera } from "lucide-react";
 import { enviarFotoAntes, enviarFotoDepois } from "./actions";
 import { FotoComZoom } from "@/components/foto-com-zoom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAcaoComErro } from "@/hooks/use-acao-com-erro";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 export function FotosJornada({
   fotoAntesUrl,
@@ -44,7 +44,7 @@ export function FotosJornada({
           {fotoAntesUrl ? (
             <div className="relative aspect-square w-full">
               <FotoComZoom src={fotoAntesUrl} alt="Foto de antes" fill>
-                <Image
+                <ImagemSensivel
                   src={fotoAntesUrl}
                   alt="Foto de antes"
                   fill
@@ -81,7 +81,7 @@ export function FotosJornada({
           {fotoDepoisUrl ? (
             <div className="relative aspect-square w-full">
               <FotoComZoom src={fotoDepoisUrl} alt="Foto de depois" fill>
-                <Image
+                <ImagemSensivel
                   src={fotoDepoisUrl}
                   alt="Foto de depois"
                   fill

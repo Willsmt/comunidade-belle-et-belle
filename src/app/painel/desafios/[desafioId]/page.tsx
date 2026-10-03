@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { obterDesafioComCategorias } from "./queries";
 import { listarEmblemas } from "../emblemas/queries";
 import {
@@ -18,6 +17,7 @@ import { FormularioCriarRegraCategoriaCompleta } from "./formulario-criar-regra-
 import { FormularioCriarDesafioSurpresa } from "./formulario-criar-desafio-surpresa";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 export default async function DesafioDetalhePage({
   params,
@@ -251,7 +251,7 @@ export default async function DesafioDetalhePage({
                             </Badge>
                           </div>
                           {participacao.fotoUrl && (
-                            <Image
+                            <ImagemSensivel
                               src={participacao.fotoUrl}
                               alt="Comprovação enviada pela cliente"
                               width={400}

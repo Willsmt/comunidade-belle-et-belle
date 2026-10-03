@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { obterIconeEmblema } from "@/lib/emblemas/icones";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 export default async function PerfilPublicoPage({
   params,
@@ -118,7 +119,7 @@ export default async function PerfilPublicoPage({
               {perfil.fotos.map((foto) => (
                 <li key={foto.id} className="relative aspect-square w-full">
                   <FotoComZoom src={foto.urlAssinada} alt="Foto de evolução" fill>
-                    <Image
+                    <ImagemSensivel
                       src={foto.urlAssinada}
                       alt="Foto de evolução"
                       fill

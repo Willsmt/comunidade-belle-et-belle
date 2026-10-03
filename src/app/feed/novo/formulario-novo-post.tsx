@@ -2,10 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { unstable_rethrow } from "next/navigation";
-import Image from "next/image";
 import { criarPost } from "../actions";
 import type { listarFotosEvolucaoDoUsuario } from "../queries";
 import { Button } from "@/components/ui/button";
+import { ImagemSensivel } from "@/components/imagem-sensivel";
 
 export function FormularioNovoPost({
   fotosEvolucao,
@@ -79,7 +79,7 @@ export function FormularioNovoPost({
                   value={foto.id}
                   className="sr-only"
                 />
-                <Image
+                <ImagemSensivel
                   src={foto.urlAssinada}
                   alt="Foto de evolução"
                   width={80}
