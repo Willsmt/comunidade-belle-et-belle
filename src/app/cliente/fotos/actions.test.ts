@@ -174,7 +174,7 @@ describe("alternarVisibilidadeFoto", () => {
     await alternarVisibilidadeFoto(buildFormDataComId("foto-x"));
 
     expect(mockPostDeleteMany).toHaveBeenCalledWith({
-      where: { fotoEvolucaoId: "foto-x" },
+      where: { fotoEvolucaoId: "foto-x", autorId: "cliente-1" },
     });
     expect(mockUpdate).toHaveBeenCalledWith({
       where: { id: "foto-x" },
@@ -237,7 +237,7 @@ describe("excluirFoto", () => {
     await excluirFoto(buildFormDataComId("foto-x"));
 
     expect(mockPostDeleteMany).toHaveBeenCalledWith({
-      where: { fotoEvolucaoId: "foto-x" },
+      where: { fotoEvolucaoId: "foto-x", autorId: "cliente-1" },
     });
     expect(mockDelete).toHaveBeenCalledWith({ where: { id: "foto-x" } });
     expect(mockTransaction).toHaveBeenCalledWith([

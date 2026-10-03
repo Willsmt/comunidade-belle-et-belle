@@ -48,7 +48,7 @@ export async function alternarVisibilidadeFoto(formData: FormData) {
       // Post só pode usar foto pública: ao torná-la privada, os posts que a
       // usam saem do feed na mesma transação. O objeto no R2 não é apagado.
       await prisma.$transaction([
-        prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId } }),
+        prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId, autorId: session.user.id } }),
         prisma.fotoEvolucao.update({
           where: { id: fotoId },
           data: { publica: false },
@@ -80,7 +80,7 @@ export async function excluirFoto(formData: FormData) {
     const foto = await obterFotoDoUsuario(fotoId, session.user.id);
 
     await prisma.$transaction([
-      prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId } }),
+      prisma.post.deleteMany({ where: { fotoEvolucaoId: fotoId, autorId: session.user.id } }),
       prisma.fotoEvolucao.delete({ where: { id: fotoId } }),
     ]);
 
