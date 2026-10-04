@@ -7,6 +7,7 @@ import { listarPlanosRecebidos } from "./queries";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
 export default async function PlanosRecebidosPage() {
   const session = await auth();
@@ -50,7 +51,7 @@ export default async function PlanosRecebidosPage() {
                     <p className="font-heading text-base text-foreground">{plano.titulo}</p>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    {plano.parceria.name ?? plano.parceria.email}
+                    {nomeParaExibicao(plano.parceria.name)}
                   </p>
                   <a
                     href={plano.urlAssinada}

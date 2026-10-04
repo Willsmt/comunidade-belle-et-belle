@@ -189,6 +189,31 @@ describe("obterDesafioAtivoParaCliente", () => {
     );
   });
 
+  it("no ranking, usa 'Membra da comunidade' e nunca o email quando a cliente não tem name", async () => {
+    mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
+    mockFindFirst.mockResolvedValue({
+      id: "d1",
+      categorias: [],
+      dataInicio: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          clienteId: "cliente-2",
+          item: { pontos: 10 },
+          cliente: { id: "cliente-2", name: null, image: null, perfil: null },
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    mockJornadaFindUnique.mockResolvedValue(null);
+
+    const resultado = await obterDesafioAtivoParaCliente();
+
+    expect(resultado?.rankingSemanal[0]?.nome).toBe("Membra da comunidade");
+    expect(JSON.stringify(resultado)).not.toContain("@");
+  });
+
   it("no ranking, cai pro image do Google quando o cliente não tem fotoChave", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindFirst.mockResolvedValue({

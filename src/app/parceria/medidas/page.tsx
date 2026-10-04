@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listarClientesVinculadas } from "./queries";
 import { Card, CardContent } from "@/components/ui/card";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
 export default async function MedidasParceriaPage() {
   const clientes = await listarClientesVinculadas();
@@ -21,7 +22,7 @@ export default async function MedidasParceriaPage() {
                 <Card className="transition-colors hover:bg-accent">
                   <CardContent>
                     <span className="text-sm font-medium text-foreground">
-                      {cliente.name ?? cliente.email}
+                      {nomeParaExibicao(cliente.name)}
                     </span>
                   </CardContent>
                 </Card>

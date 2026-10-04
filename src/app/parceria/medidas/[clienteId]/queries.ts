@@ -17,7 +17,7 @@ export async function obterMedidasDaCliente(clienteId: string) {
   const [cliente, medidas] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: clienteId },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true },
     }),
     prisma.registroMedida.findMany({
       where: { clienteId },

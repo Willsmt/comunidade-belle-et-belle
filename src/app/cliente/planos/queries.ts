@@ -12,7 +12,7 @@ export async function listarPlanosRecebidos() {
   const planos = await prisma.planoRecebido.findMany({
     where: { clienteId: session.user.id },
     orderBy: { enviadoEm: "desc" },
-    include: { parceria: { select: { id: true, name: true, email: true } } },
+    include: { parceria: { select: { id: true, name: true } } },
   });
 
   return Promise.all(

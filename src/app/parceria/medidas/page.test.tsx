@@ -21,8 +21,8 @@ describe("MedidasParceriaPage", () => {
 
   it("lista as clientes vinculadas, cada uma como link para o detalhe", async () => {
     vi.mocked(listarClientesVinculadas).mockResolvedValue([
-      { id: "c1", name: "Cliente 1", email: "c1@x.com" },
-      { id: "c2", name: null, email: "c2@x.com" },
+      { id: "c1", name: "Cliente 1" },
+      { id: "c2", name: null },
     ]);
 
     render(await MedidasParceriaPage());
@@ -30,7 +30,7 @@ describe("MedidasParceriaPage", () => {
     const link1 = screen.getByRole("link", { name: "Cliente 1" });
     expect(link1).toHaveAttribute("href", "/parceria/medidas/c1");
 
-    const link2 = screen.getByRole("link", { name: "c2@x.com" });
+    const link2 = screen.getByRole("link", { name: "Membra da comunidade" });
     expect(link2).toHaveAttribute("href", "/parceria/medidas/c2");
   });
 });

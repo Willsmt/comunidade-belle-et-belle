@@ -31,17 +31,17 @@ describe("listarClientesVinculadas", () => {
   it("busca só vínculos ativos da parceria logada e retorna as clientes", async () => {
     mockAuth.mockResolvedValue({ user: { id: "parceria-1" } });
     mockFindManyVinculo.mockResolvedValue([
-      { cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" } },
+      { cliente: { id: "c1", name: "Cliente 1" } },
     ]);
 
     const resultado = await listarClientesVinculadas();
 
     expect(mockFindManyVinculo).toHaveBeenCalledWith({
       where: { parceriaId: "parceria-1", ativo: true },
-      include: { cliente: { select: { id: true, name: true, email: true } } },
+      include: { cliente: { select: { id: true, name: true } } },
       orderBy: { criadoEm: "asc" },
     });
-    expect(resultado).toEqual([{ id: "c1", name: "Cliente 1", email: "c1@x.com" }]);
+    expect(resultado).toEqual([{ id: "c1", name: "Cliente 1" }]);
   });
 });
 
@@ -60,7 +60,7 @@ describe("listarPlanosEnviados", () => {
     expect(mockFindManyPlano).toHaveBeenCalledWith({
       where: { parceriaId: "parceria-1" },
       orderBy: { enviadoEm: "desc" },
-      include: { cliente: { select: { id: true, name: true, email: true } } },
+      include: { cliente: { select: { id: true, name: true } } },
     });
   });
 });

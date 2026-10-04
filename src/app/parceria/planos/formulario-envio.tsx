@@ -4,8 +4,9 @@ import { useRef, useState, useTransition } from "react";
 import { enviarPlano } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
-type Cliente = { id: string; name: string | null; email: string };
+type Cliente = { id: string; name: string | null };
 
 export function FormularioEnvio({ clientes }: { clientes: Cliente[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -54,7 +55,7 @@ export function FormularioEnvio({ clientes }: { clientes: Cliente[] }) {
           <option value="">Selecione</option>
           {clientes.map((cliente) => (
             <option key={cliente.id} value={cliente.id}>
-              {cliente.name ?? cliente.email}
+              {nomeParaExibicao(cliente.name)}
             </option>
           ))}
         </select>

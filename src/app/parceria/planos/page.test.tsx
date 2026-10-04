@@ -34,7 +34,7 @@ describe("PlanosPage", () => {
 
   it("renderiza o formulário com as clientes vinculadas", async () => {
     vi.mocked(listarClientesVinculadas).mockResolvedValue([
-      { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+      { id: "c1", name: "Cliente 1" },
     ]);
     vi.mocked(listarPlanosEnviados).mockResolvedValue([]);
 
@@ -46,6 +46,23 @@ describe("PlanosPage", () => {
     expect(screen.getByText("Cliente 1")).toBeInTheDocument();
   });
 
+  it("usa 'Membra da comunidade' quando a cliente não tem nome (formulário e histórico)", async () => {
+    vi.mocked(listarClientesVinculadas).mockResolvedValue([{ id: "c1", name: null }]);
+    vi.mocked(listarPlanosEnviados).mockResolvedValue([
+      {
+        id: "p1",
+        tipo: "TREINO",
+        titulo: null,
+        enviadoEm: new Date("2026-02-01"),
+        cliente: { id: "c1", name: null },
+      } as never,
+    ]);
+
+    render(await PlanosPage());
+
+    expect(screen.getAllByText("Membra da comunidade").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("renderiza o histórico de planos enviados", async () => {
     vi.mocked(listarClientesVinculadas).mockResolvedValue([]);
     vi.mocked(listarPlanosEnviados).mockResolvedValue([
@@ -54,7 +71,7 @@ describe("PlanosPage", () => {
         tipo: "TREINO",
         titulo: "Fase 2",
         enviadoEm: new Date("2026-02-01"),
-        cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+        cliente: { id: "c1", name: "Cliente 1" },
       } as never,
     ]);
 

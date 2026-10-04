@@ -2,6 +2,7 @@ import { listarClientesVinculadas, listarPlanosEnviados } from "./queries";
 import { FormularioEnvio } from "./formulario-envio";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
 export default async function PlanosPage() {
   const [clientes, planos] = await Promise.all([
@@ -37,7 +38,7 @@ export default async function PlanosPage() {
                 <CardContent className="flex items-center justify-between gap-2">
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-foreground">
-                      {plano.cliente.name ?? plano.cliente.email}
+                      {nomeParaExibicao(plano.cliente.name)}
                     </span>
                     {plano.titulo && (
                       <span className="text-xs text-muted-foreground">{plano.titulo}</span>

@@ -42,7 +42,7 @@ describe("listarPlanosRecebidos", () => {
     expect(mockFindMany).toHaveBeenCalledWith({
       where: { clienteId: "cliente-1" },
       orderBy: { enviadoEm: "desc" },
-      include: { parceria: { select: { id: true, name: true, email: true } } },
+      include: { parceria: { select: { id: true, name: true } } },
     });
     expect(resultado[0]?.urlAssinada).toBe("https://url-assinada.exemplo");
   });

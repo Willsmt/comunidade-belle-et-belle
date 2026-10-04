@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { obterDataDeHoje } from "@/lib/hoje";
 import { gerarUrlAssinada } from "@/lib/storage/jornada-desafio";
 import { gerarUrlAssinadaCacheavel as gerarUrlAssinadaPerfil } from "@/lib/storage/perfil";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
 function calcularSemanaAtual(dataInicio: Date, hoje: Date) {
   const diffDias = Math.floor(
@@ -22,7 +23,6 @@ async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: D
   const selecaoCliente = {
     id: true,
     name: true,
-    email: true,
     image: true,
     perfil: { select: { fotoChave: true } },
   } as const;
@@ -62,14 +62,13 @@ async function calcularRanking(desafioId: string, dataInicio?: Date, dataFim?: D
     clienteId: string,
     cliente: {
       name: string | null;
-      email: string;
       image: string | null;
       perfil: { fotoChave: string | null } | null;
     },
   ) {
     return (
       pontosPorCliente.get(clienteId) ?? {
-        nome: cliente.name ?? cliente.email,
+        nome: nomeParaExibicao(cliente.name),
         pontos: 0,
         image: cliente.image,
         fotoChave: cliente.perfil?.fotoChave ?? null,

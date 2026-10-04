@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { obterMedidasDaCliente } from "./queries";
 import { Card, CardContent } from "@/components/ui/card";
+import { nomeParaExibicao } from "@/lib/nome-exibicao";
 
 type Decimal = { toString(): string };
 type Medida = Awaited<ReturnType<typeof obterMedidasDaCliente>>["medidas"][number];
@@ -46,7 +47,7 @@ export default async function MedidasDaClientePage({
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
       <h1 className="font-heading text-2xl text-foreground">
-        Medidas — {cliente.name ?? cliente.email}
+        Medidas — {nomeParaExibicao(cliente.name)}
       </h1>
 
       {medidas.length === 0 ? (

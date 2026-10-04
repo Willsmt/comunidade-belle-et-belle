@@ -10,7 +10,7 @@ export async function listarClientesVinculadas() {
 
   const vinculos = await prisma.vinculoParceria.findMany({
     where: { parceriaId: session.user.id, ativo: true },
-    include: { cliente: { select: { id: true, name: true, email: true } } },
+    include: { cliente: { select: { id: true, name: true } } },
     orderBy: { criadoEm: "asc" },
   });
 
@@ -27,6 +27,6 @@ export async function listarPlanosEnviados() {
   return prisma.planoRecebido.findMany({
     where: { parceriaId: session.user.id },
     orderBy: { enviadoEm: "desc" },
-    include: { cliente: { select: { id: true, name: true, email: true } } },
+    include: { cliente: { select: { id: true, name: true } } },
   });
 }

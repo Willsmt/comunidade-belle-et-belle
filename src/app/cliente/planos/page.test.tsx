@@ -43,7 +43,7 @@ describe("PlanosRecebidosPage", () => {
         tipo: "DIETA",
         titulo: "Fase 2",
         enviadoEm: new Date("2026-02-01"),
-        parceria: { id: "parceria-1", name: "Nutri Ana", email: "ana@x.com" },
+        parceria: { id: "parceria-1", name: "Nutri Ana" },
         urlAssinada: "https://exemplo/plano.pdf",
       } as never,
     ]);
@@ -55,6 +55,21 @@ describe("PlanosRecebidosPage", () => {
       "href",
       "https://exemplo/plano.pdf",
     );
+  });
+
+  it("mostra 'Membra da comunidade' quando a parceria não tem nome", async () => {
+    vi.mocked(listarPlanosRecebidos).mockResolvedValue([
+      {
+        id: "p1",
+        tipo: "DIETA",
+        titulo: null,
+        enviadoEm: new Date("2026-02-01"),
+        parceria: { id: "parceria-1", name: null },
+        urlAssinada: "https://exemplo/plano.pdf",
+      } as never,
+    ]);
+    render(await PlanosRecebidosPage());
+    expect(screen.getByText("Membra da comunidade")).toBeInTheDocument();
   });
 
   it("redireciona quem não tem papel CLIENTE, sem buscar os planos", async () => {

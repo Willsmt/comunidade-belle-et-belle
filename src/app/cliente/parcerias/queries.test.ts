@@ -35,7 +35,6 @@ describe("listarParceriasVinculadas", () => {
         parceria: {
           id: "parceria-1",
           name: "Fulana Nutri",
-          email: "fulana@x.com",
           perfilParceria: {
             especialidade: "Nutrição",
             bio: "Cuido de dieta",
@@ -53,7 +52,7 @@ describe("listarParceriasVinculadas", () => {
       orderBy: { criadoEm: "asc" },
       include: {
         parceria: {
-          select: { id: true, name: true, email: true, perfilParceria: true },
+          select: { id: true, name: true, perfilParceria: true },
         },
       },
     });
@@ -68,14 +67,13 @@ describe("listarParceriasVinculadas", () => {
     ]);
   });
 
-  it("usa o email como nome quando não há name, e não chama signed URL sem fotoChave", async () => {
+  it("usa o fallback Membra da comunidade (nunca o email) sem name, e não chama signed URL sem fotoChave", async () => {
     mockAuth.mockResolvedValue({ user: { id: "cliente-1" } });
     mockFindMany.mockResolvedValue([
       {
         parceria: {
           id: "parceria-2",
           name: null,
-          email: "parceria2@x.com",
           perfilParceria: null,
         },
       },
@@ -86,7 +84,7 @@ describe("listarParceriasVinculadas", () => {
     expect(mockGerarUrlAssinada).not.toHaveBeenCalled();
     expect(resultado[0]).toEqual({
       id: "parceria-2",
-      nome: "parceria2@x.com",
+      nome: "Membra da comunidade",
       especialidade: null,
       bio: null,
       fotoUrl: null,

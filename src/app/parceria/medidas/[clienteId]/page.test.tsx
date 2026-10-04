@@ -21,7 +21,7 @@ function dec(valor: number) {
 describe("MedidasDaClientePage", () => {
   it("renderiza o nome da cliente e o histórico completo, incluindo os dois lados de uma medida de membro", async () => {
     vi.mocked(obterMedidasDaCliente).mockResolvedValue({
-      cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+      cliente: { id: "c1", name: "Cliente 1" },
       medidas: [
         {
           id: "m1",
@@ -68,7 +68,7 @@ describe("MedidasDaClientePage", () => {
 
   it("mostra estado vazio quando a cliente não tem nenhum registro", async () => {
     vi.mocked(obterMedidasDaCliente).mockResolvedValue({
-      cliente: { id: "c1", name: "Cliente 1", email: "c1@x.com" },
+      cliente: { id: "c1", name: "Cliente 1" },
       medidas: [],
     });
 
