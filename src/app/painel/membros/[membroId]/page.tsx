@@ -6,12 +6,15 @@ import { BotaoMarcarSessao } from "./botao-marcar-sessao";
 import { BotaoDesfazerSessao } from "./botao-desfazer-sessao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function MembroPacotePage({
   params,
 }: {
   params: Promise<{ membroId: string }>;
 }) {
+  await requererAcessoPainelOuRedirecionar();
+
   const { membroId } = await params;
 
   const [membro, cicloAtivo, tiposPacote, historicoCiclos] = await Promise.all([

@@ -4,8 +4,11 @@ import { FormularioCriarTipoPacote } from "./formulario-criar-tipo-pacote";
 import { LinhaTipoSessao } from "./linha-tipo-sessao";
 import { LinhaTipoPacote } from "./linha-tipo-pacote";
 import { Card, CardContent } from "@/components/ui/card";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function PacotesPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [tiposSessao, tiposPacote] = await Promise.all([
     listarTiposSessao(),
     listarTiposPacote(),

@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 function sessaoDe(userId: string, papeis: string[]) {
-  return { user: { id: userId, papeis } };
+  return { user: { id: userId, status: "ATIVO", papeis } };
 }
 
 describe("excluirTipoSessao (Postgres real)", () => {

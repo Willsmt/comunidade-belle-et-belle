@@ -1,4 +1,8 @@
 // @vitest-environment jsdom
+vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
+
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import VinculosPage from "./page";

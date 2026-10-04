@@ -1,6 +1,9 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 
-export function obterMembro(clienteId: string) {
+export async function obterMembro(clienteId: string) {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.user.findUnique({
     where: { id: clienteId },
     select: { id: true, name: true, email: true },
@@ -8,6 +11,8 @@ export function obterMembro(clienteId: string) {
 }
 
 export async function obterCicloAtivo(clienteId: string) {
+  await requererAcessoPainelOuRedirecionar();
+
   const ciclo = await prisma.cicloPacote.findFirst({
     where: { clienteId, ativo: true },
     include: {
@@ -44,6 +49,8 @@ export async function obterCicloAtivo(clienteId: string) {
 }
 
 export async function listarHistoricoCiclos(clienteId: string) {
+  await requererAcessoPainelOuRedirecionar();
+
   const ciclos = await prisma.cicloPacote.findMany({
     where: { clienteId },
     orderBy: { criadoEm: "desc" },

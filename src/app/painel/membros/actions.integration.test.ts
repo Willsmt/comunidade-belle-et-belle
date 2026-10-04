@@ -148,7 +148,7 @@ describe("deletarMembro (Postgres real)", () => {
   it("passa ao helper todas as chaves de R2 da usuária e não deixa nenhum registro dela", async () => {
     const { admin, cliente, outra } = await cenario();
     mockAuth.mockResolvedValue({
-      user: { id: admin.id, papeis: ["ADMIN"] },
+      user: { id: admin.id, status: "ATIVO", papeis: ["ADMIN"] },
     });
     mockApagarObjeto.mockResolvedValue(undefined);
 

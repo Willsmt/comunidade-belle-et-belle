@@ -1,8 +1,11 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada as gerarUrlAssinadaItem } from "@/lib/storage/comprovantes-item-desafio";
 import { gerarUrlAssinada as gerarUrlAssinadaSurpresa } from "@/lib/storage/comprovantes-surpresa";
 
-export function listarPendentes() {
+export async function listarPendentes() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.user.findMany({
     where: { status: "PENDENTE" },
     orderBy: { criadoEm: "asc" },
@@ -11,6 +14,8 @@ export function listarPendentes() {
 }
 
 export async function listarComprovacoesPendentes() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [marcacoesPendentes, participacoesPendentes] = await Promise.all([
     prisma.marcacaoItem.findMany({
       where: { validado: false },

@@ -1,6 +1,9 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 
-export function listarVinculos() {
+export async function listarVinculos() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.vinculoParceria.findMany({
     orderBy: { criadoEm: "desc" },
     include: {
@@ -11,6 +14,8 @@ export function listarVinculos() {
 }
 
 export async function listarClientesEParcerias() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [clientes, parcerias] = await Promise.all([
     prisma.user.findMany({
       where: { status: "ATIVO", papeis: { some: { papel: "CLIENTE" } } },

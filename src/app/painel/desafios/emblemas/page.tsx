@@ -3,8 +3,11 @@ import { removerEmblema } from "./actions";
 import { BotaoComConfirmacao } from "@/components/botao-com-confirmacao";
 import { FormularioCriarEmblema } from "./formulario-criar-emblema";
 import { Card, CardContent } from "@/components/ui/card";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function EmblemasPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const emblemas = await listarEmblemas();
 
   return (

@@ -1,3 +1,8 @@
+vi.mock("@/lib/auth/requerer-acesso-painel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/requerer-acesso-painel")>()),
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
@@ -92,7 +97,7 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
 
     mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-x/abc.webp");
     mockGerarUrlAssinadaItem.mockResolvedValue("https://url-assinada.exemplo");
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
     const arquivo = new File(["conteudo"], "foto.png", { type: "image/png" });
     const formData = new FormData();
     formData.set("foto", arquivo);
@@ -106,7 +111,7 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
       where: { itemId: item.id, clienteId: cliente.id },
     });
 
-    mockAuth.mockResolvedValue({ user: { id: patty.id, papeis: ["ADMIN"] } });
+    mockAuth.mockResolvedValue({ user: { id: patty.id, status: "ATIVO", papeis: ["ADMIN"] } });
     await aprovarMarcacaoItem(marcacaoPendente.id);
 
     const marcacaoAprovada = await prisma.marcacaoItem.findUniqueOrThrow({
@@ -119,7 +124,7 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
       "aprovarMarcacaoItem",
     );
 
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
     const resultado = await obterDesafioAtivoParaCliente();
     expect(resultado?.rankingGeral).toEqual(
       expect.arrayContaining([
@@ -136,14 +141,14 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
         exigeFoto: true,
       },
     });
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
     mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-x/def.webp");
     await marcarItemComFoto(item2.id, formData);
     const marcacaoParaRejeitar = await prisma.marcacaoItem.findFirstOrThrow({
       where: { itemId: item2.id, clienteId: cliente.id },
     });
 
-    mockAuth.mockResolvedValue({ user: { id: patty.id, papeis: ["ADMIN"] } });
+    mockAuth.mockResolvedValue({ user: { id: patty.id, status: "ATIVO", papeis: ["ADMIN"] } });
     await rejeitarMarcacaoItem(marcacaoParaRejeitar.id);
 
     expect(
@@ -154,7 +159,7 @@ describe("listarComprovacoesPendentes → aprovar/rejeitar (Postgres real)", () 
       "rejeitarMarcacaoItem",
     );
 
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
     mockUploadComprovanteItem.mockResolvedValue("comprovantes-item/cliente-x/ghi.webp");
     await marcarItemComFoto(item2.id, formData);
     const novaMarcacao = await prisma.marcacaoItem.findFirstOrThrow({

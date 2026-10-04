@@ -1,12 +1,17 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 
-export function listarTiposSessao() {
+export async function listarTiposSessao() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.tipoSessao.findMany({
     orderBy: { nome: "asc" },
   });
 }
 
-export function listarTiposPacote() {
+export async function listarTiposPacote() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.tipoPacote.findMany({
     orderBy: { criadoEm: "desc" },
     include: {

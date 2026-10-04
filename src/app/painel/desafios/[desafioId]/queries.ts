@@ -1,7 +1,10 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 import { gerarUrlAssinada } from "@/lib/storage/comprovantes-surpresa";
 
 export async function obterDesafioComCategorias(desafioId: string) {
+  await requererAcessoPainelOuRedirecionar();
+
   const desafio = await prisma.desafio.findUnique({
     where: { id: desafioId },
     include: {

@@ -24,7 +24,7 @@ function buildFormData(campos: Record<string, string>) {
 }
 
 function sessaoDe(userId: string, papeis: string[]) {
-  return { user: { id: userId, papeis } };
+  return { user: { id: userId, status: "ATIVO", papeis } };
 }
 
 describe("regra de bônus conectada a um emblema até a Conquista (Postgres real)", () => {

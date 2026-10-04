@@ -18,12 +18,15 @@ import { FormularioCriarDesafioSurpresa } from "./formulario-criar-desafio-surpr
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ImagemSensivel } from "@/components/imagem-sensivel";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function DesafioDetalhePage({
   params,
 }: {
   params: Promise<{ desafioId: string }>;
 }) {
+  await requererAcessoPainelOuRedirecionar();
+
   const { desafioId } = await params;
   const desafio = await obterDesafioComCategorias(desafioId);
 

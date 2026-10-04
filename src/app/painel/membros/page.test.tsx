@@ -28,6 +28,10 @@ vi.mock("./actions", () => ({
   revogarGestora: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
+
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
 }));

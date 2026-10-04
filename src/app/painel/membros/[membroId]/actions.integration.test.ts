@@ -5,6 +5,10 @@ import { limparBanco } from "@/test-utils/db";
 const { mockAuth } = vi.hoisted(() => ({ mockAuth: vi.fn() }));
 
 vi.mock("@/auth", () => ({ auth: mockAuth }));
+vi.mock("@/lib/auth/requerer-acesso-painel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/requerer-acesso-painel")>()),
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { vincularPacote, marcarSessaoRealizada, desfazerSessaoRealizada } from "./actions";
@@ -15,7 +19,7 @@ afterEach(async () => {
 });
 
 function sessaoDe(userId: string, papeis: string[]) {
-  return { user: { id: userId, papeis } };
+  return { user: { id: userId, status: "ATIVO", papeis } };
 }
 
 describe("fluxo de pacote de sessões (Postgres real)", () => {

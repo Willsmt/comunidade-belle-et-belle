@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { limparBanco } from "@/test-utils/db";
 import { listarDesafios } from "./queries";

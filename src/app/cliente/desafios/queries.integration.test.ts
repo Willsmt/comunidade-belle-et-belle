@@ -129,7 +129,7 @@ describe("marcarItemComFoto até o ranking (Postgres real)", () => {
     const cliente = await prisma.user.create({
       data: { email: "cliente@x.com", status: "ATIVO", name: "Cliente X" },
     });
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     const desafio = await prisma.desafio.create({
       data: {

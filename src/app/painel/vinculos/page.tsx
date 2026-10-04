@@ -6,8 +6,11 @@ import { FormularioCriarVinculo } from "./formulario-criar-vinculo";
 import { BotaoReativarVinculo } from "./botao-reativar-vinculo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function VinculosPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [vinculos, { clientes, parcerias }] = await Promise.all([
     listarVinculos(),
     listarClientesEParcerias(),

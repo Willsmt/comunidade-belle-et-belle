@@ -25,7 +25,7 @@ async function criarParceriaClienteEVinculo(ativo = true) {
 }
 
 function mockSessaoParceria(parceriaId: string) {
-  mockAuth.mockResolvedValue({ user: { id: parceriaId, papeis: ["PARCERIA"] } });
+  mockAuth.mockResolvedValue({ user: { id: parceriaId, status: "ATIVO", papeis: ["PARCERIA"] } });
 }
 
 describe("obterMedidasDaCliente (Postgres real)", () => {

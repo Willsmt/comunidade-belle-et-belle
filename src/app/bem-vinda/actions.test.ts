@@ -37,4 +37,13 @@ describe("aceitarTermo", () => {
     });
     expect(resultado).toEqual({ ok: true });
   });
+
+  // /bem-vinda e /aguardando-aprovacao não passam pelos gates estritos
+  // (requererSessao/requererPapel exigem ATIVO): aceitarTermo usa auth() direto.
+  it.each(["PENDENTE", "SUSPENSO"])("não depende do gate estrito: funciona com conta %s", async (status) => {
+    mockAuth.mockResolvedValue({ user: { id: "user-1", status } });
+    mockUpsert.mockResolvedValue({});
+
+    await expect(aceitarTermo()).resolves.toEqual({ ok: true });
+  });
 });

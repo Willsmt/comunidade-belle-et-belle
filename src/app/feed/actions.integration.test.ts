@@ -47,7 +47,7 @@ async function criarUsuario(email: string, name: string) {
 }
 
 function sessaoDe(userId: string, papeis: string[] = ["CLIENTE"]) {
-  return { user: { id: userId, papeis } };
+  return { user: { id: userId, status: "ATIVO", papeis } };
 }
 
 function formDataTexto(texto: string) {

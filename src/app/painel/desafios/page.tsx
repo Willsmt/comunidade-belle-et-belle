@@ -7,8 +7,11 @@ import { FormularioCriarDesafio } from "./formulario-criar-desafio";
 import { BotaoReabrirDesafio } from "./botao-reabrir-desafio";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function DesafiosPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [desafios, emblemas] = await Promise.all([listarDesafios(), listarEmblemas()]);
 
   return (

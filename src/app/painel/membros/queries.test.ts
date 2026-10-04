@@ -1,3 +1,7 @@
+vi.mock("@/lib/auth/requerer-acesso-painel", () => ({
+  requererAcessoPainelOuRedirecionar: vi.fn(),
+}));
+
 import { describe, expect, it, vi } from "vitest";
 const { mockFindMany, mockCount } = vi.hoisted(() => ({
   mockFindMany: vi.fn(),

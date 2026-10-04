@@ -1,6 +1,9 @@
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 import { prisma } from "@/lib/prisma";
 
-export function contarAdminsGestorasAtivos() {
+export async function contarAdminsGestorasAtivos() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.user.count({
     where: {
       status: "ATIVO",
@@ -9,7 +12,9 @@ export function contarAdminsGestorasAtivos() {
   });
 }
 
-export function listarMembros() {
+export async function listarMembros() {
+  await requererAcessoPainelOuRedirecionar();
+
   return prisma.user.findMany({
     where: { status: { in: ["ATIVO", "SUSPENSO"] } },
     orderBy: { name: "asc" },

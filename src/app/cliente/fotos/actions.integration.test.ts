@@ -57,7 +57,7 @@ async function cenario() {
   await prisma.comentario.create({
     data: { postId: post2.id, autorId: outraPessoa.id, texto: "linda" },
   });
-  mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+  mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
   return { cliente, foto, outraFoto, post1, post2, postOutraFoto };
 }
 

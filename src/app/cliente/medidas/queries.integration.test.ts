@@ -74,7 +74,7 @@ describe("listarMedidas (Postgres real)", () => {
     const cliente = await prisma.user.create({
       data: { email: "cliente-bilateral@example.com", status: "ATIVO", name: "Cliente Bilateral" },
     });
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     await criarRegistroMedida(
       buildFormData({
@@ -100,7 +100,7 @@ describe("listarMedidas (Postgres real)", () => {
     const registro = await prisma.registroMedida.create({
       data: { clienteId: cliente.id, bracoEsquerdo: 99.98 },
     });
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     await editarRegistroMedida(registro.id, buildFormData({ bracoEsquerdo: "100" }));
 
@@ -119,7 +119,7 @@ describe("listarMedidas (Postgres real)", () => {
     const registro = await prisma.registroMedida.create({
       data: { clienteId: cliente.id, peso: 60 },
     });
-    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     await expect(
       editarRegistroMedida(registro.id, buildFormData({ peso: "70" })),
@@ -138,7 +138,7 @@ describe("listarMedidas (Postgres real)", () => {
     const registro = await prisma.registroMedida.create({
       data: { clienteId: cliente.id, peso: 60 },
     });
-    mockAuth.mockResolvedValue({ user: { id: cliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: cliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     await excluirRegistroMedida(registro.id);
 
@@ -156,7 +156,7 @@ describe("listarMedidas (Postgres real)", () => {
     const registro = await prisma.registroMedida.create({
       data: { clienteId: cliente.id, peso: 60 },
     });
-    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, papeis: ["CLIENTE"] } });
+    mockAuth.mockResolvedValue({ user: { id: outraCliente.id, status: "ATIVO", papeis: ["CLIENTE"] } });
 
     await expect(excluirRegistroMedida(registro.id)).rejects.toThrow(
       "Registro não encontrado",

@@ -16,8 +16,11 @@ import { BotaoAcaoMembro } from "./botao-acao-membro";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function MembrosPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [membros, totalAdminsGestorasAtivos, session] = await Promise.all([
     listarMembros(),
     contarAdminsGestorasAtivos(),

@@ -9,8 +9,11 @@ import { BotaoAprovarMarcacaoItem } from "./botao-aprovar-marcacao-item";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ImagemSensivel } from "@/components/imagem-sensivel";
+import { requererAcessoPainelOuRedirecionar } from "@/lib/auth/requerer-acesso-painel";
 
 export default async function AprovacoesPage() {
+  await requererAcessoPainelOuRedirecionar();
+
   const [pendentes, { itens, participacoesSurpresa }] = await Promise.all([
     listarPendentes(),
     listarComprovacoesPendentes(),

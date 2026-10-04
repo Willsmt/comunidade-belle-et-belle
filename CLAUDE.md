@@ -98,10 +98,15 @@ Hook client-side usado por quase todo formulário/botão que chama uma Server Ac
 
 ### Gates de acesso (`src/lib/auth/`)
 
-- `requererSessao()` — exige qualquer sessão válida, lança `AppError("Acesso negado")` senão.
+- `requererSessao()` — exige sessão válida de conta com status `ATIVO`, lança `AppError("Acesso negado")` senão (`requererPapel` e `requererAcessoPainel` também exigem `ATIVO`).
 - `requererPapel(["CLIENTE"])` / `requererPapel(["GESTORA", "ADMIN"])` — exige que a sessão tenha pelo menos um dos papéis informados.
 - `requererAcessoPainel()` — atalho para `requererPapel(["GESTORA", "ADMIN"])`, usado em quase toda action de `painel/*`.
+- `requererAcessoPainelOuRedirecionar()` — mesma regra, mas redireciona para `/` em vez de lançar; é a variante para **leitura** (queries e `page.tsx` do painel).
 - Essas funções (em `src/lib/auth/requerer-acesso-painel.ts`) são para uso **dentro de Server Actions e queries** (lançam erro). As funções booleanas equivalentes para uso em **Server Components/layouts** (que redirecionam em vez de lançar) ficam em `src/lib/auth/pode-acessar-painel.ts`: `podeAcessarPainel`, `podeAcessarAreaCliente`, `podeAcessarAreaParceria`, `podeAcessarDesafiosCliente`.
+
+### Autorização perto dos dados
+
+Toda query, page e action que lê ou altera dado protegido chama o gate correspondente no início. Layout e middleware não são barreira de segurança.
 
 ### Padrão "um ativo por vez"
 
