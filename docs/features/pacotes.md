@@ -38,6 +38,8 @@ Ver [`docs/database.md`](../database.md#pacotes-de-sessões--ver-docsfeaturespac
 
 Todas as actions abaixo exigem `requererAcessoPainel()` (papéis `GESTORA`/`ADMIN`); as de gestão de gestoras exigem adicionalmente ser `ADMIN`.
 
+As leituras também têm gate próprio: `src/app/painel/pacotes/page.tsx` e `src/app/painel/membros/[membroId]/page.tsx` chamam `requererAcessoPainelOuRedirecionar()` no início, assim como `listarTiposSessao`, `listarTiposPacote`, `obterMembro`, `obterCicloAtivo` e `listarHistoricoCiclos`. Conta não `ATIVO` ou sem papel de painel é redirecionada para `/`. Ver [`docs/architecture.md`](../architecture.md#gates-de-acesso).
+
 | Action | O que faz | Models |
 | --- | --- | --- |
 | `criarTipoSessao` / `editarTipoSessao` | Cria/edita item do cardápio; nome duplicado vira erro amigável | `TipoSessao` |

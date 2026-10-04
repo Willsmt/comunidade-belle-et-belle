@@ -31,6 +31,7 @@ Ver [`docs/database.md`](../database.md#parcerias--ver-docsfeaturesparceriasmd).
 | --- | --- | --- | --- |
 | `atualizarPerfilParceria` | Upsert de `PerfilParceria`; troca de foto sobe a nova → grava no banco → só então apaga a antiga. Se o banco falhar, apaga a nova e relança | `requererPapel(["PARCERIA"])` | `PerfilParceria` |
 | `enviarPlano` | Valida cliente + tipo + arquivo, confere vínculo ativo, confere a cota de 24h da parceria (`garantirCotaPlanos`), sobe o PDF, cria `PlanoRecebido` (se o `create` falhar, apaga o PDF recém-enviado e relança o erro) | `requererPapel(["PARCERIA"])` | `VinculoParceria`, `PlanoRecebido` |
+| `GET /painel/vinculos` (leitura) | Lista vínculos (`listarVinculos`) e as opções do formulário (`listarClientesEParcerias`) | `requererAcessoPainelOuRedirecionar()` no `page.tsx` e nas duas queries (redireciona para `/`) | `VinculoParceria`, `User` |
 | `criarVinculo` | Cria o vínculo, ou reativa se já existir (mesmo par) | `requererAcessoPainel()` (GESTORA/ADMIN) | `VinculoParceria` |
 | `desativarVinculo` | `ativo: false` | `requererAcessoPainel()` | `VinculoParceria` |
 | `reativarVinculo` | `ativo: true` | `requererAcessoPainel()` | `VinculoParceria` |
@@ -99,6 +100,21 @@ O limite de 5MB não é mais o mesmo número do comentário de `next.config.ts` 
 - Em `enviarPlano` ela roda **depois** das validações de campos e da checagem de vínculo, e **antes** de `uploadPlano` — quando a cota estoura, nada é enviado ao R2.
 - `formulario-envio.tsx` exibe `error.message` da action (a mensagem da cota ou da validação do PDF); só cai no texto genérico "Confira os campos e o arquivo (PDF, até 5MB)" se o erro vier sem mensagem.
 - Visão geral de todas as cotas do projeto: [`docs/architecture.md`](../architecture.md#cotas-de-upload-por-usuária).
+
+## Nome exibido entre cliente e parceria
+
+**Em linguagem simples:** a cliente vê o nome da parceria, e a parceria vê o nome da cliente. Se alguém não tiver nome cadastrado, aparece "Membra da comunidade". O e-mail de uma não aparece para a outra.
+
+**Detalhe técnico.** As telas abaixo usam `nomeParaExibicao` (`src/lib/nome-exibicao.ts`) e as queries correspondentes selecionam só `id` e `name` do `User` do outro lado:
+
+| Tela | Query (campos do outro `User`) | Onde o nome é montado |
+| --- | --- | --- |
+| `/cliente/parcerias` | `listarParceriasVinculadas`: `parceria { id, name, perfilParceria }` | Na própria query (campo `nome`) |
+| `/cliente/planos` | `listarPlanosRecebidos`: `parceria { id, name }` | `src/app/cliente/planos/page.tsx` |
+| `/parceria/planos` (lista de enviados) | `listarPlanosEnviados`: `cliente { id, name }` | `src/app/parceria/planos/page.tsx` |
+| `/parceria/planos` (`<select>` de cliente) | `listarClientesVinculadas`: `cliente { id, name }` | `formulario-envio.tsx` (tipo `Cliente = { id; name }`) |
+
+A tela `/painel/vinculos` é da gestão e continua mostrando `name ?? email`. Regra geral em [`docs/architecture.md`](../architecture.md#nome-exibido-para-outra-usuária-nomeparaexibicao).
 
 ## Perfil da parceria (`PerfilParceria`)
 

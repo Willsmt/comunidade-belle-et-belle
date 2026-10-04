@@ -39,12 +39,12 @@ flowchart TD
         Feed["/feed<br/>(sem gate de papel, só sessão)"]
         Cliente["/cliente/*<br/>gate: podeAcessarDesafiosCliente<br/>(cliente/layout.tsx)"]
         Parceria["/parceria/*<br/>gate: podeAcessarAreaParceria<br/>(parceria/layout.tsx)"]
-        Painel["/painel/*<br/>gate: podeAcessarPainel<br/>(painel/layout.tsx)"]
+        Painel["/painel/*<br/>layout: podeAcessarPainel (painel/layout.tsx)<br/>page.tsx + queries.ts: requererAcessoPainelOuRedirecionar"]
         Perfil["/perfil/[clienteId]<br/>(sem gate de papel, qualquer sessão)"]
     end
 ```
 
-Cada layout (`cliente/layout.tsx`, `parceria/layout.tsx`, `painel/layout.tsx`) faz sua própria checagem de papel com `redirect("/")` caso negado — é uma segunda camada de defesa, redundante em relação ao middleware por desenho (o middleware cobre "a conta está numa situação que permite navegar", os layouts cobrem "o papel específico dessa área"). Dentro de cada página/Server Action, gates adicionais (`requererPapel`, `requererAcessoPainel`, `requererSessao`, todos em `src/lib/auth/requerer-acesso-painel.ts`) são a checagem que realmente importa para mutações — nenhuma escrita no banco confia só no layout.
+Cada layout (`cliente/layout.tsx`, `parceria/layout.tsx`, `painel/layout.tsx`) faz sua própria checagem de papel com `redirect("/")` caso negado. O middleware cobre "a conta está numa situação que permite navegar" e os layouts cobrem "o papel específico dessa área", mas os dois existem para **guiar a navegação** (mandar a pessoa para a tela certa e esconder menus), não como barreira de segurança. A regra do projeto é **autorização perto dos dados**: toda query, `page.tsx` e Server Action que lê ou altera dado protegido chama o gate correspondente (`requererPapel`, `requererAcessoPainel`, `requererAcessoPainelOuRedirecionar`, `requererSessao`, todos em `src/lib/auth/requerer-acesso-painel.ts`) logo no início, e esses gates conferem por conta própria o status `ATIVO` da conta e o papel. Detalhes em [Gates de acesso](#gates-de-acesso).
 
 ## Fluxo de autenticação e gates
 
@@ -94,7 +94,69 @@ export async function minhaAction() {
 
 ### Gates de acesso
 
-`requererPapel(papeis[])`, `requererAcessoPainel()` (atalho para `["GESTORA", "ADMIN"]`) e `requererSessao()` (`src/lib/auth/requerer-acesso-painel.ts`) são as funções que toda Server Action de escrita deve chamar antes de tocar no banco. Todas lançam `AppError("Acesso negado")` em caso de negação — nunca retornam um booleano silencioso.
+**Em linguagem simples:** cada "porta" que dá acesso a um dado (uma consulta, uma tela, um botão que grava algo) tem o próprio crachá-leitor. Não importa por qual corredor a pessoa chegou até ali: na porta, o sistema confere de novo se a conta está **ativa** (aprovada e não suspensa) e se ela tem o papel certo. Se não tiver, a porta não abre.
+
+**Detalhe técnico.** Todas as funções abaixo vivem em `src/lib/auth/requerer-acesso-painel.ts`, leem a sessão com `auth()` e passam pela mesma checagem interna `contaAtiva(session)` (`session.user.status === "ATIVO"`). Uma conta `PENDENTE` ou `SUSPENSO` é negada por qualquer uma delas, independente do que o middleware fez antes.
+
+| Função | Exige | Se negado | Onde usar |
+| --- | --- | --- | --- |
+| `requererSessao()` | Sessão de conta `ATIVO` (qualquer papel) | Lança `AppError("Acesso negado")` | Server Actions abertas a qualquer membra ativa, sem papel específico (hoje: `src/app/feed/actions.ts`) |
+| `requererPapel(papeis[])` | Conta `ATIVO` + pelo menos um dos papéis informados (`temAlgumPapel`) | Lança `AppError("Acesso negado")` | Server Actions e queries das áreas `cliente/*` e `parceria/*` |
+| `requererAcessoPainel()` | Atalho para `requererPapel(["GESTORA", "ADMIN"])` | Lança `AppError("Acesso negado")` | Server Actions de `painel/*` (escrita) |
+| `requererAcessoPainelOuRedirecionar()` | Mesma regra de `requererAcessoPainel` (conta `ATIVO` + `GESTORA`/`ADMIN`) | `redirect("/")`, igual ao `painel/layout.tsx` | **Leitura** no painel: início de toda função de `src/app/painel/**/queries.ts` e de todo `page.tsx` do painel que lê dados |
+
+Todas devolvem a `session` quando liberam (útil para pegar `session.user.id`), e nunca retornam um booleano silencioso. As variantes que lançam `AppError` são as certas dentro de `executarAction`, porque a mensagem chega ao formulário; a variante que redireciona é a certa durante a renderização de um Server Component, onde lançar erro mostraria a tela de erro em vez de levar a pessoa de volta para `/`.
+
+Telas do painel cobertas pela variante de leitura (page e queries):
+
+| Rota | `page.tsx` | Funções de `queries.ts` |
+| --- | --- | --- |
+| `/painel/aprovacoes` | sim | `listarPendentes`, `listarComprovacoesPendentes` |
+| `/painel/membros` | sim | `listarMembros`, `contarAdminsGestorasAtivos` |
+| `/painel/membros/[membroId]` | sim | `obterMembro`, `obterCicloAtivo`, `listarHistoricoCiclos` |
+| `/painel/vinculos` | sim | `listarVinculos`, `listarClientesEParcerias` |
+| `/painel/desafios` | sim | `listarDesafios` |
+| `/painel/desafios/[desafioId]` | sim | `obterDesafioComCategorias` |
+| `/painel/desafios/emblemas` | sim | `listarEmblemas` |
+| `/painel/pacotes` | sim | `listarTiposSessao`, `listarTiposPacote` |
+
+```mermaid
+flowchart LR
+    Req[Request /painel/...] --> MW[middleware.ts<br/>status + consentimento]
+    MW --> L[painel/layout.tsx<br/>podeAcessarPainel → redirect /]
+    L --> P[page.tsx<br/>requererAcessoPainelOuRedirecionar]
+    P --> Q[queries.ts<br/>requererAcessoPainelOuRedirecionar]
+    Q --> DB[(Postgres)]
+    Form[Formulário client] --> A[actions.ts<br/>executarAction + requererAcessoPainel]
+    A --> DB
+```
+
+**Fluxos que ficam fora desses gates de propósito.** As telas do funil de entrada servem justamente a contas que ainda não estão `ATIVO` (ou que estão `ATIVO` mas sem consentimento), então não chamam `requererSessao`/`requererPapel`:
+
+| Fluxo | Como acessa a sessão | Arquivo |
+| --- | --- | --- |
+| Aceitar o termo (`aceitarTermo`) | `auth()` direto, só confere `session.user.id` | `src/app/bem-vinda/actions.ts` |
+| Polling da tela de espera | `useSession()` + `update()` no client, a cada 12s | `src/app/aguardando-aprovacao/page.tsx` |
+| Tela de conta suspensa | Página informativa, sem gate de papel | `src/app/conta-suspensa/page.tsx` |
+| Sair (`sair`) | `signOut()` direto, sem exigir sessão ativa | `src/lib/auth/actions.ts` |
+
+Ao criar uma nova action ou query para esse funil, siga o mesmo formato (sem gate estrito); para qualquer outro dado, use o gate da tabela acima. Há testes cobrindo os dois lados: `src/lib/auth/requerer-acesso-painel.test.ts` (negação de `PENDENTE`/`SUSPENSO`), `src/app/painel/acesso-leituras.test.ts` e `src/app/painel/acesso-paginas.test.tsx` (todas as queries/pages do painel chamam o gate), `src/app/bem-vinda/actions.test.ts` e `src/lib/auth/actions.test.ts` (o funil continua funcionando para conta não ativa).
+
+### Nome exibido para outra usuária (`nomeParaExibicao`)
+
+**Em linguagem simples:** quando uma pessoa aparece na tela de **outra** pessoa (no ranking, na lista de parcerias, no nome do plano recebido), o app mostra o nome dela. Se ela não tiver nome cadastrado, aparece "Membra da comunidade", nunca o e-mail.
+
+**Detalhe técnico.** `src/lib/nome-exibicao.ts` exporta `NOME_FALLBACK_MEMBRA = "Membra da comunidade"` e `nomeParaExibicao(nome)`, que devolve o próprio nome quando ele tem algum caractere não vazio (`nome?.trim()`) e o fallback caso contrário (inclusive `null`, `undefined` e string só com espaços). As queries dessas telas também deixaram de selecionar `email`, então o dado nem chega ao componente.
+
+| Tela | Quem vê quem | Onde o nome é montado |
+| --- | --- | --- |
+| Ranking de desafios (`/cliente/desafios`) | Cliente vê outras clientes | `calcularRanking` em `src/app/cliente/desafios/queries.ts` |
+| `/cliente/parcerias` | Cliente vê a parceria | `listarParceriasVinculadas` em `src/app/cliente/parcerias/queries.ts` |
+| `/cliente/planos` | Cliente vê quem enviou o plano | `src/app/cliente/planos/page.tsx` |
+| `/parceria/medidas` e `/parceria/medidas/[clienteId]` | Parceria vê a cliente | `src/app/parceria/medidas/page.tsx`, `src/app/parceria/medidas/[clienteId]/page.tsx` |
+| `/parceria/planos` (lista e `<select>` de envio) | Parceria vê a cliente | `src/app/parceria/planos/page.tsx`, `formulario-envio.tsx` |
+
+As telas do **painel** (gestora/admin) continuam usando `name ?? email`, porque a gestão precisa identificar cada conta, inclusive as que ainda não têm nome. Ao criar uma nova tela em que uma usuária vê outra, use `nomeParaExibicao` e não selecione `email` na query.
 
 ### Padrão "um ativo por vez"
 

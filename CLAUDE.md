@@ -102,11 +102,17 @@ Hook client-side usado por quase todo formulário/botão que chama uma Server Ac
 - `requererPapel(["CLIENTE"])` / `requererPapel(["GESTORA", "ADMIN"])` — exige que a sessão tenha pelo menos um dos papéis informados.
 - `requererAcessoPainel()` — atalho para `requererPapel(["GESTORA", "ADMIN"])`, usado em quase toda action de `painel/*`.
 - `requererAcessoPainelOuRedirecionar()` — mesma regra, mas redireciona para `/` em vez de lançar; é a variante para **leitura** (queries e `page.tsx` do painel).
-- Essas funções (em `src/lib/auth/requerer-acesso-painel.ts`) são para uso **dentro de Server Actions e queries** (lançam erro). As funções booleanas equivalentes para uso em **Server Components/layouts** (que redirecionam em vez de lançar) ficam em `src/lib/auth/pode-acessar-painel.ts`: `podeAcessarPainel`, `podeAcessarAreaCliente`, `podeAcessarAreaParceria`, `podeAcessarDesafiosCliente`.
+- Essas funções (em `src/lib/auth/requerer-acesso-painel.ts`) são para uso **dentro de Server Actions, queries e pages** (as três primeiras lançam erro; a `OuRedirecionar` redireciona). As funções booleanas equivalentes para uso em **Server Components/layouts** (que redirecionam em vez de lançar) ficam em `src/lib/auth/pode-acessar-painel.ts`: `podeAcessarPainel`, `podeAcessarAreaCliente`, `podeAcessarAreaParceria`, `podeAcessarDesafiosCliente`.
 
 ### Autorização perto dos dados
 
 Toda query, page e action que lê ou altera dado protegido chama o gate correspondente no início. Layout e middleware não são barreira de segurança.
+
+Exceção deliberada: o funil de entrada atende contas que ainda não estão `ATIVO`, então `aceitarTermo` (`/bem-vinda`, usa `auth()` direto), o polling de `/aguardando-aprovacao` (`useSession`), `/conta-suspensa` e `sair()` não passam por esses gates. Tabelas de quem usa cada gate em `docs/architecture.md` ("Gates de acesso").
+
+### Nome exibido para outra usuária (`src/lib/nome-exibicao.ts`)
+
+Quando uma usuária aparece na tela de outra (ranking de desafios, `cliente/parcerias`, `cliente/planos`, `parceria/medidas`, `parceria/planos`), use `nomeParaExibicao(nome)`, que cai para `"Membra da comunidade"` quando não há nome, e não selecione `email` na query. Só as telas do painel mostram `name ?? email`. Detalhes em `docs/architecture.md`.
 
 ### Padrão "um ativo por vez"
 

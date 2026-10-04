@@ -49,6 +49,8 @@ Ver [`../database.md`](../database.md#desafios--ver-docsfeaturesdesafiosmd) para
 | `marcarAvisoEncerramentoVisto` | Marca que a cliente já viu o card de "o desafio terminou" | `requererPapel(["CLIENTE"])` | `JornadaDesafio` |
 | `GET /cliente/desafios/poster` | Gera um PNG (via `next/og`) com fotos antes/depois, emblemas conquistados e reflexão do **último desafio encerrado** da cliente logada | Sessão via `auth()` (401 se ausente) | leitura de `Desafio`, `JornadaDesafio`, `Conquista` |
 
+**Leituras do painel.** `/painel/desafios`, `/painel/desafios/[desafioId]`, `/painel/desafios/emblemas` e `/painel/aprovacoes` chamam `requererAcessoPainelOuRedirecionar()` no início do `page.tsx` e de cada função de leitura (`listarDesafios`, `obterDesafioComCategorias`, `listarEmblemas`, `listarPendentes`, `listarComprovacoesPendentes`): conta não `ATIVO` ou sem papel `GESTORA`/`ADMIN` é redirecionada para `/` antes de qualquer consulta. Ver [`docs/architecture.md`](../architecture.md#gates-de-acesso).
+
 ## Fluxos principais
 
 ### Ciclo de vida completo de uma edição
@@ -92,6 +94,7 @@ Não existe um estado "rejeitada" persistido — rejeitar sempre apaga o registr
 - **Ranking semanal**: filtra `MarcacaoItem.data` na janela da semana atual (calculada a partir de `Desafio.dataInicio`, semanas de 7 dias corridos desde o início — não desde domingo). Desafios surpresa **não entram no ranking semanal** — o comentário no próprio código (`queries.ts:43-44`) admite que "desafios surpresa não têm data/semana própria no schema", então só contam para o ranking geral.
 - **Ranking geral**: soma tudo, sem filtro de data.
 - Cada linha do ranking busca a foto de perfil da cliente via `gerarUrlAssinadaPerfil` (alias de `gerarUrlAssinadaCacheavel` de `src/lib/storage/perfil.ts`, URL estável durante a hora cheia; ver [`docs/architecture.md`](../architecture.md#dois-tipos-de-url-assinada-efêmera-vs-cacheável)), com fallback pra `User.image` (foto do Google) — uma chamada de assinatura de URL por cliente distinta no ranking, dentro de um `Promise.all`.
+- O nome de cada linha do ranking vem de `nomeParaExibicao(cliente.name)` (`src/lib/nome-exibicao.ts`): sem nome cadastrado, aparece `"Membra da comunidade"`. A seleção de cliente em `calcularRanking` (`selecaoCliente`) traz só `id`, `name`, `image` e `perfil.fotoChave` — o ranking é visto por outras clientes, então o e-mail não é lido. Ver [`docs/architecture.md`](../architecture.md#nome-exibido-para-outra-usuária-nomeparaexibicao).
 
 ### Bônus e emblemas
 

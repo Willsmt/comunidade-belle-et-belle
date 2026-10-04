@@ -31,7 +31,7 @@ Ver [`docs/database.md`](../database.md#medidas--ver-docsfeaturesmedidasmd).
 | `criarRegistroMedida` | Cria um novo registro | `requererPapel(["CLIENTE"])` | `RegistroMedida` |
 | `editarRegistroMedida` | Edita um registro, confirmando que pertence ao próprio cliente | `requererPapel(["CLIENTE"])` | `RegistroMedida` |
 | `excluirRegistroMedida` | Apaga um registro, confirmando dono | `requererPapel(["CLIENTE"])` | `RegistroMedida` |
-| `GET /parceria/medidas` | Lista clientes com vínculo ativo | Sessão autenticada (reaproveita `listarClientesVinculadas` de `parceria/planos/queries.ts`) | `VinculoParceria` |
+| `GET /parceria/medidas` | Lista clientes com vínculo ativo, pelo nome (`nomeParaExibicao`) | Sessão autenticada (reaproveita `listarClientesVinculadas` de `parceria/planos/queries.ts`, que seleciona só `id` e `name` da cliente) | `VinculoParceria` |
 | `GET /parceria/medidas/[clienteId]` | Vê medidas de uma cliente específica, só leitura | `requererPapel(["PARCERIA"])` + `VinculoParceria.ativo = true` para aquele par | `VinculoParceria`, `RegistroMedida`, `User` |
 
 ## Fluxo: registro de medidas
@@ -60,6 +60,8 @@ sequenceDiagram
 ```
 
 A tela é estritamente somente-leitura — não há nenhuma action de escrita disponível para a parceria sobre as medidas de uma cliente.
+
+O título da tela (`Medidas — <nome>`) usa `nomeParaExibicao(cliente.name)` (`src/lib/nome-exibicao.ts`): sem nome cadastrado, aparece `"Membra da comunidade"`. `obterMedidasDaCliente` busca da cliente só `id` e `name`, nunca o e-mail. Ver [`docs/architecture.md`](../architecture.md#nome-exibido-para-outra-usuária-nomeparaexibicao).
 
 ## Pegadinha: cor da legenda do gráfico (ativo/inativo)
 
